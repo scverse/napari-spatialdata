@@ -83,3 +83,15 @@ venv/
 # written by setuptools_scm
 **/_version.py
 
+# docs
+docs/source/api/*rst
+docs/source/classes/*rst
+docs/source/auto_*
+docs/source/gen_modules
+docs/source/external_tutorials
+
+# Vim .swp
+*.swp
+
+# vscode
+.vscode
