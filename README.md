@@ -1,10 +1,10 @@
 # napari-spatial-anndata
 
-[![License](https://img.shields.io/pypi/l/napari-spatial-anndata.svg?color=green)](https://github.com/giovp/napari-spatial-anndata/raw/main/LICENSE)
+[![License](https://img.shields.io/pypi/l/napari-spatial-anndata.svg?color=green)](https://github.com/scverse/napari-spatial-anndata/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/napari-spatial-anndata.svg?color=green)](https://pypi.org/project/napari-spatial-anndata)
 [![Python Version](https://img.shields.io/pypi/pyversions/napari-spatial-anndata.svg?color=green)](https://python.org)
-[![tests](https://github.com/giovp/napari-spatial-anndata/workflows/tests/badge.svg)](https://github.com/giovp/napari-spatial-anndata/actions)
-[![codecov](https://codecov.io/gh/giovp/napari-spatial-anndata/branch/main/graph/badge.svg)](https://codecov.io/gh/giovp/napari-spatial-anndata)
+[![tests](https://github.com/scverse/napari-spatial-anndata/workflows/tests/badge.svg)](https://github.com/scverse/napari-spatial-anndata/actions)
+[![codecov](https://codecov.io/gh/giovp/napari-spatial-anndata/branch/main/graph/badge.svg)](https://codecov.io/gh/scverse/napari-spatial-anndata)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatial-anndata)](https://napari-hub.org/plugins/napari-spatial-anndata)
 
 Interactive visualization of spatial omics data with napari
