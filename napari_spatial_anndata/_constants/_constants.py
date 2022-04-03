@@ -5,6 +5,6 @@ from napari_spatial_anndata._constants._utils import ModeEnum
 
 
 @unique
-class Symbol(ModeEnum, str):
+class Symbol(str, ModeEnum):
     DISC = "disc"
     SQUARE = "square"

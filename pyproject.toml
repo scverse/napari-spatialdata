@@ -2,10 +2,6 @@
 requires = ["setuptools", "wheel", "setuptools_scm"]
 build-backend = "setuptools.build_meta"
 
-
-[tool.setuptools_scm]
-write_to = "src/napari_spatial_anndata/_version.py"
-
 [tool.black]
 line-length = 120
 target-version = ['py38']

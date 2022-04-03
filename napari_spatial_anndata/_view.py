@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 from scanpy import logging as logg
@@ -17,6 +19,8 @@ from napari_spatial_anndata._widgets import (
 
 __all__ = ["ImageView"]
 
+ImageController_ = Any
+
 
 class ImageView:
     """
@@ -30,7 +34,7 @@ class ImageView:
         Controller for this view.
     """
 
-    def __init__(self, model: ImageModel, controller: ImageController):  # type: ignore[name-defined] # noqa: F821
+    def __init__(self, model: ImageModel, controller: ImageController_):
         self._model = model
         self._controller = controller
 
@@ -57,7 +61,7 @@ class ImageView:
         image_lab.setToolTip("Keys in `ImageContainer` containing the image data.")
         image_widget = LibraryListWidget(self.controller, multiselect=False, unique=True)
         image_widget.setMaximumHeight(100)
-        image_widget.addItems(tuple(self.model.container))  # type: ignore
+        image_widget.addItems(tuple(self.model.container))
         image_widget.setCurrentItem(image_widget.item(0))
 
         # gene
@@ -177,6 +181,6 @@ class ImageView:
         return self._model
 
     @property
-    def controller(self) -> ImageController:  # type: ignore[name-defined] # noqa: F821
+    def controller(self) -> ImageController_:
         """Controller for this view."""  # noqa: D401
         return self._controller

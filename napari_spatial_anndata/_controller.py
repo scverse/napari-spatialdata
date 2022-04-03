@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Union, Optional, TYPE_CHECKING
 from pathlib import Path
 from functools import singledispatchmethod

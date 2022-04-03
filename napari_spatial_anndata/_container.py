@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 from copy import copy, deepcopy
-from typing import Any, Union, Mapping, Optional, Sequence
+from types import MappingProxyType
+from typing import Any, Union, Mapping, Iterable, Iterator, Optional, Sequence
 from pathlib import Path
 
 import xarray as xr
@@ -46,7 +49,7 @@ class Container:
         self._data.attrs[Key.img.scale] = scale
 
     @classmethod
-    def _from_dataset(cls, data: xr.Dataset, deep: bool | None = None) -> "Container":
+    def _from_dataset(cls, data: xr.Dataset, deep: Optional[bool] = None) -> Container:
         """
         Utility function used for initialization.
 
@@ -118,7 +121,7 @@ class Container:
         """Image shape ``(y, x)``."""
         return self.data.dims["y"], self.data.dims["x"]
 
-    def copy(self, deep: bool = False) -> "Container":
+    def copy(self, deep: bool = False) -> Container:
         """
         Return a copy of self.
 
@@ -132,3 +135,53 @@ class Container:
         Copy of self.
         """
         return deepcopy(self) if deep else copy(self)
+
+    def __delitem__(self, key: str) -> None:
+        del self.data[key]
+
+    def __iter__(self) -> Iterator[str]:
+        yield from self.data.keys()
+
+    def __len__(self) -> int:
+        return len(self.data)
+
+    def __getitem__(self, key: str) -> xr.DataArray:
+        return self.data[key]
+
+    def _ipython_key_completions_(self) -> Iterable[str]:
+        return sorted(map(str, self.data.keys()))
+
+    def __copy__(self) -> Container:
+        return type(self)._from_dataset(self.data, deep=False)
+
+    def __deepcopy__(self, memodict: Mapping[str, Any] = MappingProxyType({})) -> Container:
+        return type(self)._from_dataset(self.data, deep=True)
+
+    def _repr_html_(self) -> str:
+        import html
+
+        if not len(self):
+            return f"{self.__class__.__name__} object with 0 layers"
+
+        inflection = "" if len(self) <= 1 else "s"
+        s = f"{self.__class__.__name__} object with {len(self.data.keys())} layer{inflection}:"
+        style = "text-indent: 25px; margin-top: 0px; margin-bottom: 0px;"
+
+        for i, layer in enumerate(self.data.keys()):
+            s += f"<p style={style!r}><strong>{html.escape(str(layer))}</strong>: "
+            s += ", ".join(
+                f"<em>{html.escape(str(dim))}</em> ({shape})"
+                for dim, shape in zip(self.data[layer].dims, self.data[layer].shape)
+            )
+            s += "</p>"
+            if i == 9 and i < len(self) - 1:  # show only first 10 layers
+                s += f"<p style={style!r}>and {len(self) - i  - 1} more...</p>"
+                break
+
+        return s
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}[shape={self.shape}, layers={sorted(self.data.keys())}]"
+
+    def __str__(self) -> str:
+        return repr(self)

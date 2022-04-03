@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any, Optional
 
 from scanpy import logging as logg
@@ -13,7 +15,6 @@ except ImportError as e:
     _error: Optional[str] = str(e)
 else:
     _error = None
-
 
 __all__ = ["Interactive"]
 
@@ -34,7 +35,7 @@ class Interactive:
 
         self._controller = ImageController(adata, img, **kwargs)
 
-    def show(self, restore: bool = False) -> "Interactive":
+    def show(self, restore: bool = False) -> Interactive:
         """
         Launch the :class:`napari.Viewer`.
 
@@ -53,11 +54,11 @@ class Interactive:
     def screenshot(
         self,
         return_result: bool = False,
-        dpi: float | None = 180,
-        save: str | None = None,
+        dpi: Optional[float] = 180,
+        save: Optional[str] = None,
         canvas_only: bool = True,
         **kwargs: Any,
-    ) -> NDArrayA | None:
+    ) -> Optional[NDArrayA]:
         """
         Plot a screenshot of the viewer's canvas.
 
