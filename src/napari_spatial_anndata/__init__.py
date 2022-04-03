@@ -1,11 +1,22 @@
+from src.napari_spatial_anndata._reader import napari_get_reader
+from src.napari_spatial_anndata._widget import ExampleQWidget, example_magic_widget
+from src.napari_spatial_anndata._writer import write_multiple, write_single_image
+from src.napari_spatial_anndata.interactive import Interactive
+from src.napari_spatial_anndata._sample_data import make_sample_data
+
+__version__ = "0.0.0"
 
 try:
-    from ._version import version as __version__
+    from importlib_metadata import version  # Python < 3.8
 except ImportError:
-    __version__ = "unknown"
+    from importlib.metadata import version  # Python = 3.8
 
+from packaging.version import parse
 
-from ._reader import napari_get_reader
-from ._writer import write_single_image, write_multiple 
-from ._sample_data import make_sample_data 
-from ._widget import ExampleQWidget, example_magic_widget
+try:
+    __full_version__ = parse(version(__name__))
+    __full_version__ = f"{__version__}+{__full_version__.local}" if __full_version__.local else __version__
+except ImportError:
+    __full_version__ = __version__
+
+del version, parse
