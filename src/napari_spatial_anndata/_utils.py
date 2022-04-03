@@ -9,15 +9,18 @@ from typing import (
     Sequence,
     TYPE_CHECKING,
 )
+from pathlib import Path
 from functools import wraps
+import os
 
 from numba import njit
-from scanpy import logging as logg
+from scanpy import logging as logg, settings
 from anndata import AnnData
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from pandas.api.types import infer_dtype, is_categorical_dtype
 from matplotlib.colors import to_hex, to_rgb
+from matplotlib.figure import Figure
 from scanpy.plotting._utils import add_colors_for_categorical_sample_annotation
 from pandas.core.dtypes.common import (
     is_bool_dtype,
@@ -98,6 +101,50 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
         return (_min_max_norm(res) if normalize else res), fmt
 
     return decorator
+
+
+def save_fig(fig: Figure, path: Union[str, Path], make_dir: bool = True, ext: str = "png", **kwargs: Any) -> None:
+    """
+    Save a figure.
+
+    Parameters
+    ----------
+    fig
+        Figure to save.
+    path
+        Path where to save the figure. If path is relative, save it under :attr:`scanpy.settings.figdir`.
+    make_dir
+        Whether to try making the directory if it does not exist.
+    ext
+        Extension to use if none is provided.
+    kwargs
+        Keyword arguments for :meth:`matplotlib.figure.Figure.savefig`.
+
+    Returns
+    -------
+    None
+        Just saves the plot.
+    """
+    if os.path.splitext(path)[1] == "":
+        path = f"{path}.{ext}"
+
+    path = Path(path)
+
+    if not path.is_absolute():
+        path = Path(settings.figdir) / path
+
+    if make_dir:
+        try:
+            os.makedirs(str(Path.parent), exist_ok=True)
+        except OSError as e:
+            logg.debug(f"Unable to create directory `{Path.parent}`. Reason: `{e}`")
+
+    logg.debug(f"Saving figure to `{path!r}`")
+
+    kwargs.setdefault("bbox_inches", "tight")
+    kwargs.setdefault("transparent", True)
+
+    fig.savefig(path, **kwargs)
 
 
 def _get_categorical(
