@@ -7,7 +7,8 @@ see: https://napari.org/plugins/stable/guides.html#writers
 Replace code below according to your needs.
 """
 from __future__ import annotations
-from typing import TYPE_CHECKING, List, Any, Sequence, Tuple, Union
+
+from typing import Any, List, Tuple, Union, Sequence, TYPE_CHECKING
 
 if TYPE_CHECKING:
     DataType = Union[Any, Sequence[Any]]
@@ -16,9 +17,7 @@ if TYPE_CHECKING:
 
 def write_single_image(path: str, data: Any, meta: dict):
     """Writes a single image layer"""
-    pass
 
 
 def write_multiple(path: str, data: List[FullLayerData]):
     """Writes multiple layers of different types."""
-    pass

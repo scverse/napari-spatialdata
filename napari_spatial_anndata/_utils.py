@@ -13,7 +13,7 @@ from pathlib import Path
 from functools import wraps
 import os
 
-from numba import njit
+from numba import njit, prange
 from scanpy import logging as logg, settings
 from anndata import AnnData
 from scipy.sparse import issparse, spmatrix
@@ -33,7 +33,7 @@ import numpy as np
 import pandas as pd
 import dask.array as da
 
-from src.napari_spatial_anndata._constants._pkg_constants import Key
+from napari_spatial_anndata._constants._pkg_constants import Key
 
 try:
     from numpy.typing import NDArray
@@ -42,23 +42,6 @@ try:
 except (ImportError, TypeError):
     NDArray = np.ndarray  # type: ignore[misc]
     NDArrayA = np.ndarray  # type: ignore[misc]
-
-try:
-    from functools import singledispatchmethod
-except ImportError:
-    from functools import singledispatch, update_wrapper
-
-    def singledispatchmethod(func: Callable[..., Any]) -> Callable[..., Any]:  # type: ignore[no-redef]
-        """Backport of `singledispatchmethod` for < Python 3.8."""
-        dispatcher = singledispatch(func)
-
-        def wrapper(*args: Any, **kw: Any) -> Any:
-            return dispatcher.dispatch(args[1].__class__)(*args, **kw)
-
-        wrapper.register = dispatcher.register  # type: ignore[attr-defined]
-        update_wrapper(wrapper, func)
-
-        return wrapper
 
 
 Vector_name_t = Tuple[Optional[Union[pd.Series, NDArrayA]], Optional[str]]
@@ -443,3 +426,31 @@ def _unique_order_preserving(iterable: Iterable[Hashable]) -> tuple[list[Hashabl
     seen: set[Hashable] = set()
     seen_add = seen.add
     return [i for i in iterable if not (i in seen or seen_add(i))], seen
+
+
+@njit(cache=True, fastmath=True)
+def _point_inside_triangles(triangles: NDArrayA) -> np.bool_:
+    # modified from napari
+    AB = triangles[:, 1, :] - triangles[:, 0, :]
+    AC = triangles[:, 2, :] - triangles[:, 0, :]
+    BC = triangles[:, 2, :] - triangles[:, 1, :]
+
+    s_AB = -AB[:, 0] * triangles[:, 0, 1] + AB[:, 1] * triangles[:, 0, 0] >= 0
+    s_AC = -AC[:, 0] * triangles[:, 0, 1] + AC[:, 1] * triangles[:, 0, 0] >= 0
+    s_BC = -BC[:, 0] * triangles[:, 1, 1] + BC[:, 1] * triangles[:, 1, 0] >= 0
+
+    return np.any((s_AB != s_AC) & (s_AB == s_BC))
+
+
+@njit(parallel=True)
+def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
+    out = np.empty(
+        len(
+            points,
+        ),
+        dtype=np.bool_,
+    )
+    for i in prange(len(out)):
+        out[i] = _point_inside_triangles(triangles - points[i])
+
+    return out

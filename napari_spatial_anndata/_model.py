@@ -4,16 +4,16 @@ from dataclasses import field, dataclass
 from anndata import AnnData
 import numpy as np
 
-from src.napari_spatial_anndata._utils import (
+from napari_spatial_anndata._utils import (
     ALayer,
     NDArrayA,
     _assert_spatial_basis,
     _assert_categorical_obs,
     _unique_order_preserving,
 )
-from src.napari_spatial_anndata._constants import Symbol
-from src.napari_spatial_anndata._container import Container
-from src.napari_spatial_anndata._constants._pkg_constants import Key
+from napari_spatial_anndata._container import Container
+from napari_spatial_anndata._constants._constants import Symbol
+from napari_spatial_anndata._constants._pkg_constants import Key
 
 __all__ = ["ImageModel"]
 
@@ -35,13 +35,13 @@ class ImageModel:
     cmap: str = field(default="viridis", repr=False)
     blending: str = field(default="opaque", repr=False)
     key_added: str = "shapes"
-    symbol: Symbol = Symbol.DISC
+    symbol: Union[Symbol, str] = Symbol.DISC
 
     def __post_init__(self) -> None:
         _assert_spatial_basis(self.adata, self.spatial_key)
 
         self.symbol = Symbol(self.symbol)
-        self.adata = self.container._subset(self.adata, spatial_key=self.spatial_key, adjust_interactive=True)
+        # self.adata = self.container._subset(self.adata, spatial_key=self.spatial_key, adjust_interactive=True)
         if not self.adata.n_obs:
             raise ValueError("No spots were selected. Please ensure that the image contains at least 1 spot.")
         self.coordinates = self.adata.obsm[self.spatial_key][:, ::-1][:, :2].copy()
@@ -85,9 +85,9 @@ class ImageModel:
             self.library_id = self.adata.obs[self.library_key].cat.categories
         elif isinstance(self.library_id, str):
             self.library_id = [self.library_id]
-        self.library_id, _ = _unique_order_preserving(self.library_id)
+        self.library_id, _ = _unique_order_preserving(self.library_id)  # type: ignore
 
-        if not len(self.library_id):  # type: ignore
+        if not len(self.library_id):
             raise ValueError("No library ids have been selected.")
         # invalid library ids from adata are filtered below
         # invalid library ids from container raise KeyError in __post_init__

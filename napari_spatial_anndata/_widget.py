@@ -6,8 +6,9 @@ see: https://napari.org/plugins/stable/guides.html#widgets
 
 Replace code below according to your needs.
 """
-from qtpy.QtWidgets import QWidget, QHBoxLayout, QPushButton
 from magicgui import magic_factory
+from qtpy.QtWidgets import QWidget, QHBoxLayout, QPushButton
+import napari
 
 
 class ExampleQWidget(QWidget):

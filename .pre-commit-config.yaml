@@ -11,7 +11,7 @@ repos:
     hooks:
     -   id: mypy
         additional_dependencies: [numpy==1.21.0, scipy, pandas, types-requests]
-        exclude: src/napari_spatial_anndata/_(writer|reader|widget|sample_data).py
+        exclude: napari_spatial_anndata/_(writer|reader|widget|sample_data).py
 -   repo: https://github.com/psf/black
     rev: 22.1.0
     hooks:

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import Any
 
 from scanpy import logging as logg
@@ -8,8 +6,8 @@ from PyQt5.QtWidgets import QLabel, QWidget, QComboBox, QHBoxLayout
 import numpy as np
 import napari
 
-from src.napari_spatial_anndata._model import ImageModel
-from src.napari_spatial_anndata._widgets import (
+from napari_spatial_anndata._model import ImageModel
+from napari_spatial_anndata._widgets import (
     CBarWidget,
     AListWidget,
     ObsmIndexWidget,
@@ -59,7 +57,7 @@ class ImageView:
         image_lab.setToolTip("Keys in `ImageContainer` containing the image data.")
         image_widget = LibraryListWidget(self.controller, multiselect=False, unique=True)
         image_widget.setMaximumHeight(100)
-        image_widget.addItems(tuple(self.model.container))
+        image_widget.addItems(tuple(self.model.container))  # type: ignore
         image_widget.setCurrentItem(image_widget.item(0))
 
         # gene

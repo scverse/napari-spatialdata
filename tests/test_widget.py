@@ -1,5 +1,7 @@
-from napari_spatial_anndata import ExampleQWidget, example_magic_widget
 import numpy as np
+
+from napari_spatial_anndata import ExampleQWidget, example_magic_widget
+
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
 # capsys is a pytest fixture that captures stdout and stderr output streams
@@ -17,7 +19,8 @@ def test_example_q_widget(make_napari_viewer, capsys):
     # read captured output and check that it's as we expected
     captured = capsys.readouterr()
     assert captured.out == "napari has 1 layers\n"
-    
+
+
 def test_example_magic_widget(make_napari_viewer, capsys):
     viewer = make_napari_viewer()
     layer = viewer.add_image(np.random.random((100, 100)))

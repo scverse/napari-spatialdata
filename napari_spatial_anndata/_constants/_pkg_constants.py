@@ -62,6 +62,10 @@ class Key:
             return f"{Key.obsm.spatial}_neighbors" if value is None else f"{value}_neighbors"
 
         @classmethod
+        def colors(cls, cluster: str) -> str:
+            return f"{cluster}_colors"
+
+        @classmethod
         def spot_diameter(cls, adata: AnnData, spatial_key: str, library_id: Optional[str] = None) -> float:
             try:
                 return float(adata.uns[spatial_key][library_id]["scalefactors"]["spot_diameter_fullres"])

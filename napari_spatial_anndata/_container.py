@@ -1,11 +1,11 @@
 from copy import copy, deepcopy
-from typing import Any, Union, Optional
+from typing import Any, Union, Mapping, Optional, Sequence
 from pathlib import Path
 
 import xarray as xr
 
-from src.napari_spatial_anndata._utils import NDArrayA
-from src.napari_spatial_anndata._constants._pkg_constants import Key
+from napari_spatial_anndata._utils import NDArrayA
+from napari_spatial_anndata._constants._pkg_constants import Key
 
 Pathlike_t = Union[str, Path]
 Arraylike_t = Union[NDArrayA, xr.DataArray]
@@ -86,6 +86,27 @@ class Container:
             self.data.to_zarr(str(path), mode="w", **kwargs, **kwargs)
         finally:
             self.data.attrs = attrs
+
+    @property
+    def library_ids(self) -> list[str]:
+        """Library ids."""
+        try:
+            return list(map(str, self.data.coords["z"].values))
+        except KeyError:
+            return []
+
+    @library_ids.setter
+    def library_ids(self, library_ids: Union[str, Sequence[str], Mapping[str, str]]) -> None:
+        """Set library ids."""
+        if isinstance(library_ids, Mapping):
+            library_ids = [str(library_ids.get(lid, lid)) for lid in self.library_ids]
+        elif isinstance(library_ids, str):
+            library_ids = (library_ids,)
+
+        library_ids = list(map(str, library_ids))
+        if len(set(library_ids)) != len(library_ids):
+            raise ValueError(f"Remapped library ids must be unique, found `{library_ids}`.")
+        self._data = self.data.assign_coords({"z": library_ids})
 
     @property
     def data(self) -> xr.Dataset:

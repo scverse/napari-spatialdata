@@ -12,7 +12,7 @@ from vispy.color.colormap import Colormap, MatplotlibColormap
 import numpy as np
 import pandas as pd
 
-from src.napari_spatial_anndata._utils import ALayer
+from napari_spatial_anndata._utils import ALayer
 
 __all__ = ["TwoStateCheckBox", "AListWidget", "CBarWidget", "RangeSlider", "ObsmIndexWidget", "LibraryListWidget"]
 
@@ -147,7 +147,7 @@ class AListWidget(ListWidget):
         self.rawChanged.emit()
 
     def getRaw(self) -> bool:
-        return self._alayer.raw  # type: ignore
+        return self._alayer.raw
 
     def setIndex(self, index: Union[int, str]) -> None:
         if isinstance(index, str):
@@ -176,7 +176,7 @@ class AListWidget(ListWidget):
         self.layerChanged.emit()
 
     def getLayer(self) -> Optional[str]:
-        return self._alayer.layer  # type: ignore
+        return self._alayer.layer
 
     def setLibraryId(self, library_id: str) -> None:
         if library_id == self.getLibraryId():
@@ -186,7 +186,7 @@ class AListWidget(ListWidget):
         self.libraryChanged.emit()
 
     def getLibraryId(self) -> str:
-        return self._alayer.library_id  # type: ignore
+        return self._alayer.library_id
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):

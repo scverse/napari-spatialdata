@@ -1,19 +1,16 @@
-from __future__ import annotations
-
-from typing import Union  # noqa: F401
-from typing import Any
+from typing import Any, Optional
 
 from scanpy import logging as logg
 from anndata import AnnData
 import matplotlib.pyplot as plt
 
-from src.napari_spatial_anndata._utils import NDArrayA, save_fig
-from src.napari_spatial_anndata._container import Container
+from napari_spatial_anndata._utils import NDArrayA, save_fig
+from napari_spatial_anndata._container import Container
 
 try:
-    from squidpy.pl._interactive._controller import ImageController
+    from napari_spatial_anndata._controller import ImageController
 except ImportError as e:
-    _error: str | None = str(e)
+    _error: Optional[str] = str(e)
 else:
     _error = None
 
@@ -37,7 +34,7 @@ class Interactive:
 
         self._controller = ImageController(adata, img, **kwargs)
 
-    def show(self, restore: bool = False) -> Interactive:
+    def show(self, restore: bool = False) -> "Interactive":
         """
         Launch the :class:`napari.Viewer`.
 

@@ -1,5 +1,6 @@
 from typing import Any, Union, Optional, TYPE_CHECKING
 from pathlib import Path
+from functools import singledispatchmethod
 
 from napari import Viewer
 from scanpy import logging as logg
@@ -11,18 +12,17 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from src.napari_spatial_anndata._view import ImageView
-from src.napari_spatial_anndata._model import ImageModel
-from src.napari_spatial_anndata._utils import (
+from napari_spatial_anndata._view import ImageView
+from napari_spatial_anndata._model import ImageModel
+from napari_spatial_anndata._utils import (
     NDArrayA,
     _get_categorical,
     _display_channelwise,
-    singledispatchmethod,
     _points_inside_triangles,
     _position_cluster_labels,
 )
-from src.napari_spatial_anndata._widgets import RangeSlider
-from src.napari_spatial_anndata._container import Container
+from napari_spatial_anndata._widgets import RangeSlider
+from napari_spatial_anndata._container import Container
 
 __all__ = ["ImageController"]
 
@@ -174,7 +174,7 @@ class ImageController:
             blending=self.model.blending,
             face_colormap=self.model.cmap,
             edge_colormap=self.model.cmap,
-            symbol=self.model.symbol.v,
+            symbol=self.model.symbol,
             **properties,
         )
         # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
