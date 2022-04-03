@@ -5,6 +5,8 @@ from pathlib import Path
 import xarray as xr
 import numpy.typing as npt
 
+from src.napari_spatial_anndata._constants._pkg_constants import Key
+
 Pathlike_t = Union[str, Path]
 Arraylike_t = Union[npt.ArrayLike, xr.DataArray]
 Input_t = Union[Pathlike_t, Arraylike_t, "Container"]
@@ -41,7 +43,28 @@ class Container:
         **kwargs: Any,
     ):
         self._data: xr.Dataset = xr.Dataset()
-        self._data.attrs["scale"] = scale
+        self._data.attrs[Key.img.scale] = scale
+
+    @classmethod
+    def _from_dataset(cls, data: xr.Dataset, deep: bool | None = None) -> "Container":
+        """
+        Utility function used for initialization.
+
+        Parameters
+        ----------
+        data
+            The :class:`xarray.Dataset` to use.
+        deep
+            If `None`, don't copy the ``data``. If `True`, make a deep copy of the data, otherwise, make a shallow copy.
+
+        Returns
+        -------
+        The newly created container.
+        """  # noqa: D401
+        res = cls()
+        res._data = data if deep is None else data.copy(deep=deep)
+        res._data.attrs.setdefault(Key.img.scale, 1.0)
+        return res
 
     def save(self, path: Pathlike_t, **kwargs: Any) -> None:
         """
