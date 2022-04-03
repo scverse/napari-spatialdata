@@ -3,12 +3,12 @@ from typing import Any, Union, Optional
 from pathlib import Path
 
 import xarray as xr
-import numpy.typing as npt
 
+from src.napari_spatial_anndata._utils import NDArrayA
 from src.napari_spatial_anndata._constants._pkg_constants import Key
 
 Pathlike_t = Union[str, Path]
-Arraylike_t = Union[npt.ArrayLike, xr.DataArray]
+Arraylike_t = Union[NDArrayA, xr.DataArray]
 Input_t = Union[Pathlike_t, Arraylike_t, "Container"]
 
 

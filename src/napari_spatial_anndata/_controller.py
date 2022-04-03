@@ -10,11 +10,11 @@ from pandas.core.dtypes.common import is_categorical_dtype
 import numpy as np
 import pandas as pd
 import xarray as xr
-import numpy.typing as npt
 
 from src.napari_spatial_anndata._view import ImageView
 from src.napari_spatial_anndata._model import ImageModel
 from src.napari_spatial_anndata._utils import (
+    NDArrayA,
     _get_categorical,
     _display_channelwise,
     singledispatchmethod,
@@ -142,7 +142,7 @@ class ImageController:
 
         return True
 
-    def add_points(self, vec: Union[npt.ArrayLike, pd.Series], layer_name: str, key: Optional[str] = None) -> bool:
+    def add_points(self, vec: Union[NDArrayA, pd.Series], layer_name: str, key: Optional[str] = None) -> bool:
         """
         Add a new :mod:`napari` points layer.
 
@@ -227,7 +227,7 @@ class ImageController:
         except RuntimeError:
             pass
 
-    def screenshot(self, path: Optional[Union[str, Path]] = None, canvas_only: bool = True) -> npt.ArrayLike:
+    def screenshot(self, path: Optional[Union[str, Path]] = None, canvas_only: bool = True) -> NDArrayA:
         """
         Take a screenshot of the viewer's canvas.
 
@@ -253,7 +253,7 @@ class ImageController:
         triangles = shape_list._mesh.vertices[shape_list._mesh.displayed_triangles]
 
         # TODO(michalk8): account for current Z-dim?
-        points_mask: npt.ArrayLike = _points_inside_triangles(self.model.coordinates[:, 1:], triangles)
+        points_mask: NDArrayA = _points_inside_triangles(self.model.coordinates[:, 1:], triangles)
 
         self.model.adata.obs[key] = pd.Categorical(points_mask)
         self.model.adata.uns[key] = {"meshes": layer.data.copy()}
@@ -268,11 +268,11 @@ class ImageController:
             layer.refresh_colors()
 
     @singledispatchmethod
-    def _get_points_properties(self, vec: Union[npt.ArrayLike, pd.Series], **_: Any) -> dict[str, Any]:
+    def _get_points_properties(self, vec: Union[NDArrayA, pd.Series], **_: Any) -> dict[str, Any]:
         raise NotImplementedError(type(vec))
 
     @_get_points_properties.register(np.ndarray)
-    def _(self, vec: npt.ArrayLike, **_: Any) -> dict[str, Any]:
+    def _(self, vec: NDArrayA, **_: Any) -> dict[str, Any]:
         return {
             "text": None,
             "face_color": "value",
