@@ -3,9 +3,13 @@ from typing import Callable, Optional
 from pathlib import Path
 from functools import wraps
 
+from anndata import AnnData
 from matplotlib.testing.compare import compare_images
 import pytest
+import scanpy as sc
 import matplotlib.pyplot as plt
+
+from napari_spatial_anndata._container import Container
 
 HERE: Path = Path(__file__).parent
 
@@ -14,7 +18,18 @@ ACTUAL = HERE / "figures"
 TOL = 50
 DPI = 40
 
-C_KEY_PALETTE = "leiden"
+_adata = sc.read("tests/_data/test_data.h5ad")
+_adata.raw = _adata.copy()
+
+
+@pytest.fixture()
+def napari_cont() -> Container:
+    return Container("tests/_data/test_img.jpg", layer="V1_Adult_Mouse_Brain", library_id="V1_Adult_Mouse_Brain")
+
+
+@pytest.fixture()
+def adata() -> AnnData:
+    return _adata.copy()
 
 
 class PlotTesterMeta(ABCMeta):
@@ -43,24 +58,6 @@ class PlotTester(ABC):
         res = compare_images(str(EXPECTED / f"{basename}.png"), str(out_path), tolerance)
 
         assert res is None, res
-
-
-def pytest_addoption(parser):
-    parser.addoption("--test-napari", action="store_true", help="Test interactive image view")
-
-
-def pytest_collection_modifyitems(config, items):
-    if config.getoption("--test-napari"):
-        return
-    skip_slow = pytest.mark.skip(reason="Need --test-napari option to test interactive image view")
-    for item in items:
-        if "qt" in item.keywords:
-            item.add_marker(skip_slow)
-
-
-@pytest.fixture(scope="session")
-def _test_napari(pytestconfig):
-    _ = pytestconfig.getoption("--test-napari", skip=True)
 
 
 def _decorate(fn: Callable, clsname: str, name: Optional[str] = None) -> Callable:
