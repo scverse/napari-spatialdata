@@ -17,6 +17,18 @@ class cprop:
 class Key:
     class img:
         @cprop
+        def coords(cls) -> str:
+            return "coords"
+
+        @cprop
+        def padding(cls) -> str:
+            return "padding"
+
+        @cprop
+        def mask_circle(cls) -> str:
+            return "mask_circle"
+
+        @cprop
         def scale(self) -> str:
             return "scale"
 

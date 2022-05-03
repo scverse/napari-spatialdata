@@ -2,17 +2,45 @@ from __future__ import annotations
 
 from copy import copy, deepcopy
 from types import MappingProxyType
-from typing import Any, Union, Mapping, Iterable, Iterator, Optional, Sequence
+from typing import (
+    Any,
+    Union,
+    Mapping,
+    Iterable,
+    Iterator,
+    Optional,
+    Sequence,
+    TYPE_CHECKING,
+)
 from pathlib import Path
+from functools import singledispatchmethod
 
+from scanpy import logging as logg
+from typing_extensions import Literal
+import numpy as np
 import xarray as xr
+import dask.array as da
 
+from napari_spatial_anndata._io import (
+    _lazy_load_image,
+    _infer_dimensions,
+    _assert_dims_present,
+)
 from napari_spatial_anndata._utils import NDArrayA
+from napari_spatial_anndata._coords import (
+    CropCoords,
+    CropPadding,
+    _NULL_COORDS,
+    _NULL_PADDING,
+)
+from napari_spatial_anndata._constants._constants import InferDimensions
 from napari_spatial_anndata._constants._pkg_constants import Key
 
 Pathlike_t = Union[str, Path]
 Arraylike_t = Union[NDArrayA, xr.DataArray]
 Input_t = Union[Pathlike_t, Arraylike_t, "Container"]
+Pathlike_t = Union[str, Path]
+InferDims_t = Union[Literal["default", "prefer_channels", "prefer_z"], Sequence[str]]
 
 
 class Container:
@@ -47,6 +75,215 @@ class Container:
     ):
         self._data: xr.Dataset = xr.Dataset()
         self._data.attrs[Key.img.scale] = scale
+
+        if img is not None:
+            self.add_img(img, layer=layer, **kwargs)
+            if not lazy:
+                self.compute()
+
+    @classmethod
+    def load(cls, path: Pathlike_t, lazy: bool = True, chunks: Optional[int] = None) -> Container:
+        """
+        Load data from a *Zarr* store.
+
+        Parameters
+        ----------
+        path
+            Path to *Zarr* store.
+        lazy
+            Whether to use :mod:`dask` to lazily load image.
+        chunks
+            Chunk size for :mod:`dask`. Only used when ``lazy = True``.
+
+        Returns
+        -------
+        The loaded container.
+        """
+        res = cls()
+        res.add_img(path, layer="image", chunks=chunks, lazy=True)
+
+        return res if lazy else res.compute()
+
+    def add_img(
+        self,
+        img: Input_t,
+        layer: Optional[str] = None,
+        dims: InferDims_t = InferDimensions.DEFAULT.s,
+        library_id: Optional[Union[str, Sequence[str]]] = None,
+        lazy: bool = True,
+        chunks: Optional[Union[str, tuple[int, ...]]] = None,
+        copy: bool = True,
+        **kwargs: Any,
+    ) -> None:
+        """
+        Add a new image to the container.
+
+        Parameters
+        ----------
+        img
+            In-memory 2, 3 or 4-dimensional array or a path to an on-disk image.
+        %(img_layer)s
+        dims
+            Where to save channel dimension when reading from a file or loading an array. Valid options are:
+
+                - `{id.CHANNELS_LAST.s!r}` - load the last non-spatial dimension as channels.
+                - `{id.Z_LAST.s!r}` - load the last non-spatial dimension as Z-dimension.
+                - `{id.DEFAULT.s!r}` - same as `{id.CHANNELS_LAST.s!r}`, but for 4-dimensional arrays,
+                  tries to also load the first dimension as channels if the last non-spatial dimension is 1.
+                - a sequence of dimension names matching the shape of ``img``, e.g. ``('y', 'x', 'z', 'channels')``.
+                  `'y'`, `'x'` and `'z'` must always be present.
+
+        library_id
+            Name for each Z-dimension of the image. This should correspond to the ``library_id``
+            in :attr:`anndata.AnnData.uns`.
+        lazy
+            Whether to use :mod:`dask` to lazily load image.
+        chunks
+            Chunk size for :mod:`dask`. Only used when ``lazy = True``.
+        copy
+            Whether to copy the underlying data if ``img`` is an in-memory array.
+
+        Returns
+        -------
+        Nothing, just adds a new ``layer`` to :attr:`data`.
+
+        Raises
+        ------
+        ValueError
+            If loading from a file/store with an unknown format or if a supplied channel dimension cannot be aligned.
+        NotImplementedError
+            If loading a specific data type has not been implemented.
+        """
+        layer = self._get_next_image_id("image") if layer is None else layer
+        dims: InferDimensions | Sequence[str] = (  # type: ignore[no-redef]
+            InferDimensions(dims) if isinstance(dims, str) else dims
+        )
+        res: xr.DataArray | None = self._load_img(img, chunks=chunks, layer=layer, copy=copy, dims=dims, **kwargs)
+
+        if res is not None:
+            library_id = self._get_library_ids(library_id, res, allow_new=not len(self))
+            try:
+                res = res.assign_coords({"z": library_id})
+            except ValueError as e:
+                if "conflicting sizes for dimension 'z'" not in str(e):
+                    raise
+                # at this point, we know the container is not empty
+                raise ValueError(
+                    f"Expected image to have `{len(self.library_ids)}` Z-dimension(s), found `{res.sizes['z']}`."
+                ) from None
+
+            if TYPE_CHECKING:
+                assert isinstance(res, xr.DataArray)
+            logg.info(f"{'Overwriting' if layer in self else 'Adding'} image layer `{layer}`")
+            try:
+                self.data[layer] = res
+            except ValueError as e:
+                c_dim = res.dims[-1]
+                if f"along dimension {str(c_dim)!r} cannot be aligned" not in str(e):
+                    raise
+                channel_dim = self._get_next_channel_id(res)
+                logg.warning(f"Channel dimension cannot be aligned with an existing one, using `{channel_dim}`")
+
+                self.data[layer] = res.rename({res.dims[-1]: channel_dim})
+
+            if not lazy:
+                self.compute(layer)
+
+    @singledispatchmethod
+    def _load_img(self, img: Pathlike_t | Input_t | Container, layer: str, **kwargs: Any) -> xr.DataArray | None:
+        if isinstance(img, Container):
+            if layer not in img:
+                raise KeyError(f"Image identifier `{layer}` not found in `{img}`.")
+
+            _ = kwargs.pop("dims", None)
+            return self._load_img(img[layer], **kwargs)
+
+        raise NotImplementedError(f"Loading `{type(img).__name__}` is not yet implemented.")
+
+    @_load_img.register(str)
+    @_load_img.register(Path)
+    def _(
+        self,
+        img: Pathlike_t,
+        chunks: int | None = None,
+        dims: InferDimensions | tuple[str, ...] = InferDimensions.DEFAULT,
+        **_: Any,
+    ) -> xr.DataArray | None:
+        def transform_metadata(data: xr.Dataset) -> xr.Dataset:
+            for img in data.values():
+                _assert_dims_present(img.dims)
+
+            data.attrs[Key.img.coords] = CropCoords.from_tuple(data.attrs.get(Key.img.coords, _NULL_COORDS.to_tuple()))
+            data.attrs[Key.img.padding] = CropPadding.from_tuple(
+                data.attrs.get(Key.img.padding, _NULL_PADDING.to_tuple())
+            )
+            data.attrs.setdefault(Key.img.mask_circle, False)
+            data.attrs.setdefault(Key.img.scale, 1)
+
+            return data
+
+        img = Path(img)
+        logg.debug(f"Loading data from `{img}`")
+
+        if not img.exists():
+            raise OSError(f"Path `{img}` does not exist.")
+
+        suffix = img.suffix.lower()
+
+        if suffix in (".jpg", ".jpeg", ".png", ".tif", ".tiff"):
+            return _lazy_load_image(img, dims=dims, chunks=chunks)
+
+        if img.is_dir():
+            if len(self._data):
+                raise ValueError("Loading data from `Zarr` store is disallowed when the container is not empty.")
+
+            self._data = transform_metadata(xr.open_zarr(str(img), chunks=chunks))
+        elif suffix in (".nc", ".cdf"):
+            if len(self._data):
+                raise ValueError("Loading data from `NetCDF` is disallowed when the container is not empty.")
+
+            self._data = transform_metadata(xr.open_dataset(img, chunks=chunks))
+        else:
+            raise ValueError(f"Unknown suffix `{img.suffix}`.")
+
+    @_load_img.register(da.Array)
+    @_load_img.register(np.ndarray)
+    def _(
+        self,
+        img: NDArrayA,
+        copy: bool = True,
+        dims: InferDimensions | tuple[str, ...] = InferDimensions.DEFAULT,
+        **_: Any,
+    ) -> xr.DataArray:
+        logg.debug(f"Loading `numpy.array` of shape `{img.shape}`")
+
+        return self._load_img(xr.DataArray(img), copy=copy, dims=dims, warn=False)
+
+    @_load_img.register(xr.DataArray)
+    def _(
+        self,
+        img: xr.DataArray,
+        copy: bool = True,
+        warn: bool = True,
+        dims: InferDimensions | tuple[str, ...] = InferDimensions.DEFAULT,
+        **_: Any,
+    ) -> xr.DataArray:
+        logg.debug(f"Loading `xarray.DataArray` of shape `{img.shape}`")
+
+        img = img.copy() if copy else img
+        if not ("y" in img.dims and "x" in img.dims and "z" in img.dims):
+            _, dims, _, expand_axes = _infer_dimensions(img, infer_dimensions=dims)
+            if TYPE_CHECKING:
+                assert isinstance(dims, Iterable)
+            if warn:
+                logg.warning(f"Unable to find `y`, `x` or `z` dimension in `{img.dims}`. Renaming to `{dims}`")
+            # `axes` is always of length 0, 1 or 2
+            if len(expand_axes):
+                dimnames = ("z", "channels") if len(expand_axes) == 2 else (("channels",) if "z" in dims else ("z",))
+                img = img.expand_dims([d for _, d in zip(expand_axes, dimnames)], axis=expand_axes)
+            img = img.rename(dict(zip(img.dims, dims)))
+
+        return img.transpose("y", "x", "z", ...)
 
     @classmethod
     def _from_dataset(cls, data: xr.Dataset, deep: Optional[bool] = None) -> Container:

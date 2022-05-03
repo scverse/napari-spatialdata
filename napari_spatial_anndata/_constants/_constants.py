@@ -8,3 +8,10 @@ from napari_spatial_anndata._constants._utils import ModeEnum
 class Symbol(str, ModeEnum):
     DISC = "disc"
     SQUARE = "square"
+
+
+@unique
+class InferDimensions(ModeEnum):
+    DEFAULT = "default"
+    CHANNELS_LAST = "channels_last"
+    Z_LAST = "z_last"

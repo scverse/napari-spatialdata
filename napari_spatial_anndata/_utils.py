@@ -430,6 +430,11 @@ def _unique_order_preserving(iterable: Iterable[Hashable]) -> tuple[list[Hashabl
     return [i for i in iterable if not (i in seen or seen_add(i))], seen
 
 
+def _assert_non_negative(value: float, *, name: str) -> None:
+    if value < 0:
+        raise ValueError(f"Expected `{name}` to be non-negative, found `{value}`.")
+
+
 @njit(cache=True, fastmath=True)
 def _point_inside_triangles(triangles: NDArrayA) -> np.bool_:
     # modified from napari
