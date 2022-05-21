@@ -48,15 +48,13 @@ class PrettyEnum(Enum):
 class ABCEnumMeta(EnumMeta, ABCMeta):
     """Metaclass which injects."""
 
-    def __call__(cls, *args: Any, **kw: Any) -> EnumMeta:  # noqa: D102
+    def __call__(cls, *args: Any, **kw: Any) -> EnumMeta:  # type: ignore[override]
         if getattr(cls, "__error_format__", None) is None:
             raise TypeError(f"Can't instantiate class `{cls.__name__}` without `__error_format__` class attribute.")
         return super().__call__(*args, **kw)  # type: ignore[no-any-return]
 
-    def __new__(  # noqa: D102
-        cls, clsname: str, bases: Tuple[EnumMeta, ...], namespace: Dict[str, Any]
-    ) -> "ABCEnumMeta":
-        res: ABCEnumMeta = super().__new__(cls, clsname, bases, namespace)
+    def __new__(cls, clsname: str, bases: Tuple[EnumMeta, ...], namespace: Dict[str, Any]) -> "ABCEnumMeta":
+        res: ABCEnumMeta = super().__new__(cls, clsname, bases, namespace)  # type: ignore[arg-type]
         res.__new__ = _pretty_raise_enum(res, res.__new__)  # type: ignore[assignment,arg-type]
         return res
 

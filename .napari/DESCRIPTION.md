@@ -1,22 +1,20 @@
-
-
 <!-- This file is designed to provide you with a starting template for documenting
 the functionality of your plugin. Its content will be rendered on your plugin's
 napari hub page.
 
 The sections below are given as a guide for the flow of information only, and
-are in no way prescriptive. You should feel free to merge, remove, add and 
-rename sections at will to make this document work best for your plugin. 
+are in no way prescriptive. You should feel free to merge, remove, add and
+rename sections at will to make this document work best for your plugin.
 
 ## Description
 
-This should be a detailed description of the context of your plugin and its 
+This should be a detailed description of the context of your plugin and its
 intended purpose.
 
 If you have videos or screenshots of your plugin in action, you should include them
-here as well, to make them front and center for new users. 
+here as well, to make them front and center for new users.
 
-You should use absolute links to these assets, so that we can easily display them 
+You should use absolute links to these assets, so that we can easily display them
 on the hub. The easiest way to include a video is to use a GIF, for example hosted
 on imgur. You can then reference this GIF as an image.
 
@@ -59,7 +57,7 @@ anywhere, feel free to also include this information here.
 This section should go through step-by-step examples of how your plugin should be used.
 Where your plugin provides multiple dock widgets or functions, you should split these
 out into separate subsections for easy browsing. Include screenshots and videos
-wherever possible to elucidate your descriptions. 
+wherever possible to elucidate your descriptions.
 
 Ideally, this section should start with minimal examples for those who just want a
 quick overview of the plugin's functionality, but you should definitely link out to
@@ -72,8 +70,8 @@ for the majority of plugins. They will include instructions to pip install, and
 to install via napari itself.
 
 Most plugins can be installed out-of-the-box by just specifying the package requirements
-over in `setup.cfg`. However, if your plugin has any more complex dependencies, or 
-requires any additional preparation before (or after) installation, you should add 
+over in `setup.cfg`. However, if your plugin has any more complex dependencies, or
+requires any additional preparation before (or after) installation, you should add
 this information here.
 
 ## Getting Help

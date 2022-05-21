@@ -3,7 +3,7 @@
 
 name: tests
 
-on: 
+on:
   push:
     branches:
       - main
@@ -23,7 +23,7 @@ jobs:
     strategy:
       matrix:
         platform: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: [3.8, 3.9, '3.10']
+        python-version: [3.8, 3.9, "3.10"]
 
     steps:
       - uses: actions/checkout@v2
@@ -65,7 +65,7 @@ jobs:
 
   deploy:
     # this will run when you have tagged a commit, starting with "v*"
-    # and requires that you have put your twine API key in your 
+    # and requires that you have put your twine API key in your
     # github secrets (see readme for details)
     needs: [test]
     runs-on: ubuntu-latest
@@ -88,4 +88,3 @@ jobs:
           git tag
           python -m build .
           twine upload dist/*
-

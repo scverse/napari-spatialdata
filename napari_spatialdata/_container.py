@@ -14,6 +14,8 @@ from typing import (
 )
 from pathlib import Path
 from functools import singledispatchmethod
+from itertools import chain
+import re
 
 from scanpy import logging as logg
 from typing_extensions import Literal
@@ -39,7 +41,6 @@ from napari_spatialdata._constants._pkg_constants import Key
 Pathlike_t = Union[str, Path]
 Arraylike_t = Union[NDArrayA, xr.DataArray]
 Input_t = Union[Pathlike_t, Arraylike_t, "Container"]
-Pathlike_t = Union[str, Path]
 InferDims_t = Union[Literal["default", "prefer_channels", "prefer_z"], Sequence[str]]
 
 
@@ -82,7 +83,9 @@ class Container:
                 self.compute()
 
     @classmethod
-    def load(cls, path: Pathlike_t, lazy: bool = True, chunks: Optional[int] = None) -> Container:
+    def load(
+        cls, path: Pathlike_t, lazy: bool = True, chunks: Optional[Union[str, tuple[int, ...]]] = None
+    ) -> Container:
         """
         Load data from a *Zarr* store.
 
@@ -272,7 +275,7 @@ class Container:
 
         img = img.copy() if copy else img
         if not ("y" in img.dims and "x" in img.dims and "z" in img.dims):
-            _, dims, _, expand_axes = _infer_dimensions(img, infer_dimensions=dims)
+            _, dims, _, expand_axes = _infer_dimensions(img, infer_dimensions=dims)  # type: ignore[assignment]
             if TYPE_CHECKING:
                 assert isinstance(dims, Iterable)
             if warn:
@@ -306,6 +309,25 @@ class Container:
         res._data.attrs.setdefault(Key.img.scale, 1.0)
         return res
 
+    def compute(self, layer: str | None = None) -> Container:
+        """
+        Trigger lazy computation in-place.
+
+        Parameters
+        ----------
+        layer
+            Layer which to compute. If `None`, compute all layers.
+
+        Returns
+        -------
+        Modifies and returns self.
+        """
+        if layer is None:
+            self.data.load()
+        else:
+            self[layer].load()
+        return self
+
     def save(self, path: Pathlike_t, **kwargs: Any) -> None:
         """
         Save the container into a *Zarr* store.
@@ -326,6 +348,88 @@ class Container:
             self.data.to_zarr(str(path), mode="w", **kwargs, **kwargs)
         finally:
             self.data.attrs = attrs
+
+    def _get_next_image_id(self, layer: str) -> str:
+        pat = re.compile(rf"^{layer}_(\d*)$")
+        iterator = chain.from_iterable(pat.finditer(k) for k in self.data.keys())
+        return f"{layer}_{(max(map(lambda m: int(m.groups()[0]), iterator), default=-1) + 1)}"
+
+    def _get_next_channel_id(self, channel: str | xr.DataArray) -> str:
+        if isinstance(channel, xr.DataArray):
+            channel, *_ = (str(dim) for dim in channel.dims if dim not in ("y", "x", "z"))
+
+        pat = re.compile(rf"^{channel}_(\d*)$")
+        iterator = chain.from_iterable(pat.finditer(v.dims[-1]) for v in self.data.values())
+        return f"{channel}_{(max(map(lambda m: int(m.groups()[0]), iterator), default=-1) + 1)}"
+
+    def _get_library_id(self, library_id: str | None = None) -> str:
+        self._assert_not_empty()
+
+        if library_id is None:
+            if len(self.library_ids) > 1:
+                raise ValueError(
+                    f"Unable to determine which library id to use. Please supply one from `{self.library_ids}`."
+                )
+            library_id = self.library_ids[0]
+
+        if library_id not in self.library_ids:
+            raise KeyError(f"Library id `{library_id}` not found in `{self.library_ids}`.")
+
+        return library_id
+
+    def _get_library_ids(
+        self,
+        library_id: str | Sequence[str] | None = None,
+        arr: xr.DataArray | None = None,
+        allow_new: bool = False,
+    ) -> list[str]:
+        """
+        Get library ids.
+
+        Parameters
+        ----------
+        library_id
+            Requested library ids.
+        arr
+            If the current container is empty, try getting the library ids from the ``arr``.
+        allow_new
+            If `True`, don't check if the returned library ids are present in the non-empty container.
+            This is set to `True` only in :meth:`concat` to allow for remapping.
+
+        Returns
+        -------
+        The library ids.
+        """
+        if library_id is None:
+            if len(self):
+                library_id = self.library_ids
+            elif isinstance(arr, xr.DataArray):
+                try:
+                    library_id = list(arr.coords["z"].values)
+                except (KeyError, AttributeError) as e:
+                    logg.warning(f"Unable to retrieve library ids, reason `{e}`. Using default names")
+                    # at this point, it should have Z-dim
+                    library_id = [str(i) for i in range(arr.sizes["z"])]
+            else:
+                raise ValueError("Please specify the number of library ids if the container is empty.")
+
+        if isinstance(library_id, str):
+            library_id = [library_id]
+        if not isinstance(library_id, Iterable):
+            raise TypeError(f"Expected library ids to be `iterable`, found `{type(library_id).__name__!r}`.")
+
+        res = list(map(str, library_id))
+        if not len(res):
+            raise ValueError("No library ids have been selected.")
+
+        if not allow_new and len(self) and not (set(res) & set(self.library_ids)):
+            raise ValueError(f"Invalid library ids have been selected `{res}`. Valid options are `{self.library_ids}`.")
+
+        return res
+
+    def _assert_not_empty(self) -> None:
+        if not len(self):
+            raise ValueError("The container is empty.")
 
     @property
     def library_ids(self) -> list[str]:

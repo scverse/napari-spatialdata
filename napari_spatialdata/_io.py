@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Union  # noqa: F401
 from typing import Mapping
 from pathlib import Path
@@ -238,7 +240,7 @@ def _lazy_load_image(
     logg.debug(f"Reshaping to `{shape}` with dimensions `{dims}`")
 
     if isinstance(chunks, dict):
-        chunks = tuple(chunks.get(d, "auto") for d in dims)  # type: ignore[union-attr]
+        chunks = tuple(chunks.get(d, "auto") for d in dims)
 
     darr = da.from_delayed(delayed(read_unprotected)(fname), shape=shape, dtype=dtype)
     if chunks is not None:
