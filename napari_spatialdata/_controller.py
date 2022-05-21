@@ -14,17 +14,17 @@ import numpy as np
 import pandas as pd
 import xarray as xr
 
-from napari_spatial_anndata._view import ImageView
-from napari_spatial_anndata._model import ImageModel
-from napari_spatial_anndata._utils import (
+from napari_spatialdata._view import ImageView
+from napari_spatialdata._model import ImageModel
+from napari_spatialdata._utils import (
     NDArrayA,
     _get_categorical,
     _display_channelwise,
     _points_inside_triangles,
     _position_cluster_labels,
 )
-from napari_spatial_anndata._widgets import RangeSlider
-from napari_spatial_anndata._container import Container
+from napari_spatialdata._widgets import RangeSlider
+from napari_spatialdata._container import Container
 
 __all__ = ["ImageController"]
 

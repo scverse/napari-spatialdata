@@ -21,20 +21,20 @@ import numpy as np
 import xarray as xr
 import dask.array as da
 
-from napari_spatial_anndata._io import (
+from napari_spatialdata._io import (
     _lazy_load_image,
     _infer_dimensions,
     _assert_dims_present,
 )
-from napari_spatial_anndata._utils import NDArrayA
-from napari_spatial_anndata._coords import (
+from napari_spatialdata._utils import NDArrayA
+from napari_spatialdata._coords import (
     CropCoords,
     CropPadding,
     _NULL_COORDS,
     _NULL_PADDING,
 )
-from napari_spatial_anndata._constants._constants import InferDimensions
-from napari_spatial_anndata._constants._pkg_constants import Key
+from napari_spatialdata._constants._constants import InferDimensions
+from napari_spatialdata._constants._pkg_constants import Key
 
 Pathlike_t = Union[str, Path]
 Arraylike_t = Union[NDArrayA, xr.DataArray]

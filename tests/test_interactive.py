@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 
 from tests.conftest import DPI, PlotTester, PlotTesterMeta
-from napari_spatial_anndata._container import Container
-from napari_spatial_anndata.interactive import Interactive
+from napari_spatialdata._container import Container
+from napari_spatialdata.interactive import Interactive
 
 
 @pytest.mark.qt()

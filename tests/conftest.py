@@ -9,7 +9,7 @@ import pytest
 import scanpy as sc
 import matplotlib.pyplot as plt
 
-from napari_spatial_anndata._container import Container
+from napari_spatialdata._container import Container
 
 HERE: Path = Path(__file__).parent
 

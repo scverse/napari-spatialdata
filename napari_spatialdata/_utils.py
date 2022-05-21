@@ -35,7 +35,7 @@ import numpy as np
 import pandas as pd
 import dask.array as da
 
-from napari_spatial_anndata._constants._pkg_constants import Key
+from napari_spatialdata._constants._pkg_constants import Key
 
 try:
     from numpy.typing import NDArray

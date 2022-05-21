@@ -11,8 +11,8 @@ import numpy as np
 import xarray as xr
 import dask.array as da
 
-from napari_spatial_anndata._utils import NDArrayA
-from napari_spatial_anndata._constants._constants import InferDimensions
+from napari_spatialdata._utils import NDArrayA
+from napari_spatialdata._constants._constants import InferDimensions
 
 
 def _assert_dims_present(dims: tuple[str, ...], include_z: bool = True) -> None:

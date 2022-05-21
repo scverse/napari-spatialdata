@@ -8,8 +8,8 @@ from PyQt5.QtWidgets import QLabel, QWidget, QComboBox, QHBoxLayout
 import numpy as np
 import napari
 
-from napari_spatial_anndata._model import ImageModel
-from napari_spatial_anndata._widgets import (
+from napari_spatialdata._model import ImageModel
+from napari_spatialdata._widgets import (
     CBarWidget,
     AListWidget,
     ObsmIndexWidget,

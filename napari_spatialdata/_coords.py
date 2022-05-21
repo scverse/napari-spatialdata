@@ -6,8 +6,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
-from napari_spatial_anndata._utils import NDArrayA, _assert_non_negative
-from napari_spatial_anndata._constants._pkg_constants import Key
+from napari_spatialdata._utils import NDArrayA, _assert_non_negative
+from napari_spatialdata._constants._pkg_constants import Key
 
 
 def _circular_mask(arr: NDArrayA, y: int, x: int, radius: float) -> NDArrayA:

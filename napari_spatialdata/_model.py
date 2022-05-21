@@ -4,16 +4,16 @@ from dataclasses import field, dataclass
 from anndata import AnnData
 import numpy as np
 
-from napari_spatial_anndata._utils import (
+from napari_spatialdata._utils import (
     ALayer,
     NDArrayA,
     _assert_spatial_basis,
     _assert_categorical_obs,
     _unique_order_preserving,
 )
-from napari_spatial_anndata._container import Container
-from napari_spatial_anndata._constants._constants import Symbol
-from napari_spatial_anndata._constants._pkg_constants import Key
+from napari_spatialdata._container import Container
+from napari_spatialdata._constants._constants import Symbol
+from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["ImageModel"]
 

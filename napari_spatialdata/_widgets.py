@@ -14,7 +14,7 @@ from vispy.color.colormap import Colormap, MatplotlibColormap
 import numpy as np
 import pandas as pd
 
-from napari_spatial_anndata._utils import ALayer
+from napari_spatialdata._utils import ALayer
 
 __all__ = ["TwoStateCheckBox", "AListWidget", "CBarWidget", "RangeSlider", "ObsmIndexWidget", "LibraryListWidget"]
 

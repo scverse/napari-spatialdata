@@ -6,11 +6,11 @@ from scanpy import logging as logg
 from anndata import AnnData
 import matplotlib.pyplot as plt
 
-from napari_spatial_anndata._utils import NDArrayA, save_fig
-from napari_spatial_anndata._container import Container
+from napari_spatialdata._utils import NDArrayA, save_fig
+from napari_spatialdata._container import Container
 
 try:
-    from napari_spatial_anndata._controller import ImageController
+    from napari_spatialdata._controller import ImageController
 except ImportError as e:
     _error: Optional[str] = str(e)
 else:

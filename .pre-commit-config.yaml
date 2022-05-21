@@ -27,11 +27,10 @@ repos:
     hooks:
     -   id: yesqa
         additional_dependencies: [flake8-tidy-imports, flake8-docstrings, flake8-rst-docstrings, flake8-comprehensions, flake8-bugbear, flake8-blind-except, flake8-builtins, flake8-pytest-style, flake8-mock, flake8-string-format]
--   repo: https://github.com/macisamuele/language-formatters-pre-commit-hooks
-    rev: v2.3.0
+-   repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v2.6.2
     hooks:
-    -   id: pretty-format-yaml
-        args: [--autofix, --indent, '4']
+        - id: prettier
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.1.0
     hooks:
@@ -65,16 +64,6 @@ repos:
     hooks:
     -   id: flake8
         additional_dependencies: [flake8-tidy-imports, flake8-docstrings, flake8-rst-docstrings, flake8-comprehensions, flake8-bugbear, flake8-blind-except, flake8-builtins, flake8-pytest-style, flake8-mock, flake8-string-format]
--   repo: https://github.com/jumanjihouse/pre-commit-hooks
-    rev: 2.1.6
-    hooks:
-    -   id: script-must-have-extension
-        name: Check executable files use .sh extension
-        types: [shell, executable]
--   repo: https://github.com/myint/rstcheck
-    rev: 3f92957478422df87bd730abde66f089cc1ee19b
-    hooks:
-    -   id: rstcheck
 -   repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
@@ -84,7 +73,7 @@ repos:
     rev: v2.31.0
     hooks:
     -   id: pyupgrade
-        args: [--py3-plus, --py37-plus, --keep-runtime-typing]
+        args: [--py3-plus, --py38-plus, --keep-runtime-typing]
 -   repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
     hooks:
