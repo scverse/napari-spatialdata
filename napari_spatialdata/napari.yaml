@@ -3,25 +3,25 @@ display_name: napari spatialdata
 contributions:
   commands:
     - id: napari-spatialdata.get_reader
-      python_name: napari_spatial_anndata._reader:napari_get_reader
+      python_name: napari_spatialdata._reader:napari_get_reader
       title: Open data with napari spatialdata
     - id: napari-spatialdata.write_multiple
-      python_name: napari_spatial_anndata._writer:write_multiple
+      python_name: napari_spatialdata._writer:write_multiple
       title: Save multi-layer data with napari spatialdata
     - id: napari-spatialdata.write_single_image
-      python_name: napari_spatial_anndata._writer:write_single_image
+      python_name: napari_spatialdata._writer:write_single_image
       title: Save image data with napari spatialdata
     - id: napari-spatialdata.make_sample_data
-      python_name: napari_spatial_anndata._sample_data:make_sample_data
+      python_name: napari_spatialdata._sample_data:make_sample_data
       title: Load sample data from napari spatialdata
     - id: napari-spatialdata.make_qwidget
-      python_name: napari_spatial_anndata._widget:ExampleQWidget
+      python_name: napari_spatialdata._widget:ExampleQWidget
       title: Make example QWidget
     - id: napari-spatialdata.make_magic_widget
-      python_name: napari_spatial_anndata._widget:example_magic_widget
+      python_name: napari_spatialdata._widget:example_magic_widget
       title: Make example magic widget
     - id: napari-spatialdata.make_func_widget
-      python_name: napari_spatial_anndata._widget:example_function_widget
+      python_name: napari_spatialdata._widget:example_function_widget
       title: Make example function widget
   readers:
     - command: napari-spatialdata.get_reader
