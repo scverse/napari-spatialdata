@@ -1,11 +1,11 @@
-# napari-spatial-anndata
+# napari-spatialdata
 
-[![License](https://img.shields.io/pypi/l/napari-spatial-anndata.svg?color=green)](https://github.com/scverse/napari-spatial-anndata/raw/main/LICENSE)
-[![PyPI](https://img.shields.io/pypi/v/napari-spatial-anndata.svg?color=green)](https://pypi.org/project/napari-spatial-anndata)
-[![Python Version](https://img.shields.io/pypi/pyversions/napari-spatial-anndata.svg?color=green)](https://python.org)
-[![tests](https://github.com/scverse/napari-spatial-anndata/workflows/tests/badge.svg)](https://github.com/scverse/napari-spatial-anndata/actions)
-[![codecov](https://codecov.io/gh/giovp/napari-spatial-anndata/branch/main/graph/badge.svg)](https://codecov.io/gh/scverse/napari-spatial-anndata)
-[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatial-anndata)](https://napari-hub.org/plugins/napari-spatial-anndata)
+[![License](https://img.shields.io/pypi/l/napari-spatialdata.svg?color=green)](https://github.com/scverse/napari-spatialdata/raw/main/LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/napari-spatialdata.svg?color=green)](https://pypi.org/project/napari-spatialdata)
+[![Python Version](https://img.shields.io/pypi/pyversions/napari-spatialdata.svg?color=green)](https://python.org)
+[![tests](https://github.com/scverse/napari-spatialdata/workflows/tests/badge.svg)](https://github.com/scverse/napari-spatialdata/actions)
+[![codecov](https://codecov.io/gh/giovp/napari-spatialdata/branch/main/graph/badge.svg)](https://codecov.io/gh/scverse/napari-spatialdata)
+[![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatialdata)](https://napari-hub.org/plugins/napari-spatialdata)
 
 Interactive visualization of spatial omics data with napari
 
@@ -23,9 +23,9 @@ https://napari.org/plugins/stable/index.html
 
 ## Installation
 
-You can install `napari-spatial-anndata` via [pip]:
+You can install `napari-spatialdata` via [pip]:
 
-    pip install napari-spatial-anndata
+    pip install napari-spatialdata
 
 ## Contributing
 
@@ -35,7 +35,7 @@ the coverage at least stays the same before you submit a pull request.
 ## License
 
 Distributed under the terms of the [BSD-3] license,
-"napari-spatial-anndata" is free and open source software
+"napari-spatialdata" is free and open source software
 
 ## Issues
 

@@ -1,6 +1,6 @@
 from typing import Dict
 
-# napari-spatial-anndata documentation build configuration file, created by
+# napari-spatialdata documentation build configuration file, created by
 # sphinx-quickstart on Thu Oct  1 00:43:18 2015.
 #
 # This file is execfile()d with the current directory set to its
@@ -253,7 +253,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(main_doc, "napari-cookiecutterplugin_name", "napari-spatial-anndata Documentation", [author], 1)]
+man_pages = [(main_doc, "napari-cookiecutterplugin_name", "napari-spatialdata Documentation", [author], 1)]
 
 # If true, show URL addresses after external links.
 # man_show_urls = False
@@ -268,7 +268,7 @@ texinfo_documents = [
     (
         main_doc,
         "napari-cookiecutterplugin_name",
-        "napari-spatial-anndata Documentation",
+        "napari-spatialdata Documentation",
         author,
         "napari-cookiecutterplugin_name",
         "One line description of project.",
