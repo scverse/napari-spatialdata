@@ -336,7 +336,7 @@ class ALayer:
 
         return self.adata._get_X(use_raw=self.raw, layer=self.layer)[ix], self._format_key(name, layer_modifier=True)
 
-    def get_items(self, attr: str) -> tuple[str, ...]:
+    def get_items(self, attr: str) -> Tuple[str, ...]:
         """
         Return valid keys for an attribute.
 

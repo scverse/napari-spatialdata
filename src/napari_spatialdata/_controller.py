@@ -12,19 +12,16 @@ from PyQt5.QtWidgets import QLabel, QWidget, QGridLayout
 from pandas.core.dtypes.common import is_categorical_dtype
 import numpy as np
 import pandas as pd
-import xarray as xr
 
 from napari_spatialdata._view import ImageView
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import (
     NDArrayA,
     _get_categorical,
-    _display_channelwise,
     _points_inside_triangles,
     _position_cluster_labels,
 )
 from napari_spatialdata._widgets import RangeSlider
-from napari_spatialdata._container import Container
 
 __all__ = ["ImageController"]
 
@@ -48,101 +45,101 @@ class ImageController:
     %(img_container)s
     """
 
-    def __init__(self, adata: AnnData, img: Container, **kwargs: Any):
-        self._model = ImageModel(adata=adata, container=img, **kwargs)
-        self._view = ImageView(model=self.model, controller=self)
+    def __init__(self, adata: AnnData, **kwargs: Any):
+        self._model = ImageModel(adata=adata, **kwargs)
+        # self._view = ImageView(model=self.model, controller=self)
 
-        self.view._init_UI()
+        # self.view._init_UI()
 
-    def add_image(self, layer: str) -> bool:
-        """
-        Add a new :mod:`napari` image layer.
+    # def add_image(self, layer: str) -> bool:
+    #     """
+    #     Add a new :mod:`napari` image layer.
 
-        Parameters
-        ----------
-        layer
-            Layer in the underlying's :class:`ImageContainer` which contains the image.
+    #     Parameters
+    #     ----------
+    #     layer
+    #         Layer in the underlying's :class:`ImageContainer` which contains the image.
 
-        Returns
-        -------
-        `True` if the layer has been added, otherwise `False`.
-        """
-        if layer in self.view.layernames:
-            self._handle_already_present(layer)
-            return False
+    #     Returns
+    #     -------
+    #     `True` if the layer has been added, otherwise `False`.
+    #     """
+    #     if layer in self.view.layernames:
+    #         self._handle_already_present(layer)
+    #         return False
 
-        if self.model.container.data[layer].attrs.get("segmentation", False):
-            return self.add_labels(layer)
+    #     if self.model.container.data[layer].attrs.get("segmentation", False):
+    #         return self.add_labels(layer)
 
-        img: xr.DataArray = self.model.container.data[layer].transpose("z", "y", "x", ...)
-        multiscale = np.prod(img.shape[1:3]) > (2**16) ** 2
-        n_channels = img.shape[-1]
+    #     img: xr.DataArray = self.model.container.data[layer].transpose("z", "y", "x", ...)
+    #     multiscale = np.prod(img.shape[1:3]) > (2**16) ** 2
+    #     n_channels = img.shape[-1]
 
-        rgb = img.attrs.get("rgb", None)
-        if n_channels == 1:
-            rgb, colormap = False, "gray"
-        else:
-            colormap = self.model.cmap
+    #     rgb = img.attrs.get("rgb", None)
+    #     if n_channels == 1:
+    #         rgb, colormap = False, "gray"
+    #     else:
+    #         colormap = self.model.cmap
 
-        if rgb is None:
-            logg.debug("Automatically determining whether image is an RGB image")
-            rgb = not _display_channelwise(img.data)
+    #     if rgb is None:
+    #         logg.debug("Automatically determining whether image is an RGB image")
+    #         rgb = not _display_channelwise(img.data)
 
-        if rgb:
-            contrast_limits = None
-        else:
-            img = img.transpose(..., "z", "y", "x")  # channels first
-            contrast_limits = float(img.min()), float(img.max())
+    #     if rgb:
+    #         contrast_limits = None
+    #     else:
+    #         img = img.transpose(..., "z", "y", "x")  # channels first
+    #         contrast_limits = float(img.min()), float(img.max())
 
-        logg.info(f"Creating image `{layer}` layer")
-        self.view.viewer.add_image(
-            img.data,
-            name=layer,
-            rgb=rgb,
-            colormap=colormap,
-            blending=self.model.blending,
-            multiscale=multiscale,
-            contrast_limits=contrast_limits,
-        )
+    #     logg.info(f"Creating image `{layer}` layer")
+    #     self.view.viewer.add_image(
+    #         img.data,
+    #         name=layer,
+    #         rgb=rgb,
+    #         colormap=colormap,
+    #         blending=self.model.blending,
+    #         multiscale=multiscale,
+    #         contrast_limits=contrast_limits,
+    #     )
 
-        return True
+    #     return True
 
-    def add_labels(self, layer: str) -> bool:
-        """
-        Add a new :mod:`napari` labels layer.
+    # def add_labels(self, layer: str) -> bool:
+    #     """
+    #     Add a new :mod:`napari` labels layer.
 
-        Parameters
-        ----------
-        layer
-            Layer in the underlying's :class:`ImageContainer` which contains the labels image.
+    #     Parameters
+    #     ----------
+    #     layer
+    #         Layer in the underlying's :class:`ImageContainer` which contains the labels image.
 
-        Returns
-        -------
-        `True` if the layer has been added, otherwise `False`.
-        """
-        # beware `update_library` in view.py - needs to be in this order
-        img: xr.DataArray = self.model.container.data[layer].transpose(..., "z", "y", "x")
-        if img.ndim != 4:
-            logg.warning(f"Unable to show image of shape `{img.shape}`, too many dimensions")
-            return False
+    #     Returns
+    #     -------
+    #     `True` if the layer has been added, otherwise `False`.
+    #     """
+    #     # beware `update_library` in view.py - needs to be in this order
+    #     img: xr.DataArray = self.model.container.data[layer].transpose(..., "z", "y", "x")
+    #     if img.ndim != 4:
+    #         logg.warning(f"Unable to show image of shape `{img.shape}`, too many dimensions")
+    #         return False
 
-        if img.shape[0] != 1:
-            logg.warning(f"Unable to create labels layer of shape `{img.shape}`, too many channels `{img.shape[0]}`")
-            return False
+    #     if img.shape[0] != 1:
+    #         logg.warning(f"Unable to create labels layer of shape `{img.shape}`, too many channels `{img.shape[0]}`")
+    #         return False
 
-        if not np.issubdtype(img.dtype, np.integer):
-            # could also return to `add_images` and render it as image
-            logg.warning(f"Expected label image to be a subtype of `numpy.integer`, found `{img.dtype}`")
-            return False
+    #     if not np.issubdtype(img.dtype, np.integer):
+    #         # could also return to `add_images` and render it as image
+    #         logg.warning(f"Expected label image to be a subtype of `numpy.integer`, found `{img.dtype}`")
+    #         return False
 
-        logg.info(f"Creating label `{layer}` layer")
-        self.view.viewer.add_labels(
-            img.data,
-            name=layer,
-            multiscale=np.prod(img.shape[-2:]) > (2**16) ** 2,
-        )
+    #     logg.info(f"Creating label `{layer}` layer")
+    #     self.view.viewer.add_labels(
+    #         img.data,
+    #         name=layer,
+    #         multiscale=np.prod(img.shape[-2:]) > (2**16) ** 2,
+    #     )
 
-        return True
+    #     return True
 
     def add_points(self, vec: Union[NDArrayA, pd.Series], layer_name: str, key: Optional[str] = None) -> bool:
         """

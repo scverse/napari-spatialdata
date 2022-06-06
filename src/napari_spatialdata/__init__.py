@@ -1,6 +1,3 @@
-from napari_spatialdata._container import Container
-from napari_spatialdata.interactive import Interactive
-
 __version__ = "0.0.0"
 
 try:
