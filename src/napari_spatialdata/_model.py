@@ -9,7 +9,6 @@ import napari
 import pandas as pd
 
 from napari_spatialdata._utils import NDArrayA, _ensure_dense_vector
-from napari_spatialdata._constants._constants import Symbol
 from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["ImageModel"]
@@ -22,6 +21,7 @@ class ImageModel:
     events: EmitterGroup = field(init=False, default=None, repr=True)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: AnnData = field(init=False, default=None, repr=True)
+    _adata_layer: str = field(init=False, default=None, repr=False)
     _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
     _label_key: str = field(default=None, repr=True)
 
@@ -30,56 +30,19 @@ class ImageModel:
     spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     scale_key: str = field(init=False, default="tissue_hires_scalef")
     scale: float = field(init=False, default=None)
-    coordinates: NDArrayA = field(init=False, default=None, repr=False)
-    adata_layer: str = field(init=False, default=None, repr=False)
     palette: Optional[str] = field(init=False, default=None, repr=False)
     cmap: str = field(init=False, default="viridis", repr=False)
-    blending: str = field(init=False, default="opaque", repr=False)
-    key_added: str = "shapes"
-    symbol: Union[Symbol, str] = Symbol.DISC
 
-    def __post_init__(self) -> None:
+    def __post_init__(self, adata: AnnData) -> None:
         self.events = EmitterGroup(
             source=self,
             layer=Event,
             adata=Event,
         )
-
-    # self.adata = self.layer.metadata["adata"]
-    # self.library_id = self.layer.metadata["library_id"]
-
-    # _assert_spatial_basis(self.adata, self.spatial_key)
-
-    # self.symbol = Symbol(self.symbol)
-    # if not self.adata.n_obs:
-    #     raise ValueError("No spots were selected. Please ensure that the image contains at least 1 spot.")
-    # self.coordinates = self.adata.obsm[self.spatial_key][:, ::-1][:, :2].copy()
-    # self.scale = 1
-    # # self._update_coords()
-
-    # if TYPE_CHECKING:
-    #     assert isinstance(self.library_id, Sequence)
-
-    # try:
-    #     self.container = Container._from_dataset(self.container.data.sel(z=self.library_id), deep=None)
-    # except KeyError:
-    #     raise KeyError(
-    #         f"Unable to subset the image container with library ids `{self.library_id}`. "
-    #         f"Valid library ids are `{self.container.library_ids}`."
-    #     ) from None
-
-    # @property
-    # def layer(self) -> Optional[napari.layers.Labels]:
-    #     return self._layer
-
-    # @layer.setter
-    # def layer(self, layer: Optional[napari.layers.Layer]):
-    #     self._layer = layer
-    #     self.events.layer()
+        self.adata = adata
 
     @property
-    def layer(self) -> Optional[napari.layers.Labels]:
-        """Get layer."""
+    def layer(self) -> Optional[napari.layers.Labels]:  # noqa: D102
         return self._layer
 
     @layer.setter
@@ -88,8 +51,7 @@ class ImageModel:
         self.events.layer()
 
     @property
-    def adata(self) -> Optional[AnnData]:
-        """Get adata."""
+    def adata(self) -> Optional[AnnData]:  # noqa: D102
         return self._adata
 
     @adata.setter
@@ -98,8 +60,7 @@ class ImageModel:
         self.events.adata()
 
     @property
-    def adata_layer(self) -> str:
-        """Get adata layer."""
+    def adata_layer(self) -> str:  # noqa: D102
         return self._adata_layer
 
     @adata_layer.setter
@@ -107,17 +68,11 @@ class ImageModel:
         self._adata_layer = adata_layer
 
     @property
-    def coordinates(self) -> NDArrayA:
-        """Get coordinates."""
-        return self._coordinates
-
-    @coordinates.setter
-    def coordinates(self, coordinates: NDArrayA):
-        self._coordinates = coordinates
+    def coordinates(self) -> NDArrayA:  # noqa: D102
+        return np.insert(self.adata.obsm[self._spatial_key][:, ::-1][:, :2], 0, values=0, axis=1)
 
     @property
-    def scale(self) -> float:
-        """Get scale."""
+    def scale(self) -> float:  # noqa: D102
         return self._scale
 
     @scale.setter
@@ -125,8 +80,7 @@ class ImageModel:
         self._scale = scale
 
     @property
-    def spot_diameter(self) -> NDArrayA:
-        """Get spot diameter."""
+    def spot_diameter(self) -> NDArrayA:  # noqa: D102
         return self._spot_diameter
 
     @spot_diameter.setter
@@ -134,8 +88,7 @@ class ImageModel:
         self._spot_diameter = spot_diameter
 
     @property
-    def labels_key(self) -> NDArrayA:
-        """Get labels key."""
+    def labels_key(self) -> NDArrayA:  # noqa: D102
         return self._labels_key
 
     @labels_key.setter

@@ -59,13 +59,13 @@ class QtAdataViewWidget(QWidget):
         var_label = QLabel("Genes:")
         var_label.setToolTip("Gene names from `adata.var_names` or `adata.raw.var_names`.")
         self.var_widget = AListWidget(self._viewer, self._model, attr="var")
-        self.var_widget.setAdataLayer("default")
+        self.var_widget.setAdataLayer("X")
 
         # layers
         adata_layer_label = QLabel("Layers:")
         adata_layer_label.setToolTip("Keys in `adata.layers` used when visualizing gene expression.")
         self.adata_layer_widget = QComboBox()
-        self.adata_layer_widget.addItem("default", None)
+        self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
         self.adata_layer_widget.currentTextChanged.connect(self.var_widget.setAdataLayer)
 
@@ -91,7 +91,7 @@ class QtAdataViewWidget(QWidget):
     def _on_layer_update(self, event=None):
         """When the model updates the selected layer, update the relevant widgets."""
         self.adata_layer_widget.clear()
-        self.adata_layer_widget.addItem("default", None)
+        self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
         self.obs_widget._onChange()
         self.var_widget._onChange()
@@ -106,9 +106,9 @@ class QtAdataViewWidget(QWidget):
         """Napari layers."""
         self._model.layer = layer
         self._model.adata = layer.metadata["adata"]
-        self._model.coordinates = np.insert(
-            self._model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2].copy(), 0, values=0, axis=1
-        )
+        # self._model.coordinates = np.insert(
+        #     self._model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2].copy(), 0, values=0, axis=1
+        # )
         self._model.library_id = layer.metadata["library_id"]
         self._model.scale = self._model.adata.uns[Key.uns.spatial][self._model.library_id][Key.uns.scalefactor_key][
             self._model.scale_key
@@ -122,7 +122,7 @@ class QtAdataViewWidget(QWidget):
     def _get_layer(self, combo_widget):
         adata_layers = []
         for layer in self._viewer.layers:
-            if ("adata" in layer.metadata.keys()) and isinstance(layer.metadata["adata"], AnnData):
+            if isinstance(layer.metadata.get("model_adata", None), AnnData):
                 adata_layers.append(layer)
         return adata_layers
 
@@ -278,10 +278,10 @@ class ImageView:
         layer_label = QLabel("Layers:", parent=parent)
         layer_label.setToolTip("Keys in `adata.layers` used when visualizing gene expression.")
         layer_widget = QComboBox(parent=parent)
-        layer_widget.addItem("default", None)
+        layer_widget.addItem("X", None)
         layer_widget.addItems(self.model.adata.layers.keys())
         layer_widget.currentTextChanged.connect(var_widget.setLayer)
-        layer_widget.setCurrentText("default")
+        layer_widget.setCurrentText("X")
 
         # raw selection
         raw_cbox = TwoStateCheckBox(parent=parent)

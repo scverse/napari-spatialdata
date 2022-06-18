@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
+from typing import Any, Union, Iterable, Optional
 from functools import singledispatchmethod
 
 from qtpy import QtCore, QtWidgets
@@ -10,10 +10,11 @@ from scanpy import logging as logg
 from superqt import QRangeSlider
 from qtpy.QtCore import Qt, Signal
 from napari.layers import Image, Layer, Labels, Points
-from qtpy.QtWidgets import QLabel, QWidget, QGridLayout
 from napari.utils.events import Event, EmitterGroup
 from vispy.scene.widgets import ColorBarWidget
 from vispy.color.colormap import Colormap, MatplotlibColormap
+from sklearn.preprocessing import MinMaxScaler
+from pandas.core.dtypes.common import is_categorical_dtype
 import numpy as np
 import napari
 import pandas as pd
@@ -179,9 +180,14 @@ class AListWidget(ListWidget):
                 )
             else:
                 raise ValueError("TODO")
+            if not is_categorical_dtype(vec):
+                self._add_slider(
+                    self.viewer.layers[layer_name],
+                    model=self.model,
+                    layer_name=layer_name,
+                )
             # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
-            # TODO(giovp): grid_layout not working?
-            # self._hide_points_controls(self.viewer.layers[layer_name], is_categorical=is_categorical_dtype(vec))
+            # TODO(giovp): layer editable?
             # self.viewer.layers[layer_name].editable = False
 
     def setAdataLayer(self, layer: Optional[str]) -> None:
@@ -201,7 +207,7 @@ class AListWidget(ListWidget):
                 index = 0
             elif self._attr != "obsm":
                 index = int(index, base=10)
-            # for obsm, we convert index to int if needed (if not a DataFrame) in the ALayer
+            # for obsm, we convert index to int if needed (if not a DataFrame)
         if index == self._index:
             return
 
@@ -227,7 +233,11 @@ class AListWidget(ListWidget):
             cmap = plt.get_cmap(self.model.cmap)
             norm_vec = _min_max_norm(vec)
             color_vec = cmap(norm_vec)
-            return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, color_vec)}}
+            return {
+                "color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, color_vec)},
+                "properties": {"value": vec},
+                "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
+            }
         return {
             "text": None,
             "face_color": "value",
@@ -247,46 +257,12 @@ class AListWidget(ListWidget):
             "metadata": None,
         }
 
-    def _hide_points_controls(self, layer: Points, is_categorical: bool) -> None:
-        try:
-            # TODO(michalk8): find a better way: https://github.com/napari/napari/issues/3066
-            points_controls = self.viewer.window._qt_viewer.controls.widgets[layer]
-        except KeyError:
-            return
-
-        gl: QGridLayout = points_controls.grid_layout
-
-        labels = {}
-        for i in range(gl.count()):
-            item = gl.itemAt(i).widget()
-            if isinstance(item, QLabel):
-                labels[item.text()] = item
-
-        label_key, widget = "", None
-        # remove all widgets which can modify the layer
-        for label_key, widget_name in _WIDGETS_TO_HIDE.items():
-            widget = getattr(points_controls, widget_name, None)
-            if label_key in labels and widget is not None:
-                widget.setHidden(True)
-                labels[label_key].setHidden(True)
-
-        if TYPE_CHECKING:
-            assert isinstance(widget, QWidget)
-
-        if not is_categorical:  # add the slider
-            if widget is None:
-                logg.warning("Unable to set the percentile slider")
-                return
-            idx = gl.indexOf(widget)
-            row, *_ = gl.getItemPosition(idx)
-
-            slider = RangeSlider(
-                layer=layer,
-                colorbar="viridis",  # TODO(giovp): add it to point layer widget
-            )
-            slider.valueChanged.emit((0, 100))
-            gl.replaceWidget(labels[label_key], QLabel("percentile:"))
-            gl.replaceWidget(widget, slider)
+    def _add_slider(self, layer: Union[Points, Labels], model: ImageModel, layer_name: str) -> None:
+        colorbar = CBarWidget(self.model.cmap)
+        slider = RangeSlider(layer=layer, colorbar=colorbar, cmap=self.model.cmap)
+        slider.valueChanged.emit((0, 100))
+        self.viewer.window.add_dock_widget(slider, area="left", name=f"slider {layer_name}")
+        self.viewer.window.add_dock_widget(colorbar, area="left", name=f"percentile {layer_name}")
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):
@@ -439,11 +415,12 @@ class CBarWidget(QtWidgets.QWidget):
 
 
 class RangeSlider(QRangeSlider):
-    def __init__(self, *args: Any, layer: Points, colorbar: CBarWidget, **kwargs: Any):
+    def __init__(self, *args: Any, layer: Points, colorbar: CBarWidget, cmap: str, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         self._layer = layer
         self._colorbar = colorbar
+        self._cmap = plt.get_cmap(cmap)
         self.setValue((0, 100))
         self.setSliderPosition((0, 100))
         self.setSingleStep(0.01)
@@ -456,12 +433,28 @@ class RangeSlider(QRangeSlider):
         v = self._layer.metadata["data"]
         clipped = np.clip(v, *np.percentile(v, percentile))
 
-        self._layer.metadata = {**self._layer.metadata, "perc": percentile}
-        self._layer.face_color = "value"
-        self._layer.properties = {"value": clipped}
-        self._layer._update_thumbnail()  # can't find another way to force it
-        self._layer.refresh_colors()
+        if isinstance(self._layer, Points):
+            self._layer.metadata = {**self._layer.metadata, "perc": percentile}
+            self._layer.face_color = "value"
+            self._layer.properties = {"value": clipped}
+            self._layer.refresh_colors()
+        elif isinstance(self._layer, Labels):
+            norm_vec = self._scale_vec(clipped)
+            color_vec = self._cmap(norm_vec)
+            self._layer.color = {k: v for k, v in zip(self._layer.color.keys(), color_vec)}
+            self._layer.properties = {"value": clipped}
+            self._layer.refresh()
 
         self._colorbar.setOclim(self._layer.metadata["minmax"])
         self._colorbar.setClim((np.min(self._layer.properties["value"]), np.max(self._layer.properties["value"])))
         self._colorbar.update_color()
+
+    def _scale_vec(self, vec: NDArrayA) -> NDArrayA:
+        ominn, omaxx = self._colorbar.getOclim()
+        delta = omaxx - ominn + 1e-12
+
+        minn, maxx = self._colorbar.getClim()
+        minn = (minn - ominn) / delta
+        maxx = (maxx - ominn) / delta
+        scaler = MinMaxScaler(feature_range=(minn, maxx))
+        return scaler.fit_transform(vec.reshape(-1, 1))
