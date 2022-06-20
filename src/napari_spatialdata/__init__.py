@@ -1,9 +1,6 @@
 __version__ = "0.0.0"
 
-try:
-    from importlib_metadata import version  # Python < 3.8
-except ImportError:
-    from importlib.metadata import version  # Python = 3.8
+from importlib.metadata import version  # Python = 3.8
 
 from packaging.version import parse
 
