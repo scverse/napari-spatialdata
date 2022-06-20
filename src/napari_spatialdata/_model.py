@@ -9,6 +9,7 @@ import napari
 import pandas as pd
 
 from napari_spatialdata._utils import NDArrayA, _ensure_dense_vector
+from napari_spatialdata._constants._constants import Symbol
 from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["ImageModel"]
@@ -24,22 +25,22 @@ class ImageModel:
     _adata_layer: str = field(init=False, default=None, repr=False)
     _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
     _label_key: str = field(default=None, repr=True)
+    _coordinates: str = field(init=False, default=None, repr=True)
 
-    # library_key: Optional[str] = None
     library_id: str = field(init=False, default=None, repr=False)
     spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     scale_key: str = field(init=False, default="tissue_hires_scalef")
     scale: float = field(init=False, default=None)
     palette: Optional[str] = field(init=False, default=None, repr=False)
     cmap: str = field(init=False, default="viridis", repr=False)
+    symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
-    def __post_init__(self, adata: AnnData) -> None:
+    def __post_init__(self) -> None:
         self.events = EmitterGroup(
             source=self,
             layer=Event,
             adata=Event,
         )
-        self.adata = adata
 
     @property
     def layer(self) -> Optional[napari.layers.Labels]:  # noqa: D102
@@ -69,7 +70,11 @@ class ImageModel:
 
     @property
     def coordinates(self) -> NDArrayA:  # noqa: D102
-        return np.insert(self.adata.obsm[self._spatial_key][:, ::-1][:, :2], 0, values=0, axis=1)
+        return self._coordinates
+
+    @coordinates.setter
+    def coordinates(self, coordinates: NDArrayA):
+        self._coordinates = coordinates
 
     @property
     def scale(self) -> float:  # noqa: D102

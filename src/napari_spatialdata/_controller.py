@@ -193,7 +193,7 @@ class ImageController:
 
             key = f"{layer.name}_{self.model.key_added}"
 
-            logg.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['meshes']`")
+            logg.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mees']`")
             self._save_shapes(layer, key=key)
             self._update_obs_items(key)
 

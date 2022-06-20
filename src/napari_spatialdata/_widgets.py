@@ -10,7 +10,6 @@ from scanpy import logging as logg
 from superqt import QRangeSlider
 from qtpy.QtCore import Qt, Signal
 from napari.layers import Image, Layer, Labels, Points
-from napari.utils.events import Event, EmitterGroup
 from vispy.scene.widgets import ColorBarWidget
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from sklearn.preprocessing import MinMaxScaler
@@ -21,11 +20,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 from napari_spatialdata._model import ImageModel
-from napari_spatialdata._utils import ALayer, NDArrayA, _min_max_norm, _get_categorical
+from napari_spatialdata._utils import (
+    ALayer,
+    NDArrayA,
+    _min_max_norm,
+    _get_categorical,
+    _position_cluster_labels,
+)
 
-__all__ = ["TwoStateCheckBox", "AListWidget", "CBarWidget", "RangeSlider", "ObsmIndexWidget", "LibraryListWidget"]
+__all__ = ["AListWidget", "CBarWidget", "RangeSlider", "ObsmIndexWidget"]
 
 # label string: attribute name
+# TODO(giovp): remove since layer controls private?
 _WIDGETS_TO_HIDE = {
     "symbol:": "symbolComboBox",
     "point size:": "sizeSlider",
@@ -85,47 +91,8 @@ class ListWidget(QtWidgets.QListWidget):
             super().keyPressEvent(event)
 
 
-class LibraryListWidget(ListWidget):
-    def __init__(self, controller: Any, **kwargs: Any):
-        super().__init__(controller, **kwargs)
-
-        self.currentTextChanged.connect(self._onAction)
-
-    def setIndex(self, index: Union[int, str]) -> None:
-        # not used
-        if index == self._index:
-            return
-
-        self._index = index
-        self.indexChanged.emit(tuple(s.text() for s in self.selectedItems()))
-
-    def _onAction(self, items: Union[str, Iterable[str]]) -> None:
-        if isinstance(items, str):
-            items = (items,)
-
-        for item in items:
-            if self._controller.add_image(item):
-                # only add 1 item
-                break
-
-
-class TwoStateCheckBox(QtWidgets.QCheckBox):
-    checkChanged = Signal(bool)
-
-    def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
-
-        self.setTristate(False)
-        self.setChecked(False)
-        self.stateChanged.connect(self._onStateChanged)
-
-    def _onStateChanged(self, state: QtCore.Qt.CheckState) -> None:
-        self.checkChanged.emit(state == QtCore.Qt.Checked)
-
-
 class AListWidget(ListWidget):
     layerChanged = Signal()
-    libraryChanged = Signal()
 
     def __init__(self, viewer: napari.Viewer, model: ImageModel, attr: str, **kwargs: Any):
         if attr not in ALayer.VALID_ATTRIBUTES:
@@ -134,16 +101,11 @@ class AListWidget(ListWidget):
 
         self.viewer = viewer
         self.model = model
-        self.events = EmitterGroup(
-            source=self,
-            layer=Event,
-        )
 
         self._attr = attr
         self._getter = getattr(self.model, f"get_{attr}")
 
         self.layerChanged.connect(self._onChange)
-        self.libraryChanged.connect(self._onChange)
 
         self._onChange()
 
@@ -166,7 +128,6 @@ class AListWidget(ListWidget):
                     name=layer_name,
                     size=self.model.spot_diameter,
                     opacity=1,
-                    blending=self.model.blending,
                     face_colormap=self.model.cmap,
                     edge_colormap=self.model.cmap,
                     symbol=self.model.symbol,
@@ -191,7 +152,7 @@ class AListWidget(ListWidget):
             # self.viewer.layers[layer_name].editable = False
 
     def setAdataLayer(self, layer: Optional[str]) -> None:
-        if layer in ("default", "None"):
+        if layer in ("default", "None", "X"):
             layer = None
         if layer == self.getAdataLayer():
             return
@@ -250,10 +211,18 @@ class AListWidget(ListWidget):
         face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=vec)
         if layer is not None and isinstance(layer, Labels):
             return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
+
+        cluster_labels = _position_cluster_labels(self.model.coordinates, vec, face_color)
         return {
-            "text": {"text": "{clusters}", "size": 24, "color": "white", "anchor": "center"},
+            # TODO(giovp): text wrong for categorical
+            "text": {
+                "string": "{clusters}",
+                "size": 24,
+                "color": cluster_labels["colors"],  # {"feature": "clusters", "colormap": "colors"},
+                "anchor": "center",
+            },
             "face_color": face_color,
-            # "properties": _position_cluster_labels(self.model.coordinates, vec, face_color),
+            "features": cluster_labels,
             "metadata": None,
         }
 

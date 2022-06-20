@@ -158,19 +158,18 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series, colors: NDAr
     if not is_categorical_dtype(clusters):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
 
-    coords = coords[:, 1:]  # TODO(michalk8): account for current Z-dim?
+    coords = coords[:, 1:]
     df = pd.DataFrame(coords)
     df["clusters"] = clusters.values
     df = df.groupby("clusters")[[0, 1]].apply(lambda g: list(np.median(g.values, axis=0)))
     df = pd.DataFrame(list(df), index=df.index)
-
     kdtree = KDTree(coords)
     clusters = np.full(len(coords), fill_value="", dtype=object)
     # index consists of the categories that need not be string
     clusters[kdtree.query(df.values)[1]] = df.index.astype(str)
     # napari v0.4.9 - properties must be 1-D in napari/layers/points/points.py:581
-    colors = np.array([to_hex(col if cl != "" else (0, 0, 0)) for cl, col in zip(clusters, colors)])
-
+    colors = np.array([to_hex(col) for col in colors])
+    colors = np.array([col if not len(cl) else to_hex((0, 0, 0)) for cl, col in zip(clusters, colors)])
     return {"clusters": clusters, "colors": colors}
 
 
