@@ -35,7 +35,6 @@ import numpy as np
 import pandas as pd
 import dask.array as da
 
-from napari_spatialdata._model import ImageModel
 from napari_spatialdata._constants._pkg_constants import Key
 
 try:
@@ -52,7 +51,7 @@ Vector_name_t = Tuple[Optional[Union[pd.Series, NDArrayA]], Optional[str]]
 
 def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vector_name_t]:
     @wraps(fn)
-    def decorator(self: ImageModel, *args: Any, **kwargs: Any) -> Vector_name_t:
+    def decorator(self: Any, *args: Any, **kwargs: Any) -> Vector_name_t:
         normalize = kwargs.pop("normalize", False)
         res, fmt = fn(self, *args, **kwargs)
         if res is None:
