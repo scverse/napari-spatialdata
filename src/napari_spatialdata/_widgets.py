@@ -21,7 +21,6 @@ import matplotlib.pyplot as plt
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import (
-    ALayer,
     NDArrayA,
     _min_max_norm,
     _get_categorical,
@@ -95,8 +94,8 @@ class AListWidget(ListWidget):
     layerChanged = Signal()
 
     def __init__(self, viewer: napari.Viewer, model: ImageModel, attr: str, **kwargs: Any):
-        if attr not in ALayer.VALID_ATTRIBUTES:
-            raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ALayer.VALID_ATTRIBUTES)}`.")
+        if attr not in ImageModel.VALID_ATTRIBUTES:
+            raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
 
         self.viewer = viewer

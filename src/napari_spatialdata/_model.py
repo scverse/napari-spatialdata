@@ -34,6 +34,8 @@ class ImageModel:
     _cmap: str = field(init=False, default="viridis", repr=False)
     _symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
+    VALID_ATTRIBUTES = ("obs", "var", "obsm")
+
     def __post_init__(self) -> None:
         self.events = EmitterGroup(
             source=self,
@@ -122,6 +124,14 @@ class ImageModel:
     @symbol.setter
     def symbol(self, symbol: str) -> None:
         self._symbol = symbol
+
+    @property
+    def scale_key(self) -> Optional[str]:  # noqa: D102
+        return self._scale_key
+
+    @scale_key.setter
+    def scale_key(self, scale_key: str) -> None:
+        self._scale_key = scale_key
 
     @_ensure_dense_vector
     def get_obs(
