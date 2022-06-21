@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Union, Iterable, Optional
+from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
 from functools import singledispatchmethod
 
 from qtpy import QtCore, QtWidgets
@@ -148,7 +148,7 @@ class AListWidget(ListWidget):
                     layer_name=layer_name,
                 )
             # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
-            # TODO(giovp): layer editable?
+            # TODO(giovp): make layer editable?
             # self.viewer.layers[layer_name].editable = False
 
     def setAdataLayer(self, layer: Optional[str]) -> None:
@@ -160,6 +160,8 @@ class AListWidget(ListWidget):
         self.layerChanged.emit()
 
     def getAdataLayer(self) -> Optional[str]:
+        if TYPE_CHECKING:
+            assert isinstance(self.model.adata_layer, str)
         return self.model.adata_layer
 
     def setIndex(self, index: Union[int, str]) -> None:
