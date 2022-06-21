@@ -30,9 +30,9 @@ class ImageModel:
     _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     _scale_key: Optional[str] = field(init=False, default="tissue_hires_scalef")  # TODO(giovp): use constants for these
 
-    palette: Optional[str] = field(init=False, default=None, repr=False)
-    cmap: str = field(init=False, default="viridis", repr=False)
-    symbol: str = field(init=False, default=Symbol.DISC, repr=False)
+    _palette: Optional[str] = field(init=False, default=None, repr=False)
+    _cmap: str = field(init=False, default="viridis", repr=False)
+    _symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
     def __post_init__(self) -> None:
         self.events = EmitterGroup(
@@ -98,6 +98,30 @@ class ImageModel:
     @labels_key.setter
     def labels_key(self, labels_key: str) -> None:
         self._labels_key = labels_key
+
+    @property
+    def palette(self) -> Optional[str]:  # noqa: D102
+        return self._palette
+
+    @palette.setter
+    def palette(self, palette: str) -> None:
+        self._palette = palette
+
+    @property
+    def cmap(self) -> str:  # noqa: D102
+        return self._cmap
+
+    @cmap.setter
+    def cmap(self, cmap: str) -> None:
+        self._cmap = cmap
+
+    @property
+    def symbol(self) -> str:  # noqa: D102
+        return self._symbol
+
+    @symbol.setter
+    def symbol(self, symbol: str) -> None:
+        self._symbol = symbol
 
     @_ensure_dense_vector
     def get_obs(

@@ -20,8 +20,6 @@ from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["QtAdataViewWidget"]
 
-ImageController_ = Any
-
 
 class QtAdataViewWidget(QWidget):
     """Adata viewer widget."""
