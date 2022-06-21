@@ -5,7 +5,6 @@ from anndata import AnnData
 from napari.layers import Layer
 from napari.utils.events import Event, EmitterGroup
 import numpy as np
-import napari
 import pandas as pd
 
 from napari_spatialdata._utils import NDArrayA, _ensure_dense_vector
@@ -22,15 +21,15 @@ class ImageModel:
     events: EmitterGroup = field(init=False, default=None, repr=True)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: AnnData = field(init=False, default=None, repr=True)
-    _adata_layer: str = field(init=False, default=None, repr=False)
+    _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
     _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
-    _label_key: str = field(default=None, repr=True)
-    _coordinates: str = field(init=False, default=None, repr=True)
+    _label_key: Optional[str] = field(default=None, repr=True)
+    _coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
+    _scale: Optional[float] = field(init=False, default=None)
 
-    library_id: str = field(init=False, default=None, repr=False)
-    spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
-    scale_key: str = field(init=False, default="tissue_hires_scalef")
-    scale: float = field(init=False, default=None)
+    _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
+    _scale_key: Optional[str] = field(init=False, default="tissue_hires_scalef")  # TODO(giovp): use constants for these
+
     palette: Optional[str] = field(init=False, default=None, repr=False)
     cmap: str = field(init=False, default="viridis", repr=False)
     symbol: str = field(init=False, default=Symbol.DISC, repr=False)
@@ -43,29 +42,29 @@ class ImageModel:
         )
 
     @property
-    def layer(self) -> Optional[napari.layers.Labels]:  # noqa: D102
+    def layer(self) -> Optional[Layer]:  # noqa: D102
         return self._layer
 
     @layer.setter
-    def layer(self, layer: Optional[napari.layers.Layer]):
+    def layer(self, layer: Optional[Layer]) -> None:
         self._layer = layer
         self.events.layer()
 
     @property
-    def adata(self) -> Optional[AnnData]:  # noqa: D102
+    def adata(self) -> AnnData:  # noqa: D102
         return self._adata
 
     @adata.setter
-    def adata(self, adata: Optional[AnnData]):
+    def adata(self, adata: AnnData) -> None:
         self._adata = adata
         self.events.adata()
 
     @property
-    def adata_layer(self) -> str:  # noqa: D102
+    def adata_layer(self) -> Optional[str]:  # noqa: D102
         return self._adata_layer
 
     @adata_layer.setter
-    def adata_layer(self, adata_layer: str):
+    def adata_layer(self, adata_layer: str) -> None:
         self._adata_layer = adata_layer
 
     @property
@@ -73,15 +72,15 @@ class ImageModel:
         return self._coordinates
 
     @coordinates.setter
-    def coordinates(self, coordinates: NDArrayA):
+    def coordinates(self, coordinates: NDArrayA) -> None:
         self._coordinates = coordinates
 
     @property
-    def scale(self) -> float:  # noqa: D102
+    def scale(self) -> Optional[float]:  # noqa: D102
         return self._scale
 
     @scale.setter
-    def scale(self, scale: float):
+    def scale(self, scale: float) -> None:
         self._scale = scale
 
     @property
@@ -89,19 +88,21 @@ class ImageModel:
         return self._spot_diameter
 
     @spot_diameter.setter
-    def spot_diameter(self, spot_diameter: NDArrayA):
+    def spot_diameter(self, spot_diameter: NDArrayA) -> None:
         self._spot_diameter = spot_diameter
 
     @property
-    def labels_key(self) -> NDArrayA:  # noqa: D102
+    def labels_key(self) -> Optional[str]:  # noqa: D102
         return self._labels_key
 
     @labels_key.setter
-    def labels_key(self, labels_key: str):
+    def labels_key(self, labels_key: str) -> None:
         self._labels_key = labels_key
 
     @_ensure_dense_vector
-    def get_obs(self, name: str, **_: Any) -> Tuple[Optional[Union[pd.Series, NDArrayA]], str]:
+    def get_obs(
+        self, name: str, **_: Any
+    ) -> Tuple[Optional[Union[pd.Series, NDArrayA]], str]:  # TODO(giovp): fix docstring
         """
         Return an observation.
 
