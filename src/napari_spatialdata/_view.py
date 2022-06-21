@@ -1,11 +1,9 @@
-from __future__ import annotations
-
-from typing import Any, Union, Sequence
+from typing import Any, Optional, Sequence, FrozenSet
 
 from scanpy import logging as logg
 from anndata import AnnData
 from magicgui import magicgui
-from napari.layers import Labels
+from napari.layers import Layer, Labels
 from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QVBoxLayout
 import numpy as np
 import napari
@@ -26,7 +24,7 @@ ImageController_ = Any
 
 
 class QtAdataViewWidget(QWidget):
-    """Adata viewer."""
+    """Adata viewer widget."""
 
     def __init__(self, viewer: napari.viewer.Viewer):
         super().__init__()
@@ -86,7 +84,7 @@ class QtAdataViewWidget(QWidget):
         self.viewer.bind_key("Shift-E", self.export)
         self.model.events.adata.connect(self._on_layer_update)
 
-    def _on_layer_update(self, event=None):
+    def _on_layer_update(self, event: Optional[Any] = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
@@ -95,7 +93,7 @@ class QtAdataViewWidget(QWidget):
         self.var_widget._onChange()
         self.obsm_widget._onChange()
 
-    def _select_layer(self, layer: napari.layers.Layer):
+    def _select_layer(self, layer: Layer) -> None:
         """Napari layers."""
         self.model.layer = layer
         self.model.adata = layer.metadata["adata"]
@@ -110,14 +108,14 @@ class QtAdataViewWidget(QWidget):
         )
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
 
-    def _get_layer(self, combo_widget):
+    def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
         adata_layers = []
         for layer in self._viewer.layers:
             if isinstance(layer.metadata.get("adata", None), AnnData):
                 adata_layers.append(layer)
         return adata_layers
 
-    def _get_adata_layer(self) -> Union[None, Sequence[str]]:
+    def _get_adata_layer(self) -> Sequence[Optional[str]]:
         adata_layers = list(self.model.adata.layers.keys())
         if len(adata_layers):
             return adata_layers
@@ -168,7 +166,7 @@ class QtAdataViewWidget(QWidget):
         return self._model
 
     @property
-    def layernames(self) -> frozenset[str]:
+    def layernames(self) -> FrozenSet[str]:
         """Names of :attr:`napari.Viewer.layers`."""
         return frozenset(layer.name for layer in self.viewer.layers)
 
