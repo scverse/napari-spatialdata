@@ -5,7 +5,7 @@ adata = sq.datasets.mibitof()
 
 # make mildly interesting dataset
 adata = sq.datasets.mibitof()
-adata.uns["spatial"]["point8"]["scalefactors"]["spot_diameter_fullres"] = 1
+adata.uns["spatial"]["point8"]["scalefactors"]["spot_diameter_fullres"] = 10
 adata1 = adata[adata.obs.library_id == "point8"].copy()
 adata2 = adata[adata.obs.library_id == "point16"].copy()
 img1 = adata.uns["spatial"]["point8"]["images"]["hires"].copy()
@@ -24,16 +24,20 @@ viewer.add_image(
     img1,
     rgb=True,
     name="image1",
-    metadata={"adata": adata1, "library_id": "point8"},
+    metadata={"adata": adata1, "library_id": "point8"},  # adata in image layers will plot points
 )
 viewer.add_labels(
     label1,
     name="label1",
-    metadata={"adata": adata1, "library_id": "point8", "labels_key": "cell_id"},
+    metadata={
+        "adata": adata1,
+        "library_id": "point8",
+        "labels_key": "cell_id",
+    },  # adata in labels layer will color segments
 )
 viewer.add_labels(
     label2,
-    name="label1",
+    name="label2",
     metadata={"adata": adata2, "library_id": "point16", "labels_key": "cell_id"},
 )
 
