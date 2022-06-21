@@ -21,6 +21,11 @@ and review the napari docs for plugin developers:
 https://napari.org/plugins/stable/index.html
 -->
 
+# UNDER DEVELOPMENT
+
+Clone repo and `pip install -e .`.
+Run examples e.g. `python shape_regions.py` or via notebook for the shape export function.
+
 ## Installation
 
 You can install `napari-spatialdata` via [pip]:

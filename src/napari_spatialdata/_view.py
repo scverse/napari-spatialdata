@@ -95,11 +95,13 @@ class QtAdataViewWidget(QWidget):
         """Napari layers."""
         self.model.layer = layer
         self.model.adata = layer.metadata["adata"]
-        self.model.coordinates = np.insert(self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1)
         self.model.library_id = layer.metadata["library_id"]
         self.model.scale = self.model.adata.uns[Key.uns.spatial][self.model.library_id][Key.uns.scalefactor_key][
             self.model.scale_key
         ]
+        self.model.coordinates = np.insert(
+            self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
+        )
         self.model.spot_diameter = (
             np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
             * self.model.scale
