@@ -1,29 +1,50 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Union, Iterable, Optional
+from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
+from functools import singledispatchmethod
 
-from PyQt5 import QtCore, QtWidgets
+from qtpy import QtCore, QtWidgets
 from vispy import scene
 from scanpy import logging as logg
 from superqt import QRangeSlider
-from PyQt5.QtCore import Qt
-from napari.layers import Points
+from qtpy.QtCore import Qt, Signal
+from napari.layers import Image, Layer, Labels, Points
 from vispy.scene.widgets import ColorBarWidget
 from vispy.color.colormap import Colormap, MatplotlibColormap
+from sklearn.preprocessing import MinMaxScaler
+from pandas.core.dtypes.common import is_categorical_dtype
 import numpy as np
+import napari
 import pandas as pd
+import matplotlib.pyplot as plt
 
-from napari_spatialdata._utils import ALayer
+from napari_spatialdata._model import ImageModel
+from napari_spatialdata._utils import (
+    NDArrayA,
+    _min_max_norm,
+    _get_categorical,
+    _position_cluster_labels,
+)
 
-__all__ = ["TwoStateCheckBox", "AListWidget", "CBarWidget", "RangeSlider", "ObsmIndexWidget", "LibraryListWidget"]
+__all__ = ["AListWidget", "CBarWidget", "RangeSlider", "ObsmIndexWidget"]
+
+# label string: attribute name
+# TODO(giovp): remove since layer controls private?
+_WIDGETS_TO_HIDE = {
+    "symbol:": "symbolComboBox",
+    "point size:": "sizeSlider",
+    "face color:": "faceColorEdit",
+    "edge color:": "edgeColorEdit",
+    "out of slice:": "outOfSliceCheckBox",
+}
 
 
 class ListWidget(QtWidgets.QListWidget):
-    indexChanged = QtCore.pyqtSignal(object)
-    enterPressed = QtCore.pyqtSignal(object)
+    indexChanged = Signal(object)
+    enterPressed = Signal(object)
 
-    def __init__(self, controller: Any, unique: bool = True, multiselect: bool = True, **kwargs: Any):
+    def __init__(self, viewer: napari.Viewer, unique: bool = True, multiselect: bool = True, **kwargs: Any):
         super().__init__(**kwargs)
         if multiselect:
             self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -32,7 +53,7 @@ class ListWidget(QtWidgets.QListWidget):
 
         self._index: Union[int, str] = 0
         self._unique = unique
-        self._controller = controller
+        self._viewer = viewer
 
         self.itemDoubleClicked.connect(lambda item: self._onAction((item.text(),)))
         self.enterPressed.connect(self._onAction)
@@ -69,68 +90,27 @@ class ListWidget(QtWidgets.QListWidget):
             super().keyPressEvent(event)
 
 
-class LibraryListWidget(ListWidget):
-    def __init__(self, controller: Any, **kwargs: Any):
-        super().__init__(controller, **kwargs)
-
-        self.currentTextChanged.connect(self._onAction)
-
-    def setIndex(self, index: Union[int, str]) -> None:
-        # not used
-        if index == self._index:
-            return
-
-        self._index = index
-        self.indexChanged.emit(tuple(s.text() for s in self.selectedItems()))
-
-    def _onAction(self, items: Union[str, Iterable[str]]) -> None:
-        if isinstance(items, str):
-            items = (items,)
-
-        for item in items:
-            if self._controller.add_image(item):
-                # only add 1 item
-                break
-
-
-class TwoStateCheckBox(QtWidgets.QCheckBox):
-    checkChanged = QtCore.pyqtSignal(bool)
-
-    def __init__(self, **kwargs: Any):
-        super().__init__(**kwargs)
-
-        self.setTristate(False)
-        self.setChecked(False)
-        self.stateChanged.connect(self._onStateChanged)
-
-    def _onStateChanged(self, state: QtCore.Qt.CheckState) -> None:
-        self.checkChanged.emit(state == QtCore.Qt.Checked)
-
-
 class AListWidget(ListWidget):
-    rawChanged = QtCore.pyqtSignal()
-    layerChanged = QtCore.pyqtSignal()
-    libraryChanged = QtCore.pyqtSignal()
+    layerChanged = Signal()
 
-    def __init__(self, controller: Any, alayer: ALayer, attr: str, **kwargs: Any):
-        if attr not in ALayer.VALID_ATTRIBUTES:
-            raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ALayer.VALID_ATTRIBUTES)}`.")
-        super().__init__(controller, **kwargs)
+    def __init__(self, viewer: napari.Viewer, model: ImageModel, attr: str, **kwargs: Any):
+        if attr not in ImageModel.VALID_ATTRIBUTES:
+            raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
+        super().__init__(viewer, **kwargs)
 
-        self._alayer = alayer
+        self.viewer = viewer
+        self.model = model
 
         self._attr = attr
-        self._getter = getattr(self._alayer, f"get_{attr}")
+        self._getter = getattr(self.model, f"get_{attr}")
 
-        self.rawChanged.connect(self._onChange)
         self.layerChanged.connect(self._onChange)
-        self.libraryChanged.connect(self._onChange)
 
         self._onChange()
 
     def _onChange(self) -> None:
         self.clear()
-        self.addItems(self._alayer.get_items(self._attr))
+        self.addItems(self.model.get_items(self._attr))
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
@@ -139,17 +119,49 @@ class AListWidget(ListWidget):
             except Exception as e:  # noqa: B902
                 logg.error(e)
                 continue
-            self._controller.add_points(vec, key=item, layer_name=name)
+            layer_name = name
+            properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
+            if isinstance(self.model.layer, Image):
+                self.viewer.add_points(
+                    self.model.coordinates,
+                    name=layer_name,
+                    size=self.model.spot_diameter,
+                    opacity=1,
+                    face_colormap=self.model.cmap,
+                    edge_colormap=self.model.cmap,
+                    symbol=self.model.symbol,
+                    **properties,
+                )
+            elif isinstance(self.model.layer, Labels):
+                self.viewer.add_labels(
+                    self.model.layer.data.copy(),
+                    name=layer_name,
+                    **properties,
+                )
+            else:
+                raise ValueError("TODO")
+            if not is_categorical_dtype(vec):
+                self._add_slider(
+                    self.viewer.layers[layer_name],
+                    model=self.model,
+                    layer_name=layer_name,
+                )
+            # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
+            # TODO(giovp): make layer editable?
+            # self.viewer.layers[layer_name].editable = False
 
-    def setRaw(self, is_raw: bool) -> None:
-        if is_raw == self.getRaw():
+    def setAdataLayer(self, layer: Optional[str]) -> None:
+        if layer in ("default", "None", "X"):
+            layer = None
+        if layer == self.getAdataLayer():
             return
+        self.model.adata_layer = layer
+        self.layerChanged.emit()
 
-        self._alayer.raw = is_raw
-        self.rawChanged.emit()
-
-    def getRaw(self) -> bool:
-        return self._alayer.raw
+    def getAdataLayer(self) -> Optional[str]:
+        if TYPE_CHECKING:
+            assert isinstance(self.model.adata_layer, str)
+        return self.model.adata_layer
 
     def setIndex(self, index: Union[int, str]) -> None:
         if isinstance(index, str):
@@ -157,7 +169,7 @@ class AListWidget(ListWidget):
                 index = 0
             elif self._attr != "obsm":
                 index = int(index, base=10)
-            # for obsm, we convert index to int if needed (if not a DataFrame) in the ALayer
+            # for obsm, we convert index to int if needed (if not a DataFrame)
         if index == self._index:
             return
 
@@ -168,34 +180,66 @@ class AListWidget(ListWidget):
     def getIndex(self) -> Union[int, str]:
         return self._index
 
-    def setLayer(self, layer: Optional[str]) -> None:
-        if layer in ("default", "None"):
-            layer = None
-        if layer == self.getLayer():
-            return
+    def _handle_already_present(self, layer_name: str) -> None:
+        logg.debug(f"Layer `{layer_name}` is already loaded")
+        self.viewer.layers.selection.select_only(self.viewer.layers[layer_name])
 
-        self._alayer.layer = layer
-        self.layerChanged.emit()
+    @singledispatchmethod
+    def _get_points_properties(self, vec: Union[NDArrayA, pd.Series], **kwargs: Any) -> dict[str, Any]:
+        raise NotImplementedError(type(vec))
 
-    def getLayer(self) -> Optional[str]:
-        return self._alayer.layer
+    @_get_points_properties.register(np.ndarray)
+    def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
+        layer = kwargs.pop("layer", None)
+        if layer is not None and isinstance(layer, Labels):
+            cmap = plt.get_cmap(self.model.cmap)
+            norm_vec = _min_max_norm(vec)
+            color_vec = cmap(norm_vec)
+            return {
+                "color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, color_vec)},
+                "properties": {"value": vec},
+                "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
+            }
+        return {
+            "text": None,
+            "face_color": "value",
+            "properties": {"value": vec},
+            "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
+        }
 
-    def setLibraryId(self, library_id: str) -> None:
-        if library_id == self.getLibraryId():
-            return
+    @_get_points_properties.register(pd.Series)
+    def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
+        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=vec)
+        if layer is not None and isinstance(layer, Labels):
+            return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
 
-        self._alayer.library_id = library_id
-        self.libraryChanged.emit()
+        cluster_labels = _position_cluster_labels(self.model.coordinates, vec, face_color)
+        return {
+            # TODO(giovp): text wrong for categorical
+            "text": {
+                "string": "{clusters}",
+                "size": 24,
+                "color": cluster_labels["colors"],  # {"feature": "clusters", "colormap": "colors"},
+                "anchor": "center",
+            },
+            "face_color": face_color,
+            "features": cluster_labels,
+            "metadata": None,
+        }
 
-    def getLibraryId(self) -> str:
-        return self._alayer.library_id
+    def _add_slider(self, layer: Union[Points, Labels], model: ImageModel, layer_name: str) -> None:
+        colorbar = CBarWidget(self.model.cmap)
+        slider = RangeSlider(layer=layer, colorbar=colorbar, cmap=self.model.cmap)
+        slider.valueChanged.emit((0, 100))
+        self.viewer.window.add_dock_widget(slider, area="left", name=f"slider {layer_name}")
+        self.viewer.window.add_dock_widget(colorbar, area="left", name=f"percentile {layer_name}")
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):
-    def __init__(self, alayer: ALayer, max_visible: int = 6, **kwargs: Any):
+    def __init__(self, model: ImageModel, max_visible: int = 6, **kwargs: Any):
         super().__init__(**kwargs)
 
-        self._alayer = alayer
+        self._model = model
         self.view().setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.setMaxVisibleItems(max_visible)
         self.setStyleSheet("combobox-popup: 0;")
@@ -204,12 +248,12 @@ class ObsmIndexWidget(QtWidgets.QComboBox):
         if isinstance(texts, QtWidgets.QListWidgetItem):
             try:
                 key = texts.text()
-                if isinstance(self._alayer.adata.obsm[key], pd.DataFrame):
-                    texts = sorted(self._alayer.adata.obsm[key].select_dtypes(include=[np.number, "category"]).columns)
-                elif hasattr(self._alayer.adata.obsm[key], "shape"):
-                    texts = self._alayer.adata.obsm[key].shape[1]
+                if isinstance(self._model.adata.obsm[key], pd.DataFrame):
+                    texts = sorted(self._model.adata.obsm[key].select_dtypes(include=[np.number, "category"]).columns)
+                elif hasattr(self._model.adata.obsm[key], "shape"):
+                    texts = self._model.adata.obsm[key].shape[1]
                 else:
-                    texts = np.asarray(self._alayer.adata.obsm[key]).shape[1]
+                    texts = np.asarray(self._model.adata.obsm[key]).shape[1]
             except (KeyError, IndexError):
                 texts = 0
         if isinstance(texts, int):
@@ -222,8 +266,8 @@ class ObsmIndexWidget(QtWidgets.QComboBox):
 class CBarWidget(QtWidgets.QWidget):
     FORMAT = "{0:0.2f}"
 
-    cmapChanged = QtCore.pyqtSignal(str)
-    climChanged = QtCore.pyqtSignal((float, float))
+    cmapChanged = Signal(str)
+    climChanged = Signal((float, float))
 
     def __init__(
         self,
@@ -341,11 +385,12 @@ class CBarWidget(QtWidgets.QWidget):
 
 
 class RangeSlider(QRangeSlider):
-    def __init__(self, *args: Any, layer: Points, colorbar: CBarWidget, **kwargs: Any):
+    def __init__(self, *args: Any, layer: Points, colorbar: CBarWidget, cmap: str, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
         self._layer = layer
         self._colorbar = colorbar
+        self._cmap = plt.get_cmap(cmap)
         self.setValue((0, 100))
         self.setSliderPosition((0, 100))
         self.setSingleStep(0.01)
@@ -358,12 +403,28 @@ class RangeSlider(QRangeSlider):
         v = self._layer.metadata["data"]
         clipped = np.clip(v, *np.percentile(v, percentile))
 
-        self._layer.metadata = {**self._layer.metadata, "perc": percentile}
-        self._layer.face_color = "value"
-        self._layer.properties = {"value": clipped}
-        self._layer._update_thumbnail()  # can't find another way to force it
-        self._layer.refresh_colors()
+        if isinstance(self._layer, Points):
+            self._layer.metadata = {**self._layer.metadata, "perc": percentile}
+            self._layer.face_color = "value"
+            self._layer.properties = {"value": clipped}
+            self._layer.refresh_colors()
+        elif isinstance(self._layer, Labels):
+            norm_vec = self._scale_vec(clipped)
+            color_vec = self._cmap(norm_vec)
+            self._layer.color = {k: v for k, v in zip(self._layer.color.keys(), color_vec)}
+            self._layer.properties = {"value": clipped}
+            self._layer.refresh()
 
         self._colorbar.setOclim(self._layer.metadata["minmax"])
         self._colorbar.setClim((np.min(self._layer.properties["value"]), np.max(self._layer.properties["value"])))
         self._colorbar.update_color()
+
+    def _scale_vec(self, vec: NDArrayA) -> NDArrayA:
+        ominn, omaxx = self._colorbar.getOclim()
+        delta = omaxx - ominn + 1e-12
+
+        minn, maxx = self._colorbar.getClim()
+        minn = (minn - ominn) / delta
+        maxx = (maxx - ominn) / delta
+        scaler = MinMaxScaler(feature_range=(minn, maxx))
+        return scaler.fit_transform(vec.reshape(-1, 1))

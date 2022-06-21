@@ -51,7 +51,7 @@ Vector_name_t = Tuple[Optional[Union[pd.Series, NDArrayA]], Optional[str]]
 
 def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vector_name_t]:
     @wraps(fn)
-    def decorator(self: ALayer, *args: Any, **kwargs: Any) -> Vector_name_t:
+    def decorator(self: Any, *args: Any, **kwargs: Any) -> Vector_name_t:
         normalize = kwargs.pop("normalize", False)
         res, fmt = fn(self, *args, **kwargs)
         if res is None:
@@ -158,19 +158,18 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series, colors: NDAr
     if not is_categorical_dtype(clusters):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
 
-    coords = coords[:, 1:]  # TODO(michalk8): account for current Z-dim?
+    coords = coords[:, 1:]
     df = pd.DataFrame(coords)
     df["clusters"] = clusters.values
     df = df.groupby("clusters")[[0, 1]].apply(lambda g: list(np.median(g.values, axis=0)))
     df = pd.DataFrame(list(df), index=df.index)
-
     kdtree = KDTree(coords)
     clusters = np.full(len(coords), fill_value="", dtype=object)
     # index consists of the categories that need not be string
     clusters[kdtree.query(df.values)[1]] = df.index.astype(str)
     # napari v0.4.9 - properties must be 1-D in napari/layers/points/points.py:581
-    colors = np.array([to_hex(col if cl != "" else (0, 0, 0)) for cl, col in zip(clusters, colors)])
-
+    colors = np.array([to_hex(col) for col in colors])
+    colors = np.array([col if not len(cl) else to_hex((0, 0, 0)) for cl, col in zip(clusters, colors)])
     return {"clusters": clusters, "colors": colors}
 
 
@@ -215,199 +214,6 @@ def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
     return (  # type: ignore[no-any-return]
         np.ones_like(vec) if np.isclose(minn, maxx) else ((vec - minn) / (maxx - minn))
     )
-
-
-class ALayer:
-    """
-    Class which helps with :attr:`anndata.AnnData.layers` logic.
-
-    Parameters
-    ----------
-    %(adata)s
-    is_raw
-        Whether we want to access :attr:`anndata.AnnData.raw`.
-    palette
-        Color palette for categorical variables which don't have colors in :attr:`anndata.AnnData.uns`.
-    """
-
-    VALID_ATTRIBUTES = ("obs", "var", "obsm")
-
-    def __init__(
-        self,
-        adata: AnnData,
-        library_ids: Sequence[str],
-        is_raw: bool = False,
-        palette: Optional[str] = None,
-    ):
-        if is_raw and adata.raw is None:
-            raise AttributeError("Attribute `.raw` is `None`.")
-
-        self._adata = adata
-        self._library_id = library_ids[0]
-        self._ix_to_group = dict(zip(range(len(library_ids)), library_ids))
-        self._layer: Optional[str] = None
-        self._previous_layer: Optional[str] = None
-        self._raw = is_raw
-        self._palette = palette
-
-    @property
-    def adata(self) -> AnnData:
-        """The underlying annotated data object."""  # noqa: D401
-        return self._adata
-
-    @property
-    def layer(self) -> Optional[str]:
-        """Layer in :attr:`anndata.AnnData.layers`."""
-        return self._layer
-
-    @layer.setter
-    def layer(self, layer: Optional[str] = None) -> None:
-        if layer not in (None,) + tuple(self.adata.layers.keys()):
-            raise KeyError(f"Invalid layer `{layer}`. Valid options are `{[None] + sorted(self.adata.layers.keys())}`.")
-        self._previous_layer = layer
-        # handle in raw setter
-        self.raw = False
-
-    @property
-    def raw(self) -> bool:
-        """Whether to access :attr:`anndata.AnnData.raw`."""
-        return self._raw
-
-    @raw.setter
-    def raw(self, is_raw: bool) -> None:
-        if is_raw:
-            if self.adata.raw is None:
-                raise AttributeError("Attribute `.raw` is `None`.")
-            self._previous_layer = self.layer
-            self._layer = None
-        else:
-            self._layer = self._previous_layer
-        self._raw = is_raw
-
-    @property
-    def library_id(self) -> str:
-        """Library id that is currently selected."""
-        return self._library_id
-
-    @library_id.setter
-    def library_id(self, library_id: Union[str, int]) -> None:
-        if isinstance(library_id, int):
-            library_id = self._ix_to_group[library_id]
-        self._library_id = library_id
-
-    @_ensure_dense_vector
-    def get_obs(self, name: str, **_: Any) -> tuple[Optional[Union[pd.Series, NDArrayA]], str]:
-        """
-        Return an observation.
-
-        Parameters
-        ----------
-        name
-            Key in :attr:`anndata.AnnData.obs` to access.
-
-        Returns
-        -------
-        The values and the formatted ``name``.
-        """
-        if name not in self.adata.obs.columns:
-            raise KeyError(f"Key `{name}` not found in `adata.obs`.")
-        return self.adata.obs[name], self._format_key(name, layer_modifier=False)
-
-    @_ensure_dense_vector
-    def get_var(self, name: Union[str, int], **_: Any) -> tuple[Optional[NDArrayA], str]:
-        """
-        Return a gene.
-
-        Parameters
-        ----------
-        name
-            Gene name in :attr:`anndata.AnnData.var_names` or :attr:`anndata.AnnData.raw.var_names`,
-            based on :paramref:`raw`.
-
-        Returns
-        -------
-        The values and the formatted ``name``.
-        """
-        adata = self.adata.raw if self.raw else self.adata
-        try:
-            ix = adata._normalize_indices((slice(None), name))
-        except KeyError:
-            raise KeyError(f"Key `{name}` not found in `adata.{'raw.' if self.raw else ''}var_names`.") from None
-
-        return self.adata._get_X(use_raw=self.raw, layer=self.layer)[ix], self._format_key(name, layer_modifier=True)
-
-    def get_items(self, attr: str) -> tuple[str, ...]:
-        """
-        Return valid keys for an attribute.
-
-        Parameters
-        ----------
-        attr
-            Attribute of :mod:`anndata.AnnData` to access.
-
-        Returns
-        -------
-        The available items.
-        """
-        adata = self.adata.raw if self.raw and attr in ("var",) else self.adata
-        if attr in ("obs", "obsm"):
-            return tuple(map(str, getattr(adata, attr).keys()))
-        return tuple(map(str, getattr(adata, attr).index))
-
-    @_ensure_dense_vector
-    def get_obsm(self, name: str, index: Union[int, str] = 0) -> tuple[Optional[NDArrayA], str]:
-        """
-        Return a vector from :attr:`anndata.AnnData.obsm`.
-
-        Parameters
-        ----------
-        name
-            Key in :attr:`anndata.AnnData.obsm`.
-        index
-            Index of the vector.
-
-        Returns
-        -------
-        The values and the formatted ``name``.
-        """
-        if name not in self.adata.obsm:
-            raise KeyError(f"Unable to find key `{name!r}` in `adata.obsm`.")
-        res = self.adata.obsm[name]
-        pretty_name = self._format_key(name, layer_modifier=False, index=index)
-
-        if isinstance(res, pd.DataFrame):
-            try:
-                if isinstance(index, str):
-                    return res[index], pretty_name
-                if isinstance(index, int):
-                    return res.iloc[:, index], self._format_key(name, layer_modifier=False, index=res.columns[index])
-            except KeyError:
-                raise KeyError(f"Key `{index}` not found in `adata.obsm[{name!r}].`") from None
-
-        if not isinstance(index, int):
-            try:
-                index = int(index, base=10)
-            except ValueError:
-                raise ValueError(
-                    f"Unable to convert `{index}` to an integer when accessing `adata.obsm[{name!r}]`."
-                ) from None
-        res = np.asarray(res)
-
-        return (res if res.ndim == 1 else res[:, index]), pretty_name
-
-    def _format_key(
-        self, key: Union[str, int], layer_modifier: bool = False, index: Optional[Union[int, str]] = None
-    ) -> str:
-        if not layer_modifier:
-            return str(key) + (f":{index}" if index is not None else "")
-
-        return str(key) + (":raw" if self.raw else f":{self.layer}" if self.layer is not None else "")
-
-    def __repr__(self) -> str:
-        return f"{self.__class__.__name__}<raw={self.raw}, layer={self.layer}>"
-
-    def __str__(self) -> str:
-        return repr(self)
 
 
 def _assert_spatial_basis(adata: AnnData, key: str) -> None:

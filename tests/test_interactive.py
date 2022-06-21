@@ -94,7 +94,7 @@ class TestNapari(PlotTester, metaclass=PlotTesterMeta):
 
         for gene in adata.var_names[42:46]:
             data = adata.obs_vector(gene)
-            if issparse(data):  # ALayer handles sparsity, here we have to do it ourselves
+            if issparse(data):  # ImageModel handles sparsity, here we have to do it ourselves
                 data = data.X
             cnt.add_points(data, layer_name=gene)
 
