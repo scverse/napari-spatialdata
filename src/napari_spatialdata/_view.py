@@ -4,6 +4,7 @@ from scanpy import logging as logg
 from anndata import AnnData
 from magicgui import magicgui
 from napari.layers import Layer, Labels
+from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QVBoxLayout
 import numpy as np
 import napari
@@ -15,7 +16,12 @@ from napari_spatialdata._utils import (
     _get_categorical,
     _points_inside_triangles,
 )
-from napari_spatialdata._widgets import AListWidget, ObsmIndexWidget
+from napari_spatialdata._widgets import (
+    CBarWidget,
+    AListWidget,
+    ObsmIndexWidget,
+    RangeSliderWidget,
+)
 from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["QtAdataViewWidget"]
@@ -24,7 +30,7 @@ __all__ = ["QtAdataViewWidget"]
 class QtAdataViewWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, viewer: napari.viewer.Viewer):
+    def __init__(self, viewer: Viewer):
         super().__init__()
 
         self._viewer = viewer
@@ -78,6 +84,13 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(obsm_label)
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
+
+        # scalebar
+        colorbar = CBarWidget()
+        self.slider = RangeSliderWidget(self.viewer, self.model, colorbar=colorbar)
+        self._viewer.window.add_dock_widget(self.slider, area="left", name="slider")
+        self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
+        self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
 
         self.viewer.bind_key("Shift-E", self.export)
         self.model.events.adata.connect(self._on_layer_update)
