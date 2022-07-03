@@ -394,7 +394,7 @@ class RangeSliderWidget(QRangeSlider):
         if "data" not in layer.metadata:
             return None
         v = layer.metadata["data"]
-        clipped = np.clip(v, *np.percentile(v, percentile))
+        clipped = np.clip(v, *np.percentile(v, percentile))  # type: ignore[misc]
 
         if isinstance(layer, Points):
             layer.metadata = {**layer.metadata, "perc": percentile}

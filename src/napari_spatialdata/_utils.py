@@ -229,7 +229,7 @@ def _point_inside_triangles(triangles: NDArrayA) -> np.bool_:
 
 @njit(parallel=True)
 def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
-    out = np.empty(
+    out = np.empty(  # type: ignore[var-annotated]
         len(
             points,
         ),
