@@ -4,7 +4,7 @@
 [![PyPI](https://img.shields.io/pypi/v/napari-spatialdata.svg?color=green)](https://pypi.org/project/napari-spatialdata)
 [![Python Version](https://img.shields.io/pypi/pyversions/napari-spatialdata.svg?color=green)](https://python.org)
 [![tests](https://github.com/scverse/napari-spatialdata/workflows/tests/badge.svg)](https://github.com/scverse/napari-spatialdata/actions)
-[![codecov](https://codecov.io/gh/giovp/napari-spatialdata/branch/main/graph/badge.svg)](https://codecov.io/gh/scverse/napari-spatialdata)
+[![codecov](https://codecov.io/gh/scverse/napari-spatialdata/branch/main/graph/badge.svg?token=ASqlOKnOj7)](https://codecov.io/gh/scverse/napari-spatialdata)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatialdata)](https://napari-hub.org/plugins/napari-spatialdata)
 
 Interactive visualization of spatial omics data with napari
