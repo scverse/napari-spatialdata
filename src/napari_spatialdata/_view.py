@@ -39,7 +39,7 @@ class QtAdataViewWidget(QWidget):
         self._layer_selection_widget = magicgui(
             self._select_layer,
             layer={"choices": self._get_layer},
-            auto_call=True,
+            auto_call=False,
             call_button=False,
         )
         self._layer_selection_widget()
@@ -107,6 +107,7 @@ class QtAdataViewWidget(QWidget):
     def _select_layer(self, layer: Layer) -> None:
         """Napari layers."""
         self.model.layer = layer
+        # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
         self.model.library_id = layer.metadata["library_id"]
         self.model.scale = self.model.adata.uns[Key.uns.spatial][self.model.library_id][Key.uns.scalefactor_key][
@@ -126,6 +127,10 @@ class QtAdataViewWidget(QWidget):
         for layer in self._viewer.layers:
             if isinstance(layer.metadata.get("adata", None), AnnData):
                 adata_layers.append(layer)
+        if not len(adata_layers):
+            raise NotImplementedError(
+                "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
+            )
         return adata_layers
 
     def _get_adata_layer(self) -> Sequence[Optional[str]]:

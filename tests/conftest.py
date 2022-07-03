@@ -37,7 +37,7 @@ def adata_labels() -> AnnData:
     obs_labels = pd.DataFrame(
         {
             "a": rng.normal(size=(n_obs_labels,)),
-            "b": pd.Categorical(rng.integers(0, 2, size=(n_obs_labels,))),
+            "categorical": pd.Categorical(rng.integers(0, 2, size=(n_obs_labels,))),
             "cell_id": pd.Categorical(seg),
         },
         index=np.arange(n_obs_labels),
@@ -69,7 +69,7 @@ def adata_shapes() -> AnnData:
     obs_shapes = pd.DataFrame(
         {
             "a": rng.normal(size=(n_obs_shapes,)),
-            "b": pd.Categorical(rng.integers(0, 10, size=(n_obs_shapes,))),
+            "categorical": pd.Categorical(rng.integers(0, 10, size=(n_obs_shapes,))),
         },
         index=np.arange(n_obs_shapes),
     )

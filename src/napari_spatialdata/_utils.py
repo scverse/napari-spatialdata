@@ -188,18 +188,6 @@ def _not_in_01(arr: Union[NDArrayA, da.Array]) -> bool:
     return bool(_helper_arr(np.asarray(arr)))
 
 
-def _display_channelwise(arr: Union[NDArrayA, da.Array]) -> bool:
-    n_channels: int = arr.shape[-1]
-    if n_channels not in (3, 4):
-        return n_channels != 1
-    if np.issubdtype(arr.dtype, np.uint8):
-        return False  # assume RGB(A)
-    if not np.issubdtype(arr.dtype, np.floating):
-        return True
-
-    return _not_in_01(arr)
-
-
 def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
     if issparse(vec):
         if TYPE_CHECKING:
