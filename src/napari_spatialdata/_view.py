@@ -79,7 +79,7 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
 
-        self.viewer.bind_key("Shift-E", self.export, overwrite=True)
+        self.viewer.bind_key("Shift-E", self.export)
         self.model.events.adata.connect(self._on_layer_update)
 
     def _on_layer_update(self, event: Optional[Any] = None) -> None:

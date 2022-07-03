@@ -215,11 +215,11 @@ class AListWidget(ListWidget):
 
         cluster_labels = _position_cluster_labels(self.model.coordinates, vec, face_color)
         return {
-            # TODO(giovp): text wrong for categorical
+            # TODO(giovp): fix color
             "text": {
                 "string": "{clusters}",
                 "size": 24,
-                "color": cluster_labels["colors"],  # {"feature": "clusters", "colormap": "colors"},
+                "color": "white",  # "color": cluster_labels["colors"], {"feature": "clusters", "colormap": "colors"},
                 "anchor": "center",
             },
             "face_color": face_color,
@@ -230,9 +230,17 @@ class AListWidget(ListWidget):
     def _add_slider(self, layer: Union[Points, Labels], model: ImageModel, layer_name: str) -> None:
         colorbar = CBarWidget(self.model.cmap)
         slider = RangeSlider(layer=layer, colorbar=colorbar, cmap=self.model.cmap)
+        slider_name = f"slider {layer_name}"
         slider.valueChanged.emit((0, 100))
-        self.viewer.window.add_dock_widget(slider, area="left", name=f"slider {layer_name}")
-        self.viewer.window.add_dock_widget(colorbar, area="left", name=f"percentile {layer_name}")
+        colorbar_name = f"percentile {layer_name}"
+        active_widgets = list(self.viewer.window._dock_widgets.keys())
+
+        self.viewer.window.add_dock_widget(
+            slider, area="left", name=slider_name
+        ) if slider_name not in active_widgets else None
+        self.viewer.window.add_dock_widget(
+            colorbar, area="left", name=colorbar_name
+        ) if colorbar_name not in active_widgets else None
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):
