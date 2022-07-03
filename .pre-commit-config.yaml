@@ -12,7 +12,7 @@ repos:
       - id: mypy
         additional_dependencies: [numpy==1.21.0, scipy, pandas, types-requests]
   - repo: https://github.com/psf/black
-    rev: 22.3.0
+    rev: 22.6.0
     hooks:
       - id: black
         additional_dependencies: [toml]
