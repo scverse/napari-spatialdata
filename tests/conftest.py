@@ -1,35 +1,129 @@
 from abc import ABC, ABCMeta
-from typing import Callable, Optional
+from typing import Any, Dict, Tuple, Callable, Optional
 from pathlib import Path
 from functools import wraps
 
+from scipy import ndimage as ndi
 from anndata import AnnData
+from skimage import data
 from matplotlib.testing.compare import compare_images
+import numpy as np
+import pandas as pd
 import pytest
-import scanpy as sc
 import matplotlib.pyplot as plt
 
-from napari_spatialdata._container import Container
+from napari_spatialdata._utils import NDArrayA
 
 HERE: Path = Path(__file__).parent
+
+SEED = 42
 
 EXPECTED = HERE / "_images"
 ACTUAL = HERE / "figures"
 TOL = 50
 DPI = 40
 
-_adata = sc.read("tests/_data/test_data.h5ad")
-_adata.raw = _adata.copy()
+
+@pytest.fixture
+def adata_labels() -> AnnData:
+
+    n_var = 50
+
+    blobs, _ = _get_blobs_galaxy()
+    seg = np.unique(blobs)[1:]
+    n_obs_labels = len(seg)
+    rng = np.random.default_rng(SEED)
+
+    obs_labels = pd.DataFrame(
+        {
+            "a": rng.normal(size=(n_obs_labels,)),
+            "categorical": pd.Categorical(rng.integers(0, 2, size=(n_obs_labels,))),
+            "cell_id": pd.Categorical(seg),
+        },
+        index=np.arange(n_obs_labels),
+    )
+    uns_labels = {
+        "spatial": {
+            "labels": {
+                "scalefactors": {
+                    "spot_diameter_fullres": 10,
+                    "tissue_hires_scalef": 1,
+                    "tissue_segmentation_scalef": 1,
+                }
+            }
+        }
+    }
+    obsm_labels = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_labels, 2))}
+    adata_labels = generate_adata(n_var, obs_labels, obsm_labels, uns_labels)
+    return adata_labels
 
 
-@pytest.fixture()
-def napari_cont() -> Container:
-    return Container("tests/_data/test_img.jpg", layer="V1_Adult_Mouse_Brain", library_id="V1_Adult_Mouse_Brain")
+@pytest.fixture
+def adata_shapes() -> AnnData:
+
+    n_obs_shapes = 100
+    n_var = 50
+    blobs, _ = _get_blobs_galaxy()
+
+    rng = np.random.default_rng(SEED)
+    obs_shapes = pd.DataFrame(
+        {
+            "a": rng.normal(size=(n_obs_shapes,)),
+            "categorical": pd.Categorical(rng.integers(0, 10, size=(n_obs_shapes,))),
+        },
+        index=np.arange(n_obs_shapes),
+    )
+    uns_shapes = {
+        "spatial": {
+            "shapes": {
+                "scalefactors": {
+                    "spot_diameter_fullres": 10,
+                    "tissue_hires_scalef": 1,
+                    "tissue_segmentation_scalef": 1,
+                }
+            }
+        }
+    }
+    obsm_shapes = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_shapes, 2))}
+    adata_shapes = AnnData(
+        rng.normal(size=(n_obs_shapes, n_var)),
+        dtype=np.float64,
+        obs=obs_shapes,
+        obsm=obsm_shapes,
+        uns=uns_shapes,
+    )
+
+    return adata_shapes
 
 
-@pytest.fixture()
-def adata() -> AnnData:
-    return _adata.copy()
+@pytest.fixture
+def image():
+    _, image = _get_blobs_galaxy()
+    return image
+
+
+@pytest.fixture
+def labels():
+    blobs, _ = _get_blobs_galaxy()
+    return blobs
+
+
+def _get_blobs_galaxy() -> Tuple[NDArrayA, NDArrayA]:
+    blobs = data.binary_blobs(seed=SEED)
+    blobs = ndi.label(blobs)[0]
+    return blobs, data.hubble_deep_field()[: blobs.shape[0], : blobs.shape[0]]
+
+
+def generate_adata(n_var: int, obs: pd.DataFrame, obsm: Dict[Any, Any], uns: Dict[Any, Any]) -> AnnData:
+    rng = np.random.default_rng(SEED)
+    adata = AnnData(
+        rng.normal(size=(obs.shape[0], n_var)),
+        obs=obs,
+        obsm=obsm,
+        uns=uns,
+        dtype=np.float64,
+    )
+    return adata
 
 
 class PlotTesterMeta(ABCMeta):

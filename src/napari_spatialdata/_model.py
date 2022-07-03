@@ -44,6 +44,117 @@ class ImageModel:
             adata=Event,
         )
 
+    def get_items(self, attr: str) -> Tuple[str, ...]:
+        """
+        Return valid keys for an attribute.
+
+        Parameters
+        ----------
+        attr
+            Attribute of :mod:`anndata.AnnData` to access.
+
+        Returns
+        -------
+        The available items.
+        """
+        adata = self.adata
+        if attr in ("obs", "obsm"):
+            return tuple(map(str, getattr(adata, attr).keys()))
+        return tuple(map(str, getattr(adata, attr).index))
+
+    @_ensure_dense_vector
+    def get_obs(
+        self, name: str, **_: Any
+    ) -> Tuple[Optional[Union[pd.Series, NDArrayA]], str]:  # TODO(giovp): fix docstring
+        """
+        Return an observation.
+
+        Parameters
+        ----------
+        name
+            Key in :attr:`anndata.AnnData.obs` to access.
+
+        Returns
+        -------
+        The values and the formatted ``name``.
+        """
+        if name not in self.adata.obs.columns:
+            raise KeyError(f"Key `{name}` not found in `adata.obs`.")
+        return self.adata.obs[name], self._format_key(name)
+
+    @_ensure_dense_vector
+    def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
+        """
+        Return a gene.
+
+        Parameters
+        ----------
+        name
+            Gene name in :attr:`anndata.AnnData.var_names` or :attr:`anndata.AnnData.raw.var_names`,
+            based on :paramref:`raw`.
+
+        Returns
+        -------
+        The values and the formatted ``name``.
+        """
+        try:
+            ix = self.adata._normalize_indices((slice(None), name))
+        except KeyError:
+            raise KeyError(f"Key `{name}` not found in `adata.var_names`.") from None
+
+        return self.adata._get_X(layer=self.adata_layer)[ix], self._format_key(name, adata_layer=True)
+
+    @_ensure_dense_vector
+    def get_obsm(self, name: str, index: Union[int, str] = 0) -> Tuple[Optional[NDArrayA], str]:
+        """
+        Return a vector from :attr:`anndata.AnnData.obsm`.
+
+        Parameters
+        ----------
+        name
+            Key in :attr:`anndata.AnnData.obsm`.
+        index
+            Index of the vector.
+
+        Returns
+        -------
+        The values and the formatted ``name``.
+        """
+        if name not in self.adata.obsm:
+            raise KeyError(f"Unable to find key `{name!r}` in `adata.obsm`.")
+        res = self.adata.obsm[name]
+        pretty_name = self._format_key(name, index=index)
+
+        if isinstance(res, pd.DataFrame):
+            try:
+                if isinstance(index, str):
+                    return res[index], pretty_name
+                if isinstance(index, int):
+                    return res.iloc[:, index], self._format_key(name, index=res.columns[index])
+            except KeyError:
+                raise KeyError(f"Key `{index}` not found in `adata.obsm[{name!r}].`") from None
+
+        if not isinstance(index, int):
+            try:
+                index = int(index, base=10)
+            except ValueError:
+                raise ValueError(
+                    f"Unable to convert `{index}` to an integer when accessing `adata.obsm[{name!r}]`."
+                ) from None
+        res = np.asarray(res)
+
+        return (res if res.ndim == 1 else res[:, index]), pretty_name
+
+    def _format_key(
+        self, key: Union[str, int], index: Optional[Union[int, str]] = None, adata_layer: bool = False
+    ) -> str:
+        if index is not None:
+            return str(key) + f":{index}:{self.layer}"
+        if adata_layer:
+            return str(key) + (f":{self.adata_layer}" if self.adata_layer is not None else ":X") + f":{self.layer}"
+
+        return str(key) + (f":{self.layer}" if self.layer is not None else ":X")
+
     @property
     def layer(self) -> Optional[Layer]:  # noqa: D102
         return self._layer
@@ -149,114 +260,3 @@ class ImageModel:
     @scale_key.setter
     def scale_key(self, scale_key: str) -> None:
         self._scale_key = scale_key
-
-    @_ensure_dense_vector
-    def get_obs(
-        self, name: str, **_: Any
-    ) -> Tuple[Optional[Union[pd.Series, NDArrayA]], str]:  # TODO(giovp): fix docstring
-        """
-        Return an observation.
-
-        Parameters
-        ----------
-        name
-            Key in :attr:`anndata.AnnData.obs` to access.
-
-        Returns
-        -------
-        The values and the formatted ``name``.
-        """
-        if name not in self.adata.obs.columns:
-            raise KeyError(f"Key `{name}` not found in `adata.obs`.")
-        return self.adata.obs[name], self._format_key(name)
-
-    @_ensure_dense_vector
-    def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
-        """
-        Return a gene.
-
-        Parameters
-        ----------
-        name
-            Gene name in :attr:`anndata.AnnData.var_names` or :attr:`anndata.AnnData.raw.var_names`,
-            based on :paramref:`raw`.
-
-        Returns
-        -------
-        The values and the formatted ``name``.
-        """
-        try:
-            ix = self.adata._normalize_indices((slice(None), name))
-        except KeyError:
-            raise KeyError(f"Key `{name}` not found in `adata.var_names`.") from None
-
-        return self.adata._get_X(layer=self.adata_layer)[ix], self._format_key(name, adata_layer=True)
-
-    def get_items(self, attr: str) -> Tuple[str, ...]:
-        """
-        Return valid keys for an attribute.
-
-        Parameters
-        ----------
-        attr
-            Attribute of :mod:`anndata.AnnData` to access.
-
-        Returns
-        -------
-        The available items.
-        """
-        adata = self.adata
-        if attr in ("obs", "obsm"):
-            return tuple(map(str, getattr(adata, attr).keys()))
-        return tuple(map(str, getattr(adata, attr).index))
-
-    @_ensure_dense_vector
-    def get_obsm(self, name: str, index: Union[int, str] = 0) -> Tuple[Optional[NDArrayA], str]:
-        """
-        Return a vector from :attr:`anndata.AnnData.obsm`.
-
-        Parameters
-        ----------
-        name
-            Key in :attr:`anndata.AnnData.obsm`.
-        index
-            Index of the vector.
-
-        Returns
-        -------
-        The values and the formatted ``name``.
-        """
-        if name not in self.adata.obsm:
-            raise KeyError(f"Unable to find key `{name!r}` in `adata.obsm`.")
-        res = self.adata.obsm[name]
-        pretty_name = self._format_key(name, index=index)
-
-        if isinstance(res, pd.DataFrame):
-            try:
-                if isinstance(index, str):
-                    return res[index], pretty_name
-                if isinstance(index, int):
-                    return res.iloc[:, index], self._format_key(name, index=res.columns[index])
-            except KeyError:
-                raise KeyError(f"Key `{index}` not found in `adata.obsm[{name!r}].`") from None
-
-        if not isinstance(index, int):
-            try:
-                index = int(index, base=10)
-            except ValueError:
-                raise ValueError(
-                    f"Unable to convert `{index}` to an integer when accessing `adata.obsm[{name!r}]`."
-                ) from None
-        res = np.asarray(res)
-
-        return (res if res.ndim == 1 else res[:, index]), pretty_name
-
-    def _format_key(
-        self, key: Union[str, int], index: Optional[Union[int, str]] = None, adata_layer: bool = False
-    ) -> str:
-        if index is not None:
-            return str(key) + f":{index}:{self.layer}"
-        if adata_layer:
-            return str(key) + (f":{self.adata_layer}" if self.adata_layer is not None else ":X") + f":{self.layer}"
-
-        return str(key) + (f":{self.layer}" if self.layer is not None else ":X")

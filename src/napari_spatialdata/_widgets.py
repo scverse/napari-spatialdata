@@ -10,10 +10,10 @@ from scanpy import logging as logg
 from superqt import QRangeSlider
 from qtpy.QtCore import Qt, Signal
 from napari.layers import Image, Layer, Labels, Points
+from napari.viewer import Viewer
 from vispy.scene.widgets import ColorBarWidget
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from sklearn.preprocessing import MinMaxScaler
-from pandas.core.dtypes.common import is_categorical_dtype
 import numpy as np
 import napari
 import pandas as pd
@@ -27,7 +27,7 @@ from napari_spatialdata._utils import (
     _position_cluster_labels,
 )
 
-__all__ = ["AListWidget", "CBarWidget", "RangeSlider", "ObsmIndexWidget"]
+__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ObsmIndexWidget", "CBarWidget"]
 
 # label string: attribute name
 # TODO(giovp): remove since layer controls private?
@@ -93,7 +93,7 @@ class ListWidget(QtWidgets.QListWidget):
 class AListWidget(ListWidget):
     layerChanged = Signal()
 
-    def __init__(self, viewer: napari.Viewer, model: ImageModel, attr: str, **kwargs: Any):
+    def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
         if attr not in ImageModel.VALID_ATTRIBUTES:
             raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
@@ -140,12 +140,6 @@ class AListWidget(ListWidget):
                 )
             else:
                 raise ValueError("TODO")
-            if not is_categorical_dtype(vec):
-                self._add_slider(
-                    self.viewer.layers[layer_name],
-                    model=self.model,
-                    layer_name=layer_name,
-                )
             # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
             # TODO(giovp): make layer editable?
             # self.viewer.layers[layer_name].editable = False
@@ -215,24 +209,17 @@ class AListWidget(ListWidget):
 
         cluster_labels = _position_cluster_labels(self.model.coordinates, vec, face_color)
         return {
-            # TODO(giovp): text wrong for categorical
+            # TODO(giovp): fix color
             "text": {
                 "string": "{clusters}",
                 "size": 24,
-                "color": cluster_labels["colors"],  # {"feature": "clusters", "colormap": "colors"},
+                "color": "white",  # "color": cluster_labels["colors"], {"feature": "clusters", "colormap": "colors"},
                 "anchor": "center",
             },
             "face_color": face_color,
             "features": cluster_labels,
             "metadata": None,
         }
-
-    def _add_slider(self, layer: Union[Points, Labels], model: ImageModel, layer_name: str) -> None:
-        colorbar = CBarWidget(self.model.cmap)
-        slider = RangeSlider(layer=layer, colorbar=colorbar, cmap=self.model.cmap)
-        slider.valueChanged.emit((0, 100))
-        self.viewer.window.add_dock_widget(slider, area="left", name=f"slider {layer_name}")
-        self.viewer.window.add_dock_widget(colorbar, area="left", name=f"percentile {layer_name}")
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):
@@ -271,7 +258,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     def __init__(
         self,
-        cmap: Union[str, Colormap],
+        cmap: str = "viridis",
         label: Optional[str] = None,
         width: Optional[int] = 250,
         height: Optional[int] = 50,
@@ -280,6 +267,7 @@ class CBarWidget(QtWidgets.QWidget):
         super().__init__(**kwargs)
 
         self._cmap = cmap
+
         self._clim = (0.0, 1.0)
         self._oclim = self._clim
 
@@ -298,7 +286,7 @@ class CBarWidget(QtWidgets.QWidget):
             size=(self._width, self._height), bgcolor="#262930", parent=self, decorate=False, resizable=False, dpi=150
         )
         self._colorbar = ColorBarWidget(
-            self._create_colormap(self.getCmap()),
+            self._create_colormap(self.cmap),
             orientation="top",
             label=self._label,
             label_color="white",
@@ -329,13 +317,6 @@ class CBarWidget(QtWidgets.QWidget):
 
         return Colormap(cm[np.linspace(minn, maxx, len(cm.colors))], interpolation="linear")
 
-    def setCmap(self, cmap: str) -> None:
-        if self._cmap == cmap:
-            return
-
-        self._cmap = cmap
-        self.cmapChanged.emit(cmap)
-
     def getCmap(self) -> str:
         return self._cmap
 
@@ -363,7 +344,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     def onClimChanged(self, minn: float, maxx: float) -> None:
         # ticks are not working with vispy's colorbar
-        self._colorbar.cmap = self._create_colormap(self.getCmap())
+        self._colorbar.cmap = self._create_colormap(self.cmap)
         self._colorbar.clim = (self.FORMAT.format(minn), self.FORMAT.format(maxx))
 
     def getCanvas(self) -> scene.SceneCanvas:
@@ -383,40 +364,52 @@ class CBarWidget(QtWidgets.QWidget):
         # cbarwidget->cbar->cbarvisual
         self._colorbar._colorbar._colorbar._update()
 
+    @property
+    def cmap(self) -> str:
+        return self._cmap
 
-class RangeSlider(QRangeSlider):
-    def __init__(self, *args: Any, layer: Points, colorbar: CBarWidget, cmap: str, **kwargs: Any):
-        super().__init__(*args, **kwargs)
 
-        self._layer = layer
+class RangeSliderWidget(QRangeSlider):
+    def __init__(self, viewer: Viewer, model: ImageModel, colorbar: CBarWidget, **kwargs: Any):
+        super().__init__(**kwargs)
+
+        self.viewer = viewer
+        self.model = model
         self._colorbar = colorbar
-        self._cmap = plt.get_cmap(cmap)
+        self._cmap = plt.get_cmap(self._colorbar.cmap)
         self.setValue((0, 100))
         self.setSliderPosition((0, 100))
         self.setSingleStep(0.01)
         self.setOrientation(Qt.Horizontal)
-
         self.valueChanged.connect(self._onValueChange)
 
+    def _onLayerChange(self) -> None:
+        layer = self.viewer.layers.selection.active
+        if layer is not None:
+            self._onValueChange((0, 100))
+
     def _onValueChange(self, percentile: tuple[float, float]) -> None:
+        layer = self.viewer.layers.selection.active
         # TODO(michalk8): use constants
-        v = self._layer.metadata["data"]
+        if "data" not in layer.metadata:
+            return None
+        v = layer.metadata["data"]
         clipped = np.clip(v, *np.percentile(v, percentile))
 
-        if isinstance(self._layer, Points):
-            self._layer.metadata = {**self._layer.metadata, "perc": percentile}
-            self._layer.face_color = "value"
-            self._layer.properties = {"value": clipped}
-            self._layer.refresh_colors()
-        elif isinstance(self._layer, Labels):
+        if isinstance(layer, Points):
+            layer.metadata = {**layer.metadata, "perc": percentile}
+            layer.face_color = "value"
+            layer.properties = {"value": clipped}
+            layer.refresh_colors()
+        elif isinstance(layer, Labels):
             norm_vec = self._scale_vec(clipped)
             color_vec = self._cmap(norm_vec)
-            self._layer.color = {k: v for k, v in zip(self._layer.color.keys(), color_vec)}
-            self._layer.properties = {"value": clipped}
-            self._layer.refresh()
+            layer.color = {k: v for k, v in zip(layer.color.keys(), color_vec)}
+            layer.properties = {"value": clipped}
+            layer.refresh()
 
-        self._colorbar.setOclim(self._layer.metadata["minmax"])
-        self._colorbar.setClim((np.min(self._layer.properties["value"]), np.max(self._layer.properties["value"])))
+        self._colorbar.setOclim(layer.metadata["minmax"])
+        self._colorbar.setClim((np.min(layer.properties["value"]), np.max(layer.properties["value"])))
         self._colorbar.update_color()
 
     def _scale_vec(self, vec: NDArrayA) -> NDArrayA:

@@ -33,7 +33,6 @@ from pandas.core.dtypes.common import (
 )
 import numpy as np
 import pandas as pd
-import dask.array as da
 
 from napari_spatialdata._constants._pkg_constants import Key
 
@@ -171,33 +170,6 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series, colors: NDAr
     colors = np.array([to_hex(col) for col in colors])
     colors = np.array([col if not len(cl) else to_hex((0, 0, 0)) for cl, col in zip(clusters, colors)])
     return {"clusters": clusters, "colors": colors}
-
-
-def _not_in_01(arr: Union[NDArrayA, da.Array]) -> bool:
-    @njit
-    def _helper_arr(arr: NDArrayA) -> bool:
-        for val in arr.flat:
-            if not (0 <= val <= 1):
-                return True
-
-        return False
-
-    if isinstance(arr, da.Array):
-        return bool(np.min(arr) < 0) or bool(np.max(arr) > 1)
-
-    return bool(_helper_arr(np.asarray(arr)))
-
-
-def _display_channelwise(arr: Union[NDArrayA, da.Array]) -> bool:
-    n_channels: int = arr.shape[-1]
-    if n_channels not in (3, 4):
-        return n_channels != 1
-    if np.issubdtype(arr.dtype, np.uint8):
-        return False  # assume RGB(A)
-    if not np.issubdtype(arr.dtype, np.floating):
-        return True
-
-    return _not_in_01(arr)
 
 
 def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
