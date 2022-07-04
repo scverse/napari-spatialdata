@@ -1,7 +1,7 @@
 from typing import Any
 
 from anndata import AnnData
-from napari.layers import Image, Labels
+from napari.layers import Image, Labels, Points
 import pytest
 
 from napari_spatialdata._view import QtAdataViewWidget
@@ -68,6 +68,8 @@ def test_model(
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget])
+@pytest.mark.parametrize("obs_item", ["a", "categorical"])
+@pytest.mark.parametrize("var_item", ["42", "0"])
 def test_change_layer(
     make_napari_viewer: Any,
     widget: Any,
@@ -75,13 +77,16 @@ def test_change_layer(
     adata_labels: AnnData,
     image: NDArrayA,
     adata_shapes: AnnData,
+    obs_item: str,
+    var_item: str,
 ) -> None:
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
+    layer_name = "labels"
 
     viewer.add_labels(
         image,
-        name="labels",
+        name=layer_name,
         metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
     )
 
@@ -92,10 +97,21 @@ def test_change_layer(
     assert isinstance(widget.model.layer, Labels)
     assert widget.model.library_id == "labels"
 
+    # select observations
+    widget.obs_widget._onAction(items=[obs_item])
+    assert isinstance(viewer.layers.selection.active, Labels)
+    assert viewer.layers.selection.active.name == f"{obs_item}:{layer_name}"
+
+    # select genes
+    widget.var_widget._onAction(items=[var_item])
+    assert isinstance(viewer.layers.selection.active, Labels)
+    assert viewer.layers.selection.active.name == f"{var_item}:X:{layer_name}"
+
+    layer_name = "image"
     viewer.add_image(
         image,
         rgb=True,
-        name="image",
+        name=layer_name,
         metadata={"adata": adata_shapes, "library_id": "shapes"},
     )
 
@@ -105,3 +121,17 @@ def test_change_layer(
     assert isinstance(widget.model, ImageModel)
     assert isinstance(widget.model.layer, Image)
     assert widget.model.library_id == "shapes"
+
+    # select observations
+    widget.obs_widget._onAction(items=[obs_item])
+    assert isinstance(viewer.layers.selection.active, Points)
+    assert viewer.layers.selection.active.name == f"{obs_item}:{layer_name}"
+
+    # select genes
+    widget.var_widget._onAction(items=[var_item])
+    assert isinstance(viewer.layers.selection.active, Points)
+    assert viewer.layers.selection.active.name == f"{var_item}:X:{layer_name}"
+
+    # check adata layers
+    assert len(widget._get_adata_layer()) == 1
+    assert widget._get_adata_layer()[0] is None
