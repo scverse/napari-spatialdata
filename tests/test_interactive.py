@@ -106,6 +106,8 @@ def test_change_layer(
     widget.var_widget._onAction(items=[var_item])
     assert isinstance(viewer.layers.selection.active, Labels)
     assert viewer.layers.selection.active.name == f"{var_item}:X:{layer_name}"
+    assert "perc" in viewer.layers.selection.active.metadata.keys()
+    assert "minmax" in viewer.layers.selection.active.metadata.keys()
 
     layer_name = "image"
     viewer.add_image(
@@ -131,6 +133,8 @@ def test_change_layer(
     widget.var_widget._onAction(items=[var_item])
     assert isinstance(viewer.layers.selection.active, Points)
     assert viewer.layers.selection.active.name == f"{var_item}:X:{layer_name}"
+    assert "perc" in viewer.layers.selection.active.metadata.keys()
+    assert "minmax" in viewer.layers.selection.active.metadata.keys()
 
     # check adata layers
     assert len(widget._get_adata_layer()) == 1
