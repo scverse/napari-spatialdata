@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 
 from napari_spatialdata._utils import (
+    _min_max_norm,
     _get_categorical,
     _points_inside_triangles,
     _position_cluster_labels,
@@ -53,3 +54,12 @@ def test_points_inside_triangles(adata_shapes: AnnData, tri_coord: List[List[int
 
     assert out.shape[0] == model.coordinates.shape[0]
     assert out.any()
+
+
+@pytest.mark.parametrize("vec", [np.array([0, 0, 2]), np.array([1, 1, 0])])
+def test_min_max_norm(vec: np.ndarray) -> None:
+
+    out = _min_max_norm(vec)
+
+    assert out.shape == vec.shape
+    assert (out.min(), out.max()) == (0, 1)

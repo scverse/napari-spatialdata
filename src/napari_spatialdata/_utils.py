@@ -1,16 +1,6 @@
 from __future__ import annotations
 
-from typing import (
-    Any,
-    Tuple,
-    Union,
-    Callable,
-    Hashable,
-    Iterable,
-    Optional,
-    Sequence,
-    TYPE_CHECKING,
-)
+from typing import Any, Tuple, Union, Callable, Optional, Sequence, TYPE_CHECKING
 from pathlib import Path
 from functools import wraps
 import os
@@ -186,31 +176,6 @@ def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
     return (  # type: ignore[no-any-return]
         np.ones_like(vec) if np.isclose(minn, maxx) else ((vec - minn) / (maxx - minn))
     )
-
-
-def _assert_spatial_basis(adata: AnnData, key: str) -> None:
-    if key not in adata.obsm:
-        raise KeyError(f"Spatial basis `{key}` not found in `adata.obsm`.")
-
-
-def _assert_categorical_obs(adata: AnnData, key: str) -> None:
-    if key not in adata.obs:
-        raise KeyError(f"Cluster key `{key}` not found in `adata.obs`.")
-
-    if not is_categorical_dtype(adata.obs[key]):
-        raise TypeError(f"Expected `adata.obs[{key!r}]` to be `categorical`, found `{infer_dtype(adata.obs[key])}`.")
-
-
-def _unique_order_preserving(iterable: Iterable[Hashable]) -> tuple[list[Hashable], set[Hashable]]:
-    """Remove items from an iterable while preserving the order."""
-    seen: set[Hashable] = set()
-    seen_add = seen.add
-    return [i for i in iterable if not (i in seen or seen_add(i))], seen
-
-
-def _assert_non_negative(value: float, *, name: str) -> None:
-    if value < 0:
-        raise ValueError(f"Expected `{name}` to be non-negative, found `{value}`.")
 
 
 @njit(cache=True, fastmath=True)
