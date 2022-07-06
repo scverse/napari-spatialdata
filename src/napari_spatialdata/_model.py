@@ -66,7 +66,7 @@ class ImageModel:
             if self.points_var is not None:
                 return tuple(map(str, self.points_var.unique()))
             else:
-                return tuple("No points found.")
+                return tuple(list("No points found."))  # noqa: C414
         return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector
