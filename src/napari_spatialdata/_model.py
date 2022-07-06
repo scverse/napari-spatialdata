@@ -66,7 +66,7 @@ class ImageModel:
             if self.points_var is not None:
                 return tuple(map(str, self.points_var.unique()))
             else:
-                return tuple(list("No points found."))  # noqa: C414
+                return tuple(["No points found."])  # noqa: C409
         return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector
@@ -168,7 +168,7 @@ class ImageModel:
         if name not in self.points_var.unique():
             raise KeyError(f"Key `{name}` not found in `adata.uns['points']['gene']`.")
         coords = self.points_coordinates
-        coords = coords[self.points_var == name].copy()
+        coords = coords[self.points_var == name]
         return np.insert(coords[:, ::-1][:, :2] * self.scale, 0, values=0, axis=1), self._format_key(name)
 
     def _format_key(
