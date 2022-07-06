@@ -119,12 +119,19 @@ class AListWidget(ListWidget):
             except Exception as e:  # noqa: B902
                 logg.error(e)
                 continue
-            layer_name = name
+            if vec.ndim == 2:
+                self.viewer.add_points(
+                    vec,
+                    name=name,
+                    size=self.model.spot_diameter / 10,
+                    symbol=self.model.symbol,
+                )
+                continue
             properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
             if isinstance(self.model.layer, Image):
                 self.viewer.add_points(
                     self.model.coordinates,
-                    name=layer_name,
+                    name=name,
                     size=self.model.spot_diameter,
                     opacity=1,
                     face_colormap=self.model.cmap,
@@ -135,7 +142,7 @@ class AListWidget(ListWidget):
             elif isinstance(self.model.layer, Labels):
                 self.viewer.add_labels(
                     self.model.layer.data.copy(),
-                    name=layer_name,
+                    name=name,
                     **properties,
                 )
             else:

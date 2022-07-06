@@ -26,6 +26,7 @@ class ImageModel:
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
     _label_key: Optional[str] = field(default=None, repr=True)
     _coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
+    _points: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _scale: Optional[float] = field(init=False, default=None)
 
     _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
@@ -35,7 +36,7 @@ class ImageModel:
     _cmap: str = field(init=False, default="viridis", repr=False)
     _symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
-    VALID_ATTRIBUTES = ("obs", "var", "obsm")
+    VALID_ATTRIBUTES = ("obs", "var", "obsm", "points")
 
     def __post_init__(self) -> None:
         self.events = EmitterGroup(
@@ -57,10 +58,11 @@ class ImageModel:
         -------
         The available items.
         """
-        adata = self.adata
         if attr in ("obs", "obsm"):
-            return tuple(map(str, getattr(adata, attr).keys()))
-        return tuple(map(str, getattr(adata, attr).index))
+            return tuple(map(str, getattr(self.adata, attr).keys()))
+        if attr == "points":
+            return tuple(map(str, self.adata.uns["points"]["gene"].unique()))
+        return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector
     def get_obs(
@@ -145,6 +147,26 @@ class ImageModel:
 
         return (res if res.ndim == 1 else res[:, index]), pretty_name
 
+    @_ensure_dense_vector
+    def get_points(self, name: str, **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
+        """
+        Return a gene in spatial coordinates.
+
+        Parameters
+        ----------
+        name
+            Gene name in :attr:`anndata.AnnData.uns` ``["points"]`` ``["gene"]``.
+
+        Returns
+        -------
+        The values and the formatted ``name``.
+        """
+        if name not in self.adata.uns["points"]["gene"].unique():
+            raise KeyError(f"Key `{name}` not found in `adata.uns['points']['gene']`.")
+        coords = self.adata.uns["points"]
+        coords = coords[coords["gene"] == name][["x", "y"]].to_numpy()
+        return np.insert(coords[:, ::-1][:, :2] * self.scale, 0, values=0, axis=1), self._format_key(name)
+
     def _format_key(
         self, key: Union[str, int], index: Optional[Union[int, str]] = None, adata_layer: bool = False
     ) -> str:
@@ -204,6 +226,14 @@ class ImageModel:
     @coordinates.setter
     def coordinates(self, coordinates: NDArrayA) -> None:
         self._coordinates = coordinates
+
+    @property
+    def points(self) -> NDArrayA:  # noqa: D102
+        return self._points
+
+    @points.setter
+    def coordinates(self, points: NDArrayA) -> None:
+        self._points = points
 
     @property
     def scale(self) -> Optional[float]:  # noqa: D102

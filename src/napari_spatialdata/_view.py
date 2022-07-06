@@ -85,6 +85,14 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
 
+        # gene
+        var_points = QLabel("Points:")
+        var_points.setToolTip("Gene names from points.")
+        self.var_points_widget = AListWidget(self.viewer, self.model, attr="points", multiselect=False)
+
+        self.layout().addWidget(var_points)
+        self.layout().addWidget(self.var_widget)
+
         # scalebar
         colorbar = CBarWidget()
         self.slider = RangeSliderWidget(self.viewer, self.model, colorbar=colorbar)
@@ -116,6 +124,10 @@ class QtAdataViewWidget(QWidget):
         self.model.coordinates = np.insert(
             self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
         )
+        # if "points" in layer.metadata:
+        #     self.model.points = np.insert(
+        #         layer.metadata["points"][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
+        #     )
         self.model.spot_diameter = (
             np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
             * self.model.scale
