@@ -26,16 +26,19 @@ class ImageModel:
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
     _label_key: Optional[str] = field(default=None, repr=True)
     _coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
+    _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
+    _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
     _scale: Optional[float] = field(init=False, default=None)
 
     _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
+    _point_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     _scale_key: Optional[str] = field(init=False, default="tissue_hires_scalef")  # TODO(giovp): use constants for these
 
     _palette: Optional[str] = field(init=False, default=None, repr=False)
     _cmap: str = field(init=False, default="viridis", repr=False)
     _symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
-    VALID_ATTRIBUTES = ("obs", "var", "obsm")
+    VALID_ATTRIBUTES = ("obs", "var", "obsm", "points")
 
     def __post_init__(self) -> None:
         self.events = EmitterGroup(
@@ -57,10 +60,14 @@ class ImageModel:
         -------
         The available items.
         """
-        adata = self.adata
         if attr in ("obs", "obsm"):
-            return tuple(map(str, getattr(adata, attr).keys()))
-        return tuple(map(str, getattr(adata, attr).index))
+            return tuple(map(str, getattr(self.adata, attr).keys()))
+        if attr == "points":
+            if self.points_var is not None:
+                return tuple(map(str, self.points_var.unique()))
+            else:
+                return tuple(list("No points found."))  # noqa: C414
+        return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector
     def get_obs(
@@ -145,6 +152,25 @@ class ImageModel:
 
         return (res if res.ndim == 1 else res[:, index]), pretty_name
 
+    def get_points(self, name: str, **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
+        """
+        Return a gene in spatial coordinates.
+
+        Parameters
+        ----------
+        name
+            Gene name.
+
+        Returns
+        -------
+        The values and the formatted ``name``.
+        """
+        if name not in self.points_var.unique():
+            raise KeyError(f"Key `{name}` not found in `adata.uns['points']['gene']`.")
+        coords = self.points_coordinates
+        coords = coords[self.points_var == name].copy()
+        return np.insert(coords[:, ::-1][:, :2] * self.scale, 0, values=0, axis=1), self._format_key(name)
+
     def _format_key(
         self, key: Union[str, int], index: Optional[Union[int, str]] = None, adata_layer: bool = False
     ) -> str:
@@ -206,6 +232,22 @@ class ImageModel:
         self._coordinates = coordinates
 
     @property
+    def points_coordinates(self) -> NDArrayA:  # noqa: D102
+        return self._points_coordinates
+
+    @points_coordinates.setter
+    def points_coordinates(self, points_coordinates: NDArrayA) -> None:
+        self._points_coordinates = points_coordinates
+
+    @property
+    def points_var(self) -> pd.Series:  # noqa: D102
+        return self._points_var
+
+    @points_var.setter
+    def points_var(self, points_var: pd.Series) -> None:
+        self._points_var = points_var
+
+    @property
     def scale(self) -> Optional[float]:  # noqa: D102
         return self._scale
 
@@ -220,6 +262,14 @@ class ImageModel:
     @spot_diameter.setter
     def spot_diameter(self, spot_diameter: NDArrayA) -> None:
         self._spot_diameter = spot_diameter
+
+    @property
+    def point_diameter(self) -> NDArrayA:  # noqa: D102
+        return self._point_diameter
+
+    @point_diameter.setter
+    def point_diameter(self, point_diameter: NDArrayA) -> None:
+        self._point_diameter = point_diameter
 
     @property
     def labels_key(self) -> Optional[str]:  # noqa: D102

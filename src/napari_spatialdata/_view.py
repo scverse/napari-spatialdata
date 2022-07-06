@@ -39,7 +39,7 @@ class QtAdataViewWidget(QWidget):
         self._layer_selection_widget = magicgui(
             self._select_layer,
             layer={"choices": self._get_layer},
-            auto_call=False,
+            auto_call=True,
             call_button=False,
         )
         self._layer_selection_widget()
@@ -85,6 +85,14 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
 
+        # gene
+        var_points = QLabel("Points:")
+        var_points.setToolTip("Gene names from points.")
+        self.var_points_widget = AListWidget(self.viewer, self.model, attr="points")
+
+        self.layout().addWidget(var_points)
+        self.layout().addWidget(self.var_points_widget)
+
         # scalebar
         colorbar = CBarWidget()
         self.slider = RangeSliderWidget(self.viewer, self.model, colorbar=colorbar)
@@ -103,6 +111,7 @@ class QtAdataViewWidget(QWidget):
         self.obs_widget._onChange()
         self.var_widget._onChange()
         self.obsm_widget._onChange()
+        self.var_points_widget._onChange()
 
     def _select_layer(self, layer: Layer) -> None:
         """Napari layers."""
@@ -116,6 +125,10 @@ class QtAdataViewWidget(QWidget):
         self.model.coordinates = np.insert(
             self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
         )
+        if "points" in layer.metadata:
+            self.model.points_coordinates = layer.metadata["points"].X
+            self.model.points_var = layer.metadata["points"].obs["gene"]
+            self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
         self.model.spot_diameter = (
             np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
             * self.model.scale

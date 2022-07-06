@@ -27,6 +27,10 @@ https://napari.org/plugins/stable/index.html
 Clone repo and `pip install -e .`.
 Run examples e.g. `python shape_regions.py` or via notebook for the shape export function.
 
+More documentation on usage will be added later on.
+
+Expect breaking changes.
+
 ## Installation
 
 You can install `napari-spatialdata` via [pip]:

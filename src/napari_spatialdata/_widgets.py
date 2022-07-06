@@ -119,30 +119,39 @@ class AListWidget(ListWidget):
             except Exception as e:  # noqa: B902
                 logg.error(e)
                 continue
-            layer_name = name
-            properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-            if isinstance(self.model.layer, Image):
+            if vec.ndim == 2:
                 self.viewer.add_points(
-                    self.model.coordinates,
-                    name=layer_name,
-                    size=self.model.spot_diameter,
-                    opacity=1,
-                    face_colormap=self.model.cmap,
-                    edge_colormap=self.model.cmap,
+                    vec,
+                    name=name,
+                    edge_color="white",
+                    face_color="white",
+                    size=self.model.point_diameter,
                     symbol=self.model.symbol,
-                    **properties,
-                )
-            elif isinstance(self.model.layer, Labels):
-                self.viewer.add_labels(
-                    self.model.layer.data.copy(),
-                    name=layer_name,
-                    **properties,
                 )
             else:
-                raise ValueError("TODO")
-            # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
-            # TODO(giovp): make layer editable?
-            # self.viewer.layers[layer_name].editable = False
+                properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
+                if isinstance(self.model.layer, Image):
+                    self.viewer.add_points(
+                        self.model.coordinates,
+                        name=name,
+                        size=self.model.spot_diameter,
+                        opacity=1,
+                        face_colormap=self.model.cmap,
+                        edge_colormap=self.model.cmap,
+                        symbol=self.model.symbol,
+                        **properties,
+                    )
+                elif isinstance(self.model.layer, Labels):
+                    self.viewer.add_labels(
+                        self.model.layer.data.copy(),
+                        name=name,
+                        **properties,
+                    )
+                else:
+                    raise ValueError("TODO")
+                # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
+                # TODO(giovp): make layer editable?
+                # self.viewer.layers[layer_name].editable = False
 
     def setAdataLayer(self, layer: Optional[str]) -> None:
         if layer in ("default", "None", "X"):
