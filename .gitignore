@@ -95,3 +95,6 @@ docs/source/external_tutorials
 
 # vscode
 .vscode
+
+# files
+*.h5ad
