@@ -5,11 +5,8 @@ from anndata import AnnData
 import numpy as np
 import pandas as pd
 import pytest
-<<<<<<< HEAD
 import logging
 from loguru import logger
-=======
->>>>>>> df5d605e865a2f751ee130774650b3f798574438
 
 from src.napari_spatialdata._utils import (
     _min_max_norm,
