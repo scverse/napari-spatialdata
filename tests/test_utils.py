@@ -5,11 +5,8 @@ import numpy as np
 import pandas as pd
 
 import pytest
-from loguru import logger
-from scanpy import logging as logg
 import logging
-
-import importlib
+from loguru import logger
 
 from src.napari_spatialdata._utils import (
     _min_max_norm,
@@ -71,8 +68,8 @@ def test_min_max_norm(vec: np.ndarray) -> None:
     assert (out.min(), out.max()) == (0, 1)
 
 
-def test__logger(caplog, adata_labels: AnnData):
-    
+def test_logger(caplog, adata_labels: AnnData):
+
     vec = pd.Series(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], dtype="category")
 
     _get_categorical(adata_labels, key="categorical", vec=vec)
