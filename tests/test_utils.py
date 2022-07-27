@@ -71,11 +71,7 @@ def test_min_max_norm(vec: np.ndarray) -> None:
     assert (out.min(), out.max()) == (0, 1)
 
 
-<<<<<<< HEAD
 def test_logger(caplog, adata_labels: AnnData):
-=======
-def test__logger(caplog, adata_labels: AnnData):
->>>>>>> df5d605e865a2f751ee130774650b3f798574438
 
     vec = pd.Series(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], dtype="category")
 
