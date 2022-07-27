@@ -2,9 +2,7 @@ from loguru import logger
 from scanpy import logging as logg
 import numpy as np
 
-from src.napari_spatialdata._utils import (
-    _min_max_norm,
-)
+from src.napari_spatialdata._utils import _min_max_norm
 
 
 def log():
