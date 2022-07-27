@@ -179,7 +179,7 @@ class QtAdataViewWidget(QWidget):
         points_mask: NDArrayA = _points_inside_triangles(self.model.coordinates[:, 1:], triangles)
 
         logger.info("Saving layer shapes.")
-        
+
         self._model._adata.obs[key] = pd.Categorical(points_mask)
         self._model._adata.uns[key] = {"meshes": layer.data.copy()}
 
