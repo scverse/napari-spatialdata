@@ -1,16 +1,9 @@
-from typing import List
-
-from anndata import AnnData
-import numpy as np
-import pytest
 from loguru import logger
 from scanpy import logging as logg
+import numpy as np
 
 from src.napari_spatialdata._utils import (
     _min_max_norm,
-    _get_categorical,
-    _points_inside_triangles,
-    _position_cluster_labels,
 )
 
 
@@ -24,7 +17,7 @@ def log():
 
 def main():
 
-    out = _min_max_norm(np.array([0, 0, 2]))
+    _min_max_norm(np.array([0, 0, 2]))
 
 
 if __name__ == "__main__":
