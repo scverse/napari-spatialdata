@@ -2,10 +2,8 @@ from abc import ABC, ABCMeta
 from typing import Any, Dict, Tuple, Callable, Optional
 from pathlib import Path
 from functools import wraps
-import logging
 
 from scipy import ndimage as ndi
-from loguru import logger
 from anndata import AnnData
 from skimage import data
 from matplotlib.testing.compare import compare_images
@@ -13,6 +11,10 @@ import numpy as np
 import pandas as pd
 import pytest
 import matplotlib.pyplot as plt
+
+from _pytest.logging import caplog as _caplog
+import logging
+from loguru import logger
 
 from napari_spatialdata._utils import NDArrayA
 
