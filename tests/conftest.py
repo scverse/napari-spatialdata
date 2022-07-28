@@ -15,7 +15,6 @@ import pytest
 import matplotlib.pyplot as plt
 
 from napari_spatialdata._utils import NDArrayA
-from _pytest.logging import caplog as _caplog
 
 HERE: Path = Path(__file__).parent
 
