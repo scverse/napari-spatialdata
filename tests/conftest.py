@@ -2,7 +2,6 @@ from abc import ABC, ABCMeta
 from typing import Any, Dict, Tuple, Callable, Optional
 from pathlib import Path
 from functools import wraps
-import logging
 
 from scipy import ndimage as ndi
 from loguru import logger
