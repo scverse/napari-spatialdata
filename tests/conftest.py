@@ -15,7 +15,6 @@ import pytest
 import matplotlib.pyplot as plt
 
 from napari_spatialdata._utils import NDArrayA
-from _pytest.logging import caplog as _caplog
 
 HERE: Path = Path(__file__).parent
 
@@ -177,11 +176,11 @@ def _decorate(fn: Callable, clsname: str, name: Optional[str] = None) -> Callabl
 
 
 @pytest.fixture
-def caplog(_caplog):
+def caplog(caplog):
     class PropogateHandler(logging.Handler):
         def emit(self, record):
             logging.getLogger(record.name).handle(record)
 
     handler_id = logger.add(PropogateHandler(), format="{message} {extra}")
-    yield _caplog
+    yield caplog
     logger.remove(handler_id)

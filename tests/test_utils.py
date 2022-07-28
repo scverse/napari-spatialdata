@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.napari_spatialdata._utils import (
+from napari_spatialdata._utils import (
     _min_max_norm,
     _get_categorical,
     _points_inside_triangles,
