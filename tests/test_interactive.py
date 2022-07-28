@@ -41,33 +41,6 @@ def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> 
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget])
-def test_logger(
-    make_napari_viewer: Any,
-    widget: Any,
-    labels: NDArrayA,
-    adata_labels: AnnData,
-) -> None:
-    # make viewer and add an image layer using our fixture
-    viewer = make_napari_viewer()
-
-    viewer.add_labels(
-        labels,
-        name="labels",
-        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
-    )
-
-    widget = widget(viewer)
-    layer = viewer.layers.selection.active
-    widget._layer_selection_widget(layer)
-    assert isinstance(widget.model, ImageModel)
-    assert widget.model.library_id == "labels"
-    assert widget.model.adata is adata_labels
-    assert widget.model.coordinates.shape[0] == adata_labels.shape[0]
-    assert widget.model.coordinates.ndim == 2
-    assert widget.model.labels_key == "cell_id"
-
-
-@pytest.mark.parametrize("widget", [QtAdataViewWidget])
 def test_model(
     make_napari_viewer: Any,
     widget: Any,
