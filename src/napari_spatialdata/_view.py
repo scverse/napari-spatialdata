@@ -105,7 +105,6 @@ class QtAdataViewWidget(QWidget):
 
     def _on_layer_update(self, event: Optional[Any] = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
-
         logger.info("Updating layer.")
 
         self.adata_layer_widget.clear()
