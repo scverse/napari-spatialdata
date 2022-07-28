@@ -177,10 +177,6 @@ def _decorate(fn: Callable, clsname: str, name: Optional[str] = None) -> Callabl
 
 @pytest.fixture
 def caplog(caplog):
-    class PropogateHandler(logging.Handler):
-        def emit(self, record):
-            logging.getLogger(record.name).handle(record)
-
-    handler_id = logger.add(PropogateHandler(), format="{message} {extra}")
+    handler_id = logger.add(caplog.handler, format="{message}")
     yield caplog
     logger.remove(handler_id)
