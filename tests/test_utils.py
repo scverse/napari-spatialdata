@@ -73,4 +73,4 @@ def test_logger(caplog, adata_labels: AnnData):
     _get_categorical(adata_labels, key="categorical", vec=vec)
 
     with caplog.at_level(logging.INFO):
-        assert "Overwriting `adata.obs[" in caplog.records[0].message
+        assert "Overwriting `adata.obs" in caplog.records[0].message
