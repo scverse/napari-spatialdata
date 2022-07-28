@@ -12,5 +12,8 @@ viewer.add_image(
     metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"},
 )
 
+viewer.scale_bar.visible = True
+viewer.scale_bar.unit = "um"
+
 if __name__ == "__main__":
     napari.run()
