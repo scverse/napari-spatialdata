@@ -10,6 +10,7 @@ viewer.add_image(
     rgb=True,
     name="image1",
     metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"},
+    scale = (1,1)
 )
 
 viewer.scale_bar.visible = True
