@@ -85,7 +85,7 @@ def _get_categorical(
         if not is_categorical_dtype(vec):
             raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
         if key in adata.obs:
-            logger.debug(f"Overwriting `adata.obs[{key!r}]`")
+            logger.debug(f"Overwriting `adata.obs[{key!r}]`.")
 
         adata.obs[key] = vec.values
 

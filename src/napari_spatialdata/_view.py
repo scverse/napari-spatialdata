@@ -160,12 +160,12 @@ class QtAdataViewWidget(QWidget):
             if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
                 continue
             if not len(layer.data):
-                logger.warn(f"Shape layer `{layer.name}` has no visible shapes")
+                logger.warn(f"Shape layer `{layer.name}` has no visible shapes.")
                 continue
 
             key = f"{layer.name}_{self.model.layer.name}"
 
-            logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`")
+            logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
             self._save_shapes(layer, key=key)
             self._update_obs_items(key)
 
