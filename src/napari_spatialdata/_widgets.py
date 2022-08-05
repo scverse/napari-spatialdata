@@ -216,13 +216,14 @@ class AListWidget(ListWidget):
         if layer is not None and isinstance(layer, Labels):
             return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
 
-        cluster_labels = _position_cluster_labels(self.model.coordinates, vec, face_color)
+        cluster_labels, colortypes = _position_cluster_labels(self.model.coordinates, vec, face_color)
         return {
             # TODO(giovp): fix color
             "text": {
                 "string": "{clusters}",
                 "size": 24,
-                "color": "white",  # "color": cluster_labels["colors"], {"feature": "clusters", "colormap": "colors"},
+                "color": {'feature': "clusters",
+                          'colormap': colortypes},
                 "anchor": "center",
             },
             "face_color": face_color,

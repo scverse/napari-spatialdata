@@ -4,6 +4,7 @@ from anndata import AnnData
 import numpy as np
 import pytest
 
+from matplotlib.colors import to_hex
 from napari_spatialdata._utils import (
     _min_max_norm,
     _get_categorical,
@@ -26,13 +27,17 @@ def test_position_cluster_labels(adata_labels: AnnData):
     clusters = adata_labels.obs["categorical"]
     colors = _get_categorical(adata_labels, key="categorical")
 
-    positions = _position_cluster_labels(model.coordinates, clusters, colors)
-
+    positions, colortypes = _position_cluster_labels(model.coordinates, clusters, colors)
     assert isinstance(positions["clusters"], np.ndarray)
     assert isinstance(positions["colors"], np.ndarray)
     assert positions["clusters"].shape == positions["colors"].shape
     assert np.unique(positions["clusters"].nonzero()).shape == adata_labels.obs["categorical"].cat.categories.shape
 
+    #test the number of color types and whether they are paired up correctly with the colors of the points
+    assert colortypes.shape == adata_labels.obs["categorical"].cat.categories.shape
+    clusters = clusters.reset_index(drop=True)
+    for i,ind in zip(range(len(colortypes)), positions["clusters"].nonzero()[0]):
+        assert to_hex(colors[int(clusters[clusters == type(clusters[0])(positions["clusters"][ind])].index[0])]) == colortypes[i]
 
 @pytest.mark.parametrize("tri_coord", [[[0, 10, 20], [30, 40, 50]]])
 def test_points_inside_triangles(adata_shapes: AnnData, tri_coord: List[List[int]]):
