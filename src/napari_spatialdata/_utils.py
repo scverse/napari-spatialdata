@@ -111,8 +111,8 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series, colors: NDAr
     # index consists of the categories that need not be string
     clusters[kdtree.query(df.values)[1]] = df.index.astype(str)
     order = np.argsort(kdtree.query(df.values)[1])
-    colortypes=colortypes.reindex(order)
-    colortypes=np.array([c[0] for c in colortypes])
+    colortypes = colortypes.reindex(order)
+    colortypes = np.array([c[0] for c in colortypes])
     # napari v0.4.9 - properties must be 1-D in napari/layers/points/points.py:581
     colors = np.array([to_hex(col) for col in colors])
     colors = np.array([col if not len(cl) else to_hex((0, 0, 0)) for cl, col in zip(clusters, colors)])

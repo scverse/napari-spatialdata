@@ -222,8 +222,7 @@ class AListWidget(ListWidget):
             "text": {
                 "string": "{clusters}",
                 "size": 24,
-                "color": {'feature': "clusters",
-                          'colormap': colortypes},
+                "color": {"feature": "clusters", "colormap": colortypes},
                 "anchor": "center",
             },
             "face_color": face_color,
