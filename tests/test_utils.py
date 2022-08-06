@@ -38,7 +38,8 @@ def test_position_cluster_labels(adata_labels: AnnData):
     clusters = clusters.reset_index(drop=True)
     for i, ind in zip(range(len(colortypes)), positions["clusters"].nonzero()[0]):
         assert (
-            to_hex(colors[int(clusters[clusters == type(clusters[0])(positions["clusters"][ind])].index[0])])
+            # to_hex(colors[int(clusters[clusters == type(clusters[0])(positions["clusters"][ind])].index[0])])
+            to_hex(colors[int(clusters[clusters == int(positions["clusters"][ind])].index[0])])
             == colortypes[i]
         )
 

@@ -96,7 +96,9 @@ def _get_categorical(
     return np.array([col_dict[v] for v in adata.obs[key]])
 
 
-def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series, colors: NDArrayA) -> dict[str, NDArrayA]:
+def _position_cluster_labels(
+    coords: NDArrayA, clusters: pd.Series, colors: NDArrayA
+) -> Tuple[dict[str, NDArrayA], NDArrayA]:
     if not is_categorical_dtype(clusters):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
     coords = coords[:, 1:]
