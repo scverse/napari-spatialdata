@@ -1,7 +1,9 @@
 from typing import List
+import logging
 
 from anndata import AnnData
 import numpy as np
+import pandas as pd
 import pytest
 
 from napari_spatialdata._utils import (
@@ -12,7 +14,6 @@ from napari_spatialdata._utils import (
 )
 
 
-# test _get_categorical
 def test_get_categorical(adata_labels: AnnData):
 
     assert _get_categorical(adata_labels, key="categorical").shape == (adata_labels.n_obs, 3)
@@ -63,3 +64,13 @@ def test_min_max_norm(vec: np.ndarray) -> None:
 
     assert out.shape == vec.shape
     assert (out.min(), out.max()) == (0, 1)
+
+
+def test_logger(caplog, adata_labels: AnnData):
+
+    vec = pd.Series(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], dtype="category")
+
+    _get_categorical(adata_labels, key="categorical", vec=vec)
+
+    with caplog.at_level(logging.INFO):
+        assert "Overwriting `adata.obs" in caplog.records[0].message

@@ -4,7 +4,7 @@ from typing import Any, Tuple, Union, Callable, Optional, Sequence, TYPE_CHECKIN
 from functools import wraps
 
 from numba import njit, prange
-from scanpy import logging as logg
+from loguru import logger
 from anndata import AnnData
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
@@ -80,11 +80,12 @@ def _get_categorical(
     palette: Optional[str] = None,
     vec: Optional[pd.Series] = None,
 ) -> NDArrayA:
+
     if vec is not None:
         if not is_categorical_dtype(vec):
             raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
         if key in adata.obs:
-            logg.debug(f"Overwriting `adata.obs[{key!r}]`")
+            logger.debug(f"Overwriting `adata.obs[{key!r}]`.")
 
         adata.obs[key] = vec.values
 
@@ -116,6 +117,7 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series, colors: NDAr
 
 
 def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
+
     if issparse(vec):
         if TYPE_CHECKING:
             assert isinstance(vec, spmatrix)

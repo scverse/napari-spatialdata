@@ -1,6 +1,6 @@
 from typing import Any, Optional, Sequence, FrozenSet
 
-from scanpy import logging as logg
+from loguru import logger
 from anndata import AnnData
 from magicgui import magicgui
 from napari.layers import Layer, Labels
@@ -105,6 +105,8 @@ class QtAdataViewWidget(QWidget):
 
     def _on_layer_update(self, event: Optional[Any] = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
+        logger.info("Updating layer.")
+
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
@@ -158,12 +160,12 @@ class QtAdataViewWidget(QWidget):
             if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
                 continue
             if not len(layer.data):
-                logg.warning(f"Shape layer `{layer.name}` has no visible shapes")
+                logger.warn(f"Shape layer `{layer.name}` has no visible shapes.")
                 continue
 
             key = f"{layer.name}_{self.model.layer.name}"
 
-            logg.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`")
+            logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
             self._save_shapes(layer, key=key)
             self._update_obs_items(key)
 
@@ -173,6 +175,8 @@ class QtAdataViewWidget(QWidget):
 
         # TODO(giovp): check if view and save accordingly
         points_mask: NDArrayA = _points_inside_triangles(self.model.coordinates[:, 1:], triangles)
+
+        logger.info("Saving layer shapes.")
 
         self._model._adata.obs[key] = pd.Categorical(points_mask)
         self._model._adata.uns[key] = {"meshes": layer.data.copy()}
