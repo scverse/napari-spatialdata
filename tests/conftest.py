@@ -4,6 +4,7 @@ from pathlib import Path
 from functools import wraps
 
 from scipy import ndimage as ndi
+from loguru import logger
 from anndata import AnnData
 from skimage import data
 from matplotlib.testing.compare import compare_images
@@ -171,3 +172,10 @@ def _decorate(fn: Callable, clsname: str, name: Optional[str] = None) -> Callabl
     fig_name = f"{clsname[4:]}_{name[10:]}"
 
     return save_and_compare
+
+
+@pytest.fixture
+def caplog(caplog):
+    handler_id = logger.add(caplog.handler, format="{message}")
+    yield caplog
+    logger.remove(handler_id)
