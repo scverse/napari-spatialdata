@@ -66,7 +66,7 @@ class ImageModel:
             if self.points_var is not None:
                 return tuple(map(str, self.points_var.unique()))
             else:
-                return tuple(["No points found."])  # noqa: C409
+                return tuple(["No points found."])
         return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector
@@ -182,7 +182,7 @@ class ImageModel:
         return str(key) + (f":{self.layer}" if self.layer is not None else ":X")
 
     @property
-    def layer(self) -> Optional[Layer]:  # noqa: D102
+    def layer(self) -> Optional[Layer]:
         return self._layer
 
     @layer.setter
@@ -191,7 +191,7 @@ class ImageModel:
         self.events.layer()
 
     @property
-    def adata(self) -> AnnData:  # noqa: D102
+    def adata(self) -> AnnData:
         return self._adata
 
     @adata.setter
@@ -200,7 +200,7 @@ class ImageModel:
         self.events.adata()
 
     @property
-    def spatial_key(self) -> str:  # noqa: D102
+    def spatial_key(self) -> str:
         return self._spatial_key
 
     @spatial_key.setter
@@ -208,7 +208,7 @@ class ImageModel:
         self._spatial_key = key
 
     @property
-    def library_id(self) -> Optional[str]:  # noqa: D102
+    def library_id(self) -> Optional[str]:
         return self._library_id
 
     @library_id.setter
@@ -216,7 +216,7 @@ class ImageModel:
         self._library_id = library_id
 
     @property
-    def adata_layer(self) -> Optional[str]:  # noqa: D102
+    def adata_layer(self) -> Optional[str]:
         return self._adata_layer
 
     @adata_layer.setter
@@ -224,7 +224,7 @@ class ImageModel:
         self._adata_layer = adata_layer
 
     @property
-    def coordinates(self) -> NDArrayA:  # noqa: D102
+    def coordinates(self) -> NDArrayA:
         return self._coordinates
 
     @coordinates.setter
@@ -232,7 +232,7 @@ class ImageModel:
         self._coordinates = coordinates
 
     @property
-    def points_coordinates(self) -> NDArrayA:  # noqa: D102
+    def points_coordinates(self) -> NDArrayA:
         return self._points_coordinates
 
     @points_coordinates.setter
@@ -240,7 +240,7 @@ class ImageModel:
         self._points_coordinates = points_coordinates
 
     @property
-    def points_var(self) -> pd.Series:  # noqa: D102
+    def points_var(self) -> pd.Series:
         return self._points_var
 
     @points_var.setter
@@ -248,7 +248,7 @@ class ImageModel:
         self._points_var = points_var
 
     @property
-    def scale(self) -> Optional[float]:  # noqa: D102
+    def scale(self) -> Optional[float]:
         return self._scale
 
     @scale.setter
@@ -256,7 +256,7 @@ class ImageModel:
         self._scale = scale
 
     @property
-    def spot_diameter(self) -> NDArrayA:  # noqa: D102
+    def spot_diameter(self) -> NDArrayA:
         return self._spot_diameter
 
     @spot_diameter.setter
@@ -264,7 +264,7 @@ class ImageModel:
         self._spot_diameter = spot_diameter
 
     @property
-    def point_diameter(self) -> NDArrayA:  # noqa: D102
+    def point_diameter(self) -> NDArrayA:
         return self._point_diameter
 
     @point_diameter.setter
@@ -272,7 +272,7 @@ class ImageModel:
         self._point_diameter = point_diameter
 
     @property
-    def labels_key(self) -> Optional[str]:  # noqa: D102
+    def labels_key(self) -> Optional[str]:
         return self._labels_key
 
     @labels_key.setter
@@ -280,7 +280,7 @@ class ImageModel:
         self._labels_key = labels_key
 
     @property
-    def palette(self) -> Optional[str]:  # noqa: D102
+    def palette(self) -> Optional[str]:
         return self._palette
 
     @palette.setter
@@ -288,7 +288,7 @@ class ImageModel:
         self._palette = palette
 
     @property
-    def cmap(self) -> str:  # noqa: D102
+    def cmap(self) -> str:
         return self._cmap
 
     @cmap.setter
@@ -296,7 +296,7 @@ class ImageModel:
         self._cmap = cmap
 
     @property
-    def symbol(self) -> str:  # noqa: D102
+    def symbol(self) -> str:
         return self._symbol
 
     @symbol.setter
@@ -304,7 +304,7 @@ class ImageModel:
         self._symbol = symbol
 
     @property
-    def scale_key(self) -> Optional[str]:  # noqa: D102
+    def scale_key(self) -> Optional[str]:
         return self._scale_key
 
     @scale_key.setter
