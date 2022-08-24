@@ -5,7 +5,7 @@ from anndata import AnnData
 from magicgui import magicgui
 from napari.layers import Layer, Labels
 from napari.viewer import Viewer
-from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QVBoxLayout
+from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QVBoxLayout, QPushButton
 import numpy as np
 import napari
 import pandas as pd
@@ -24,7 +24,33 @@ from napari_spatialdata._widgets import (
 )
 from napari_spatialdata._constants._pkg_constants import Key
 
+from napari_matplotlib.scatter import FeaturesScatterWidget, ScatterWidget, ScatterBaseWidget
+
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
+
+def test_data():
+    from skimage.measure import regionprops_table
+    # make a test label image
+    label_image = np.zeros((100, 100), dtype=np.uint16)
+
+    label_image[10:20, 10:20] = 1
+    label_image[50:70, 50:70] = 2
+
+    feature_table_1 = regionprops_table(
+        label_image, properties=("label", "area", "perimeter")
+    )
+    feature_table_1["index"] = feature_table_1["label"]
+
+    # make the points data
+    n_points = 100
+    points_data = 100 * np.random.random((100, 2))
+    points_features = {
+        "feature_0": np.random.random((n_points,)),
+        "feature_1": np.random.random((n_points,)),
+        "feature_2": np.random.random((n_points,)),
+    }
+    return label_image, feature_table_1, points_data, points_features
+
 
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
@@ -53,17 +79,28 @@ class QtAdataScatterWidget(QWidget):
         self.selection_widget.addItem("obsm", None)
         self.selection_widget.addItem("obs", None)
         self.selection_widget.addItem("var", None)
-        self.selection_widget.addItems(self._get_adata_layer())
         #self.selection_widget.currentTextChanged.connect(self.var_widget.setAdataLayer)
 
         self.layout().addWidget(selection_label)
         self.layout().addWidget(self.selection_widget)
         
+        # self.obsm_widget = AListWidget(self.viewer, self.model, attr="obsm", multiselect=False)
+        # self.obsm_index_widget = ObsmIndexWidget(self.model)
+        # self.obsm_index_widget.currentTextChanged.connect(self.obsm_widget.setIndex)
+        # self.obsm_widget.itemClicked.connect(self.obsm_index_widget.addItems)
+
+
         # X-axis
         x_label = QLabel("Select x-axis:")
         x_label.setToolTip("Select layer to visualise in x-axis.")
+        
         self.x_widget = QComboBox()
         self.x_widget.addItems(self.model.get_items("obsm"))
+        
+        #self.x_widget.currentTextChanged.connect(self.selection_widget.setIndex)
+        #self.x_widget.itemClicked.connect(self.selection_widget.addItems)
+        #self.x_widget = AListWidget(self.viewer, self.model, multiselect=False)
+        
 
         # Y-axis
         y_label = QLabel("Select y-axis:")
@@ -78,6 +115,21 @@ class QtAdataScatterWidget(QWidget):
         self.color_widget.addItem("Red", None)
         self.color_widget.addItem("Blue", None)
         self.color_widget.addItem("Green", None)
+
+
+        ###
+        
+        label_image, feature_table_1, points_data, points_features = test_data()
+        #self._viewer.add_labels(label_image, features=feature_table_1)
+        #self._viewer.add_points(points_data, features=points_features)
+     
+        ###
+        self._viewer.add_labels(label_image)
+        self._viewer.add_points(points_data)
+
+        self.graph_widget = ScatterWidget(self._viewer)
+        
+        self.plot_button_widget = QPushButton("Plot")
         
         self.layout().addWidget(x_label)
         self.layout().addWidget(self.x_widget)
@@ -85,8 +137,12 @@ class QtAdataScatterWidget(QWidget):
         self.layout().addWidget(self.y_widget)
         self.layout().addWidget(color_label)
         self.layout().addWidget(self.color_widget)
-
-        self.viewer.bind_key("Shift-E", self.export)
+        
+        self.layout().addWidget(self.graph_widget)
+        self.layout().addWidget(self.plot_button_widget)
+        
+        
+        #self.viewer.bind_key("Shift-E", self.export)
         self.model.events.adata.connect(self._on_selection)
 
     def _on_selection(self, event: Optional[Any] = None) -> None:
@@ -268,7 +324,7 @@ class QtAdataViewWidget(QWidget):
         self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
         self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
 
-        #self.viewer.bind_key("Shift-E", self.export)
+        self.viewer.bind_key("Shift-E", self.export)
         self.model.events.adata.connect(self._on_layer_update)
 
     def _on_layer_update(self, event: Optional[Any] = None) -> None:
