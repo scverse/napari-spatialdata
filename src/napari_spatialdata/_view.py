@@ -25,31 +25,9 @@ from napari_spatialdata._widgets import (
 from napari_spatialdata._constants._pkg_constants import Key
 
 from napari_matplotlib.scatter import FeaturesScatterWidget, ScatterWidget, ScatterBaseWidget
+from napari_matplotlib.histogram import HistogramWidget
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
-
-def test_data():
-    from skimage.measure import regionprops_table
-    # make a test label image
-    label_image = np.zeros((100, 100), dtype=np.uint16)
-
-    label_image[10:20, 10:20] = 1
-    label_image[50:70, 50:70] = 2
-
-    feature_table_1 = regionprops_table(
-        label_image, properties=("label", "area", "perimeter")
-    )
-    feature_table_1["index"] = feature_table_1["label"]
-
-    # make the points data
-    n_points = 100
-    points_data = 100 * np.random.random((100, 2))
-    points_features = {
-        "feature_0": np.random.random((n_points,)),
-        "feature_1": np.random.random((n_points,)),
-        "feature_2": np.random.random((n_points,)),
-    }
-    return label_image, feature_table_1, points_data, points_features
 
 
 class QtAdataScatterWidget(QWidget):
@@ -116,17 +94,8 @@ class QtAdataScatterWidget(QWidget):
         self.color_widget.addItem("Blue", None)
         self.color_widget.addItem("Green", None)
 
-
-        ###
         
-        label_image, feature_table_1, points_data, points_features = test_data()
-        #self._viewer.add_labels(label_image, features=feature_table_1)
-        #self._viewer.add_points(points_data, features=points_features)
-     
-        ###
-        self._viewer.add_labels(label_image)
-        self._viewer.add_points(points_data)
-
+        #self._viewer.add_image(np.random.random((100,100)))
         self.graph_widget = ScatterWidget(self._viewer)
         
         self.plot_button_widget = QPushButton("Plot")
@@ -207,12 +176,12 @@ class QtAdataScatterWidget(QWidget):
             if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
                 continue
             if not len(layer.data):
-                logg.warning(f"Shape layer `{layer.name}` has no visible shapes")
+                logger.warning(f"Shape layer `{layer.name}` has no visible shapes")
                 continue
 
             key = f"{layer.name}_{self.model.layer.name}"
 
-            logg.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`")
+            logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`")
             self._save_shapes(layer, key=key)
             self._update_obs_items(key)
 
