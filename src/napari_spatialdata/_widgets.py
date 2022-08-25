@@ -92,6 +92,7 @@ class ListWidget(QtWidgets.QListWidget):
 
 class AListWidget(ListWidget):
     layerChanged = Signal()
+    attrChanged = Signal()
 
     def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
         if attr not in ImageModel.VALID_ATTRIBUTES:
@@ -105,6 +106,7 @@ class AListWidget(ListWidget):
         self._getter = getattr(self.model, f"get_{attr}")
 
         self.layerChanged.connect(self._onChange)
+        self.attrChanged.connect(self._onChange)
 
         self._onChange()
 
@@ -116,7 +118,7 @@ class AListWidget(ListWidget):
         for item in sorted(set(items)):
             try:
                 vec, name = self._getter(item, index=self.getIndex())
-            except Exception as e:  # noqa: B902
+            except Exception as e:
                 logger.error(e)
                 continue
             if vec.ndim == 2:
@@ -152,6 +154,20 @@ class AListWidget(ListWidget):
                 # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
                 # TODO(giovp): make layer editable?
                 # self.viewer.layers[layer_name].editable = False
+
+    def setAttribute(self, field: Optional[str]) -> None:
+        if field == self.getAttribute():
+            return
+        if field not in ("var", "obs", "obsm"):
+            raise ValueError("tofo")
+        self._attr = field
+        self._getter = getattr(self.model, f"get_{field}")
+        self.attrChanged.emit()
+
+    def getAttribute(self) -> Optional[str]:
+        if TYPE_CHECKING:
+            assert isinstance(self._attr, str)
+        return self._attr
 
     def setAdataLayer(self, layer: Optional[str]) -> None:
         if layer in ("default", "None", "X"):

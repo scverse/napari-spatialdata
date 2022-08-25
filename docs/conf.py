@@ -46,7 +46,7 @@ main_doc = "index"
 
 # General information about the project.
 project = "napari-spatialdata"
-copyright = "2022, giovanni palla"  # noqa: A001
+copyright = "2022, giovanni palla"
 author = "giovanni palla"
 
 # The version info for the project you're documenting, acts as replacement for
