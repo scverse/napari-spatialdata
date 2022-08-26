@@ -22,10 +22,9 @@ from napari_spatialdata._widgets import (
     AListWidget,
     ObsmIndexWidget,
     RangeSliderWidget,
+    ScatterListWidget,
 )
 from napari_spatialdata._constants._pkg_constants import Key
-
-from napari_matplotlib.scatter import FeaturesScatterWidget, ScatterWidget, ScatterBaseWidget
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
@@ -88,7 +87,7 @@ class QtAdataScatterWidget(QWidget):
         x_label = QLabel("Select x-axis:")
         x_label.setToolTip("Select layer to visualise in x-axis.")
 
-        self.x_widget = AListWidget(self.viewer, self.model, attr="obsm")
+        self.x_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
         self.x_widget.setAttribute("obsm")
         self.layout().addWidget(x_label)
         self.layout().addWidget(self.x_widget)
@@ -110,7 +109,7 @@ class QtAdataScatterWidget(QWidget):
         y_label = QLabel("Select y-axis:")
         y_label.setToolTip("Select layer to visualise in y-axis.")
 
-        self.y_widget = AListWidget(self.viewer, self.model, attr="obsm")
+        self.y_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
         self.y_widget.setAttribute("obsm")
         self.layout().addWidget(y_label)
         self.layout().addWidget(self.y_widget)
@@ -129,7 +128,7 @@ class QtAdataScatterWidget(QWidget):
 
         color_label = QLabel("Select color:")
         color_label.setToolTip("Select color to visualise the scatterplot.")
-        self.color_widget = AListWidget(self.viewer, self.model, attr="obsm")
+        self.color_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
         self.color_widget.setAttribute("obs")
         self.layout().addWidget(color_label)
         self.layout().addWidget(self.color_widget)
