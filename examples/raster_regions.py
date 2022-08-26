@@ -25,6 +25,7 @@ viewer.add_image(
     rgb=True,
     name="image1",
     metadata={"adata": adata1, "library_id": "point8"},  # adata in image layers will plot points
+    scale=(1, 1),
 )
 viewer.add_labels(
     label1,
@@ -40,6 +41,9 @@ viewer.add_labels(
     name="label2",
     metadata={"adata": adata2, "library_id": "point16", "labels_key": "cell_id"},
 )
+
+viewer.scale_bar.visible = True
+viewer.scale_bar.unit = "um"
 
 if __name__ == "__main__":
     napari.run()

@@ -6,7 +6,7 @@ from functools import singledispatchmethod
 
 from qtpy import QtCore, QtWidgets
 from vispy import scene
-from scanpy import logging as logg
+from loguru import logger
 from superqt import QRangeSlider
 from qtpy.QtCore import Qt, Signal
 from napari.layers import Image, Layer, Labels, Points
@@ -116,8 +116,8 @@ class AListWidget(ListWidget):
         for item in sorted(set(items)):
             try:
                 vec, name = self._getter(item, index=self.getIndex())
-            except Exception as e:  # noqa: B902
-                logg.error(e)
+            except Exception as e:
+                logger.error(e)
                 continue
             if vec.ndim == 2:
                 self.viewer.add_points(
@@ -184,7 +184,7 @@ class AListWidget(ListWidget):
         return self._index
 
     def _handle_already_present(self, layer_name: str) -> None:
-        logg.debug(f"Layer `{layer_name}` is already loaded")
+        logger.debug(f"Layer `{layer_name}` is already loaded")
         self.viewer.layers.selection.select_only(self.viewer.layers[layer_name])
 
     @singledispatchmethod
