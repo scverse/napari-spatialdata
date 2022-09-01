@@ -20,6 +20,7 @@ from pandas.core.dtypes.common import (
 )
 import numpy as np
 import pandas as pd
+from pathlib import Path
 
 from napari_spatialdata._constants._pkg_constants import Key
 
@@ -159,3 +160,58 @@ def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
         out[i] = _point_inside_triangles(triangles - points[i])
 
     return out
+
+def save_fig(fig: Figure, path: str | Path, make_dir: bool = True, ext: str = "png", **kwargs: Any) -> None:
+    """
+    Save a figure.
+
+    Parameters
+    ----------
+    fig
+        Figure to save.
+    path
+        Path where to save the figure. If path is relative, save it under :attr:`scanpy.settings.figdir`.
+    make_dir
+        Whether to try making the directory if it does not exist.
+    ext
+        Extension to use if none is provided.
+    kwargs
+        Keyword arguments for :meth:`matplotlib.figure.Figure.savefig`.
+
+    Returns
+    -------
+    None
+        Just saves the plot.
+    """
+    if os.path.splitext(path)[1] == "":
+        path = f"{path}.{ext}"
+
+    path = Path(path)
+
+    # to avoid the dependency from scanpy
+    # if not path.is_absolute():
+    #     path = Path(settings.figdir) / path
+
+    if make_dir:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+        except OSError as e:
+            logger.debug(f"Unable to create directory `{path.parent}`. Reason: `{e}`")
+
+    logger.debug(f"Saving figure to `{path!r}`")
+
+    kwargs.setdefault("bbox_inches", "tight")
+    kwargs.setdefault("transparent", True)
+
+    fig.savefig(path, **kwargs)
+
+def _display_channelwise(arr: NDArrayA | da.Array) -> bool:
+    n_channels: int = arr.shape[-1]
+    if n_channels not in (3, 4):
+        return n_channels != 1
+    if np.issubdtype(arr.dtype, np.uint8):
+        return False  # assume RGB(A)
+    if not np.issubdtype(arr.dtype, np.floating):
+        return True
+
+    return _not_in_01(arr)

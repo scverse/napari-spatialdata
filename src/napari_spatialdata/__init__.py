@@ -11,3 +11,5 @@ except ImportError:
     __full_version__ = __version__
 
 del version, parse
+
+from napari_spatialdata.interactive import Interactive

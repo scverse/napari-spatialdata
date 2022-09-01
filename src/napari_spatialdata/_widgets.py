@@ -106,7 +106,8 @@ class AListWidget(ListWidget):
 
         self.layerChanged.connect(self._onChange)
 
-        self._onChange()
+        if self.model.adata is not None:
+            self._onChange()
 
     def _onChange(self) -> None:
         self.clear()

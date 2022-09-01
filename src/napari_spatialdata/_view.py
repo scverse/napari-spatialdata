@@ -117,6 +117,8 @@ class QtAdataViewWidget(QWidget):
 
     def _select_layer(self, layer: Layer) -> None:
         """Napari layers."""
+        if layer is None:
+            return
         self.model.layer = layer
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
@@ -142,16 +144,18 @@ class QtAdataViewWidget(QWidget):
         for layer in self._viewer.layers:
             if isinstance(layer.metadata.get("adata", None), AnnData):
                 adata_layers.append(layer)
-        if not len(adata_layers):
-            raise NotImplementedError(
-                "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
-            )
+        # if not len(adata_layers):
+        #     raise NotImplementedError(
+        #         "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
+        #     )
         return adata_layers
 
     def _get_adata_layer(self) -> Sequence[Optional[str]]:
-        adata_layers = list(self.model.adata.layers.keys())
-        if len(adata_layers):
-            return adata_layers
+        adata = self.model.adata
+        if adata is not None:
+            adata_layers = list(self.model.adata.layers.keys())
+            if len(adata_layers):
+                return adata_layers
         return [None]
 
     def export(self, _: napari.viewer.Viewer) -> None:
