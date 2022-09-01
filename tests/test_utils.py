@@ -2,12 +2,12 @@ from typing import List
 import logging
 
 from anndata import AnnData
-from matplotlib.colors import to_hex
 import numpy as np
 import pandas as pd
 import pytest
 
 from napari_spatialdata._utils import (
+    _set_palette,
     _min_max_norm,
     _get_categorical,
     _points_inside_triangles,
@@ -20,29 +20,37 @@ def test_get_categorical(adata_labels: AnnData):
     assert _get_categorical(adata_labels, key="categorical").shape == (adata_labels.n_obs, 3)
 
 
+def test_set_palette(adata_labels: AnnData):
+    assert np.array_equal(
+        _get_categorical(adata_labels, key="categorical"),
+        _get_categorical(adata_labels, key="categorical", vec=_set_palette(adata_labels, key="categorical")),
+    )
+
+
+def test_value_error(adata_labels: AnnData):
+    col_dict = _set_palette(adata_labels, key="categorical")
+    col_dict[1] = "non_existing_color"
+    with pytest.raises(ValueError) as err:
+        _get_categorical(adata_labels, key="categorical", vec=col_dict)
+    assert "`non_existing_color` is not an acceptable color." in str(err.value)
+    col_dict[27] = col_dict.pop(1)
+    with pytest.raises(ValueError) as err:
+        _get_categorical(adata_labels, key="categorical", vec=col_dict)
+    assert "The key `27` in the given dictionary is not an existing category in anndata[`categorical`]." in str(
+        err.value
+    )
+
+
 def test_position_cluster_labels(adata_labels: AnnData):
     from napari_spatialdata._model import ImageModel
 
     model = ImageModel()
     model.coordinates = np.insert(adata_labels.obsm["spatial"], 0, values=0, axis=1).copy()
     clusters = adata_labels.obs["categorical"]
-    colors = _get_categorical(adata_labels, key="categorical")
 
-    positions, colortypes = _position_cluster_labels(model.coordinates, clusters, colors)
+    positions = _position_cluster_labels(model.coordinates, clusters)
     assert isinstance(positions["clusters"], np.ndarray)
-    assert isinstance(positions["colors"], np.ndarray)
-    assert positions["clusters"].shape == positions["colors"].shape
     assert np.unique(positions["clusters"].nonzero()).shape == adata_labels.obs["categorical"].cat.categories.shape
-
-    # test the number of color types and whether they are paired up correctly with the colors of the points
-    assert colortypes.shape == adata_labels.obs["categorical"].cat.categories.shape
-    clusters = clusters.reset_index(drop=True)
-    for i, ind in zip(range(len(colortypes)), positions["clusters"].nonzero()[0]):
-        assert (
-            # to_hex(colors[int(clusters[clusters == type(clusters[0])(positions["clusters"][ind])].index[0])])
-            to_hex(colors[int(clusters[clusters == int(positions["clusters"][ind])].index[0])])
-            == colortypes[i]
-        )
 
 
 @pytest.mark.parametrize("tri_coord", [[[0, 10, 20], [30, 40, 50]]])
