@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
+from typing import Any, Union, Iterable, Optional, Sequence, TYPE_CHECKING
 from functools import singledispatchmethod
 
 from qtpy import QtCore, QtWidgets
@@ -27,7 +27,7 @@ from napari_spatialdata._utils import (
     _position_cluster_labels,
 )
 
-__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ObsmIndexWidget", "CBarWidget"]
+__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ComponentWidget", "ObsmIndexWidget", "CBarWidget"]
 
 # label string: attribute name
 # TODO(giovp): remove since layer controls private?
@@ -241,7 +241,7 @@ class ScatterListWidget(AListWidget):
         if field == self.getAttribute():
             return
         if field not in ("var", "obs", "obsm"):
-            raise ValueError("tofo")
+            raise ValueError(f"{field} is not a valid adata field.")
         self._attr = field
         self._getter = getattr(self.model, f"get_{field}")
         self.attrChanged.emit()
@@ -250,6 +250,8 @@ class ScatterListWidget(AListWidget):
         if TYPE_CHECKING:
             assert isinstance(self._attr, str)
         return self._attr
+
+    # def setComponent(self) -> None:
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):
@@ -278,6 +280,53 @@ class ObsmIndexWidget(QtWidgets.QComboBox):
 
         self.clear()
         super().addItems(tuple(texts))
+
+
+class ComponentWidget(ObsmIndexWidget):
+    def __init__(self, model: ImageModel, attr: str, max_visible: int = 4, **kwargs: Any):
+        super().__init__(model, max_visible, **kwargs)
+        self._attr = attr
+
+    def setToolTip(self, click: str) -> None:
+        if click == "obsm":
+            super().setToolTip("Indices for current key in `adata.obsm`. Choose by clicking on item from obsm list.")
+        elif click == "var":
+            super().setToolTip("Keys in `adata.layers`.")
+        else:
+            super().setToolTip("")
+        return
+
+    def setAttribute(self, field: Optional[str]) -> None:
+        if field == self.getAttribute():
+            return
+        if field not in ("var", "obs", "obsm"):
+            raise ValueError(f"{field} is not a valid adata field.")
+        self._attr = field
+        self._onChange()
+
+    def getAttribute(self) -> Optional[str]:
+        if TYPE_CHECKING:
+            assert isinstance(self._attr, str)
+        return self._attr
+
+    def _onChange(self) -> None:
+        if self.getAttribute() == "var":
+            self.clear()
+            super().addItems(self._getAllLayers())
+        else:
+            self.clear()
+
+    def _onClickChange(self, clicked: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
+        if self.getAttribute() == "obsm":
+            self.clear()
+            self.addItems(clicked)
+
+    def _getAllLayers(self) -> Sequence[Optional[str]]:
+        adata_layers = list(self._model.adata.layers.keys())
+        if len(adata_layers):
+            adata_layers.insert(0, "X")
+            return adata_layers
+        return ["X"]
 
 
 class CBarWidget(QtWidgets.QWidget):

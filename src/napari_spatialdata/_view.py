@@ -20,6 +20,7 @@ from napari_spatialdata._utils import (
 from napari_spatialdata._widgets import (
     CBarWidget,
     AListWidget,
+    ComponentWidget,
     ObsmIndexWidget,
     RangeSliderWidget,
     ScatterListWidget,
@@ -89,14 +90,24 @@ class QtAdataScatterWidget(QWidget):
 
         self.x_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
         self.x_widget.setAttribute("obsm")
+
+        self.x_component_widget = ComponentWidget(self.model, attr="obsm")
+        self.x_component_widget.setToolTip("obsm")
+        # self.x_component_widget.currentTextChanged.connect(self.x_widget.setComponent)
+        self.x_widget.itemClicked.connect(self.x_component_widget._onClickChange)
+
         self.layout().addWidget(x_label)
         self.layout().addWidget(self.x_widget)
+        self.layout().addWidget(self.x_component_widget)
 
         self.x_selection_widget.currentTextChanged.connect(self.x_widget.setAttribute)
+        self.x_selection_widget.currentTextChanged.connect(self.x_component_widget.setAttribute)
+        self.x_selection_widget.currentTextChanged.connect(self.x_component_widget.setToolTip)
 
         # Y selection
         y_selection_label = QLabel("Select type for Y axis:")
         y_selection_label.setToolTip("Select between obs, obsm and var.")
+
         self.y_selection_widget = QComboBox()
         self.y_selection_widget.addItem("obsm", None)
         self.y_selection_widget.addItem("obs", None)
@@ -108,13 +119,21 @@ class QtAdataScatterWidget(QWidget):
         # Y-axis
         y_label = QLabel("Select y-axis:")
         y_label.setToolTip("Select layer to visualise in y-axis.")
-
         self.y_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
         self.y_widget.setAttribute("obsm")
+
+        self.y_component_widget = ComponentWidget(self.model, attr="obsm")
+        self.y_component_widget.setToolTip("obsm")
+        # self.y_component_widget.currentTextChanged.connect(self.y_widget.setComponent)
+        self.y_widget.itemClicked.connect(self.y_component_widget._onClickChange)
+
         self.layout().addWidget(y_label)
         self.layout().addWidget(self.y_widget)
+        self.layout().addWidget(self.y_component_widget)
 
         self.y_selection_widget.currentTextChanged.connect(self.y_widget.setAttribute)
+        self.y_selection_widget.currentTextChanged.connect(self.y_component_widget.setAttribute)
+        self.y_selection_widget.currentTextChanged.connect(self.y_component_widget.setToolTip)
 
         # Color
         color_selection_label = QLabel("Select type for color:")
@@ -130,10 +149,19 @@ class QtAdataScatterWidget(QWidget):
         color_label.setToolTip("Select color to visualise the scatterplot.")
         self.color_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
         self.color_widget.setAttribute("obs")
+
+        self.color_component_widget = ComponentWidget(self.model, attr="obs")
+        self.color_component_widget.setToolTip("obs")
+        # self.color_component_widget.currentTextChanged.connect(self.color_widget.setComponent)
+        self.color_widget.itemClicked.connect(self.color_component_widget._onClickChange)
+
         self.layout().addWidget(color_label)
         self.layout().addWidget(self.color_widget)
+        self.layout().addWidget(self.color_component_widget)
 
         self.color_selection_widget.currentTextChanged.connect(self.color_widget.setAttribute)
+        self.color_selection_widget.currentTextChanged.connect(self.color_component_widget.setAttribute)
+        self.color_selection_widget.currentTextChanged.connect(self.color_component_widget.setToolTip)
 
         ###
 
@@ -162,8 +190,11 @@ class QtAdataScatterWidget(QWidget):
         self.y_widget.clear()
         self.color_widget.clear()
         self.x_widget._onChange()
+        self.x_component_widget._onChange()
         self.y_widget._onChange()
+        self.y_component_widget._onChange()
         self.color_widget._onChange()
+        self.color_component_widget._onChange()
 
     def _select_layer(self, layer: Layer) -> None:
         """Napari layers."""
