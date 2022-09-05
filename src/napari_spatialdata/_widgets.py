@@ -126,12 +126,13 @@ class AListWidget(ListWidget):
                     name=name,
                     edge_color="white",
                     face_color="white",
+                    edge_width=0.,
                     size=self.model.point_diameter,
                     symbol=self.model.symbol,
                 )
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                if isinstance(self.model.layer, Image):
+                if isinstance(self.model.layer, Image) or isinstance(self.model.layer, Points):
                     self.viewer.add_points(
                         self.model.coordinates,
                         name=name,
@@ -139,6 +140,7 @@ class AListWidget(ListWidget):
                         opacity=1,
                         face_colormap=self.model.cmap,
                         edge_colormap=self.model.cmap,
+                        edge_width=0.,
                         symbol=self.model.symbol,
                         **properties,
                     )

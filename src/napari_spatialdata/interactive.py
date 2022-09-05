@@ -7,6 +7,7 @@ from napari_spatialdata._view import QtAdataViewWidget
 from anndata import AnnData
 import numpy as np
 import itertools
+from napari_spatialdata._constants._pkg_constants import Key
 
 # # cannot import these because of cyclic dependencies with spatialdata
 # SpatialData = TypeVar("SpatialData")
@@ -34,7 +35,7 @@ class Interactive:
     def __init__(self, sdata: SpatialData):
         self._viewer = napari.Viewer()
         self._add_layers_from_sdata(sdata=sdata)
-        self._adata_view = QtAdataViewWidget(viewer=self._viewer)
+        # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
         napari.run()
 
     def add_spatial_element(
@@ -54,39 +55,75 @@ class Interactive:
         else:
             raise ValueError(f"Unsupported element type: {type(element)}")
 
-    def _add_image(self, image: Image, name: Optional[str] = None) -> None:
+    def _add_image(self, image: Image, name: str = None) -> None:
         scale = image.transforms.scale_factors
         translate = image.transforms.translation
         self._viewer.add_image(image.data.transpose(), rgb=False, name=name, scale=scale, translate=translate)
         print("TODO: correct transform")
 
-    def _add_labels(self, labels: Labels, annotation_table: Optional[AnnData] = None, name: Optional[str] = None) -> None:
+    def _add_labels(self, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
         pass
 
-    def _add_points(self, points: Points, annotation_table: Optional[AnnData] = None, name: Optional[str] = None) -> \
-            None:
+    def _add_points(self, points: Points, name: str, annotation_table: Optional[AnnData] = None) -> None:
         adata = points.data
         spatial = adata.obsm["spatial"]
         if "region_radius" in adata.obsm:
             radii = adata.obsm["region_radius"]
         else:
             radii = 1
-        annotation = self._find_annotation_for_points(points=points, annotation_table=annotation_table)
+        annotation = self._find_annotation_for_points(points=points, annotation_table=annotation_table, name=name)
         if annotation is not None:
-            metadata = {"adata": annotation}
+            # # points_annotation is required from the squidpy legagy code, TODO: remove
+            # points_annotation = AnnData(X=points.data.X)
+            # points_annotation.obs['gene'] = annotation.obs
+            # metadata = {"adata": annotation, "library_id": name, "points": points_annotation}
+            metadata = {"adata": annotation, "library_id": name}
         else:
             metadata = None
         self._viewer.add_points(
-            spatial, name=name, edge_color="white", face_color="white", size=radii, metadata=metadata
+            spatial, name=name, edge_color="white", face_color="white", size=radii, metadata=metadata, edge_width=0.
         )
         # img1, rgb=True, name="image1", metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"}, scale=(1, 1)
 
-    def _find_annotation_for_points(self, points: Points, annotation_table: Optional[AnnData] = None) -> Optional[
-        AnnData]:
+    def _find_annotation_for_points(
+        self, points: Points, name: str, annotation_table: Optional[AnnData] = None
+    ) -> Optional[AnnData]:
         """Find the annotation for a points layer from the annotation table."""
-        return None
+        annotating_rows = annotation_table[annotation_table.obs["regions_key"] == name, :]
+        if len(annotating_rows) > 0:
+            u = annotating_rows.obs["instance_key"].unique().tolist()
+            assert len(u) == 1
+            instance_key = u[0]
+            assert instance_key in points.data.obs.columns
+            available_instances = points.data.obs[instance_key].tolist()
+            annotated_instances = annotating_rows.obs[instance_key].tolist()
+            assert len(available_instances) == len(set(available_instances)), (
+                "Instance keys must be unique. Found " "multiple regions instances with the " "same key."
+            )
+            assert len(annotated_instances) == len(set(annotated_instances)), (
+                "Instance keys must be unique. Found " "multiple regions instances annotations with the same key."
+            )
+            available_instances = set(available_instances)
+            annotated_instances = set(annotated_instances)
+            assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in points."
+            if len(annotated_instances) != len(available_instances):
+                raise ValueError("TODO: support partial annotation")
 
-    def _add_polygons(self, polygons: Polygons, annotation_table: Optional[AnnData] = None, name: Optional[str] = None) -> None:
+            # fill entries required by the viewer (legacy from squidpy, TODO: remove)
+            annotating_rows.uns[Key.uns.spatial] = {}
+            annotating_rows.uns[Key.uns.spatial][name] = {}
+            annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key] = {}
+            annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key]['tissue_hires_scalef'] = 1.
+            # TODO: we need to flip the y axis here, investigate the reason of this mismatch
+            # a user reported a similar behavior https://github.com/kevinyamauchi/ome-ngff-tables-prototype/pull/8#issuecomment-1165363992
+            annotating_rows.obsm['spatial'] = np.fliplr(points.data.obsm['spatial'])
+            # workaround for the legacy code to support different sizes for different points
+            annotating_rows.obsm['region_radius'] = points.data.obsm['region_radius']
+            return annotating_rows
+        else:
+            return None
+
+    def _add_polygons(self, polygons: Polygons, name: str, annotation_table: Optional[AnnData] = None) -> None:
         pass
 
     def _add_layers_from_sdata(self, sdata: SpatialData):
