@@ -25,7 +25,15 @@ https://napari.org/plugins/stable/index.html
 # UNDER DEVELOPMENT
 
 Clone repo and `pip install -e .`.
-Run examples e.g. `python shape_regions.py` or via notebook for the shape export function.
+
+List the available examples that are using SpatialData with 
+
+```python examples/view_spatialdata.py```
+
+Run them, for instance, with `python examples/view_spatialdata.py merfish`.
+
+Run examples, that are NOT using SpatialData, e.g. `python shape_regions.py` or via notebook for the shape export 
+function. These examples will be removed in the future when SpatialData will be fully adopted.
 
 More documentation on usage will be added later on.
 
