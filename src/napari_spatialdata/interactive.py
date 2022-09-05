@@ -32,11 +32,21 @@ class Interactive:
     %(_interactive.parameters)s
     """
 
-    def __init__(self, sdata: SpatialData):
+    def __init__(self, sdata: SpatialData, with_widgets: bool = True):
         self._viewer = napari.Viewer()
         self._add_layers_from_sdata(sdata=sdata)
         # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
+        if with_widgets:
+            self.show_widget()
         napari.run()
+
+    def show_widget(self):
+        """Load the widget for interative features exploration."""
+        from napari.plugins import plugin_manager, _npe2
+        plugin_manager.discover_widgets()
+        _npe2.get_widget_contribution('napari-spatialdata')
+        self._viewer.window.add_plugin_dock_widget('napari-spatialdata')
+
 
     def add_spatial_element(
         self, element: BaseElement, name: Optional[str] = None, annotation_table: Optional[AnnData] = None
