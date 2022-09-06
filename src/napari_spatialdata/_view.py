@@ -135,7 +135,7 @@ class QtAdataViewWidget(QWidget):
             self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
         # workaround to support different sizes for different point, for layers coming from SpatialData
         if 'region_radius' in self.model.adata.obsm:
-            self.model.spot_diameter = self.model.adata.obsm['region_radius']
+            self.model.spot_diameter = 2 * self.model.adata.obsm['region_radius']
         else:
             self.model.spot_diameter = (
                 np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)

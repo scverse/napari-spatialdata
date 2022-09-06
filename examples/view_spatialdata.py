@@ -12,12 +12,18 @@ def merfish():
     view(path="merfish/data.zarr")
 
 
+@click.command()
+def visium():
+    view(path="visium/data.zarr")
+
+
 @click.group()
 def cli():
     pass
 
 
 cli.add_command(merfish)
+cli.add_command(visium)
 
 
 def view(path: str):

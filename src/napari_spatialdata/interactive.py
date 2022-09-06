@@ -66,12 +66,26 @@ class Interactive:
             raise ValueError(f"Unsupported element type: {type(element)}")
 
     def _add_image(self, image: Image, name: str = None) -> None:
-        scale = image.transforms.scale_factors
-        translate = image.transforms.translation
-        self._viewer.add_image(image.data.transpose(), rgb=False, name=name, scale=scale, translate=translate)
+        # TODO: add logic which takes into account for axes labels ([y, x, c] vs [c, y, x] vs [y, x], etc)
+        # dropping c channel
+        dims = image.data.dims
+        rgb = False
+        if len(dims) == 3:  # [c, y, x]
+            new_image = image.data.transpose(dims[1], dims[0], dims[2])
+            if new_image.shape[2] in [3, 4]:
+                rgb = True
+            scale = image.transforms.scale_factors[1:]
+            translate = image.transforms.translation[1:]
+        elif len(dims) == 2:  # [y, x]
+            new_image = image.data.transpose(dims[1], dims[0])
+            scale = image.transforms.scale_factors
+            translate = image.transforms.translation
+        else:
+            raise ValueError(f"Unsupported image dimensions: {dims}")
+        self._viewer.add_image(new_image, rgb=rgb, name=name, scale=scale, translate=translate)
         print("TODO: correct transform")
 
-    def _add_labels(self, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
+    def _add_labels(iself, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
         pass
 
     def _add_points(self, points: Points, name: str, annotation_table: Optional[AnnData] = None) -> None:
@@ -91,7 +105,7 @@ class Interactive:
         else:
             metadata = None
         self._viewer.add_points(
-            spatial, name=name, edge_color="white", face_color="white", size=radii, metadata=metadata, edge_width=0.
+            spatial, name=name, edge_color="white", face_color="white", size=2 * radii, metadata=metadata, edge_width=0.
         )
         # img1, rgb=True, name="image1", metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"}, scale=(1, 1)
 
