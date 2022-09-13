@@ -116,7 +116,7 @@ class AListWidget(ListWidget):
         for item in sorted(set(items)):
             try:
                 vec, name = self._getter(item, index=self.getIndex())
-            except Exception as e:
+            except Exception as e:  # noqa: B902
                 logger.error(e)
                 continue
             if vec.ndim == 2:
