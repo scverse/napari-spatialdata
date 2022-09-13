@@ -36,7 +36,6 @@ repos:
             flake8-blind-except,
             flake8-builtins,
             flake8-pytest-style,
-            flake8-mock,
             flake8-string-format,
           ]
   - repo: https://github.com/pre-commit/mirrors-prettier
@@ -91,7 +90,6 @@ repos:
             flake8-blind-except,
             flake8-builtins,
             flake8-pytest-style,
-            flake8-mock,
             flake8-string-format,
           ]
   - repo: https://github.com/asottile/blacken-docs
