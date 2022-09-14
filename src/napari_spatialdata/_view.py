@@ -24,6 +24,7 @@ from napari_spatialdata._widgets import (
     ObsmIndexWidget,
     RangeSliderWidget,
     ScatterListWidget,
+    MatplotlibWidget
 )
 from napari_spatialdata._constants._pkg_constants import Key
 
@@ -73,114 +74,121 @@ class QtAdataScatterWidget(QWidget):
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self._layer_selection_widget.native)
 
-        # Dropdown menu to select between obs, obsm, var for X axis
-        x_selection_label = QLabel("Select type for X axis:")
-        x_selection_label.setToolTip("Select between obs, obsm and var.")
-        self.x_selection_widget = QComboBox()
-        self.x_selection_widget.addItem("obsm", None)
-        self.x_selection_widget.addItem("obs", None)
-        self.x_selection_widget.addItem("var", None)
+        #Matplotlib
+       
+        self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
+        self.layout().addWidget(self.matplotlib_widget)
 
-        self.layout().addWidget(x_selection_label)
-        self.layout().addWidget(self.x_selection_widget)
+        # # Dropdown menu to select between obs, obsm, var for X axis
+        # x_selection_label = QLabel("Select type for X axis:")
+        # x_selection_label.setToolTip("Select between obs, obsm and var.")
+        # self.x_selection_widget = QComboBox()
+        # self.x_selection_widget.addItem("obsm", None)
+        # self.x_selection_widget.addItem("obs", None)
+        # self.x_selection_widget.addItem("var", None)
 
-        # X-axis
-        x_label = QLabel("Select x-axis:")
-        x_label.setToolTip("Select layer to visualise in x-axis.")
+        # self.layout().addWidget(x_selection_label)
+        # self.layout().addWidget(self.x_selection_widget)
 
-        self.x_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
-        self.x_widget.setAttribute("obsm")
+        # # X-axis
+        # x_label = QLabel("Select x-axis:")
+        # x_label.setToolTip("Select layer to visualise in x-axis.")
 
-        self.x_component_widget = ComponentWidget(self.model, attr="obsm")
-        self.x_component_widget.setToolTip("obsm")
-        # self.x_component_widget.currentTextChanged.connect(self.x_widget.setComponent)
-        self.x_widget.itemClicked.connect(self.x_component_widget._onClickChange)
+        # self.x_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
+        # self.x_widget.setAttribute("obsm")
 
-        self.layout().addWidget(x_label)
-        self.layout().addWidget(self.x_widget)
-        self.layout().addWidget(self.x_component_widget)
+        # self.x_component_widget = ComponentWidget(self.model, attr="obsm")
+        # self.x_component_widget.setToolTip("obsm")
+        # # self.x_component_widget.currentTextChanged.connect(self.x_widget.setComponent)
+        # self.x_widget.itemClicked.connect(self.x_component_widget._onClickChange)
 
-        self.x_selection_widget.currentTextChanged.connect(self.x_widget.setAttribute)
-        self.x_selection_widget.currentTextChanged.connect(self.x_component_widget.setAttribute)
-        self.x_selection_widget.currentTextChanged.connect(self.x_component_widget.setToolTip)
+        # self.layout().addWidget(x_label)
+        # self.layout().addWidget(self.x_widget)
+        # self.layout().addWidget(self.x_component_widget)
 
-        # Y selection
-        y_selection_label = QLabel("Select type for Y axis:")
-        y_selection_label.setToolTip("Select between obs, obsm and var.")
+        # self.x_selection_widget.currentTextChanged.connect(self.x_widget.setAttribute)
+        # self.x_selection_widget.currentTextChanged.connect(self.x_component_widget.setAttribute)
+        # self.x_selection_widget.currentTextChanged.connect(self.x_component_widget.setToolTip)
 
-        self.y_selection_widget = QComboBox()
-        self.y_selection_widget.addItem("obsm", None)
-        self.y_selection_widget.addItem("obs", None)
-        self.y_selection_widget.addItem("var", None)
+        # # Y selection
+        # y_selection_label = QLabel("Select type for Y axis:")
+        # y_selection_label.setToolTip("Select between obs, obsm and var.")
 
-        self.layout().addWidget(y_selection_label)
-        self.layout().addWidget(self.y_selection_widget)
+        # self.y_selection_widget = QComboBox()
+        # self.y_selection_widget.addItem("obsm", None)
+        # self.y_selection_widget.addItem("obs", None)
+        # self.y_selection_widget.addItem("var", None)
 
-        # Y-axis
-        y_label = QLabel("Select y-axis:")
-        y_label.setToolTip("Select layer to visualise in y-axis.")
-        self.y_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
-        self.y_widget.setAttribute("obsm")
+        # self.layout().addWidget(y_selection_label)
+        # self.layout().addWidget(self.y_selection_widget)
 
-        self.y_component_widget = ComponentWidget(self.model, attr="obsm")
-        self.y_component_widget.setToolTip("obsm")
-        # self.y_component_widget.currentTextChanged.connect(self.y_widget.setComponent)
-        self.y_widget.itemClicked.connect(self.y_component_widget._onClickChange)
+        # # Y-axis
+        # y_label = QLabel("Select y-axis:")
+        # y_label.setToolTip("Select layer to visualise in y-axis.")
+        # self.y_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
+        # self.y_widget.setAttribute("obsm")
 
-        self.layout().addWidget(y_label)
-        self.layout().addWidget(self.y_widget)
-        self.layout().addWidget(self.y_component_widget)
+        # self.y_component_widget = ComponentWidget(self.model, attr="obsm")
+        # self.y_component_widget.setToolTip("obsm")
+        # # self.y_component_widget.currentTextChanged.connect(self.y_widget.setComponent)
+        # self.y_widget.itemClicked.connect(self.y_component_widget._onClickChange)
 
-        self.y_selection_widget.currentTextChanged.connect(self.y_widget.setAttribute)
-        self.y_selection_widget.currentTextChanged.connect(self.y_component_widget.setAttribute)
-        self.y_selection_widget.currentTextChanged.connect(self.y_component_widget.setToolTip)
+        # self.layout().addWidget(y_label)
+        # self.layout().addWidget(self.y_widget)
+        # self.layout().addWidget(self.y_component_widget)
 
-        # Color
-        color_selection_label = QLabel("Select type for color:")
-        color_selection_label.setToolTip("Select between obs and var.")
-        self.color_selection_widget = QComboBox()
-        self.color_selection_widget.addItem("obs", None)
-        self.color_selection_widget.addItem("var", None)
+        # self.y_selection_widget.currentTextChanged.connect(self.y_widget.setAttribute)
+        # self.y_selection_widget.currentTextChanged.connect(self.y_component_widget.setAttribute)
+        # self.y_selection_widget.currentTextChanged.connect(self.y_component_widget.setToolTip)
 
-        self.layout().addWidget(color_selection_label)
-        self.layout().addWidget(self.color_selection_widget)
+        # # Color
+        # color_selection_label = QLabel("Select type for color:")
+        # color_selection_label.setToolTip("Select between obs and var.")
+        # self.color_selection_widget = QComboBox()
+        # self.color_selection_widget.addItem("obs", None)
+        # self.color_selection_widget.addItem("var", None)
 
-        color_label = QLabel("Select color:")
-        color_label.setToolTip("Select color to visualise the scatterplot.")
-        self.color_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
-        self.color_widget.setAttribute("obs")
+        # self.layout().addWidget(color_selection_label)
+        # self.layout().addWidget(self.color_selection_widget)
 
-        self.color_component_widget = ComponentWidget(self.model, attr="obs")
-        self.color_component_widget.setToolTip("obs")
-        # self.color_component_widget.currentTextChanged.connect(self.color_widget.setComponent)
-        self.color_widget.itemClicked.connect(self.color_component_widget._onClickChange)
+        # color_label = QLabel("Select color:")
+        # color_label.setToolTip("Select color to visualise the scatterplot.")
+        # self.color_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
+        # self.color_widget.setAttribute("obs")
 
-        self.layout().addWidget(color_label)
-        self.layout().addWidget(self.color_widget)
-        self.layout().addWidget(self.color_component_widget)
+        # self.color_component_widget = ComponentWidget(self.model, attr="obs")
+        # self.color_component_widget.setToolTip("obs")
+        # # self.color_component_widget.currentTextChanged.connect(self.color_widget.setComponent)
+        # self.color_widget.itemClicked.connect(self.color_component_widget._onClickChange)
 
-        self.color_selection_widget.currentTextChanged.connect(self.color_widget.setAttribute)
-        self.color_selection_widget.currentTextChanged.connect(self.color_component_widget.setAttribute)
-        self.color_selection_widget.currentTextChanged.connect(self.color_component_widget.setToolTip)
+        # self.layout().addWidget(color_label)
+        # self.layout().addWidget(self.color_widget)
+        # self.layout().addWidget(self.color_component_widget)
 
-        ###
+        # self.color_selection_widget.currentTextChanged.connect(self.color_widget.setAttribute)
+        # self.color_selection_widget.currentTextChanged.connect(self.color_component_widget.setAttribute)
+        # self.color_selection_widget.currentTextChanged.connect(self.color_component_widget.setToolTip)
 
-        label_image, feature_table_1, points_data, points_features = test_data()
-        # self._viewer.add_labels(label_image, features=feature_table_1)
-        # self._viewer.add_points(points_data, features=points_features)
+        # ###
 
-        ###
-        self._viewer.add_labels(label_image)
-        self._viewer.add_points(points_data)
+        # label_image, feature_table_1, points_data, points_features = test_data()
+        # # self._viewer.add_labels(label_image, features=feature_table_1)
+        # # self._viewer.add_points(points_data, features=points_features)
 
-        self.graph_widget = ScatterWidget(self._viewer)
+        # ###
+        # self._viewer.add_labels(label_image)
+        # self._viewer.add_points(points_data)
+
+        # self.graph_widget = ScatterWidget(self._viewer)
 
         self.plot_button_widget = QPushButton("Plot")
+        self.plot_button_widget.clicked.connect(self.matplotlib_widget._onClickChange)
+        
 
-        self.layout().addWidget(color_label)
-        self.layout().addWidget(self.color_widget)
+        # self.layout().addWidget(color_label)
+        # self.layout().addWidget(self.color_widget)
 
-        self.layout().addWidget(self.graph_widget)
+        # self.layout().addWidget(self.graph_widget)
         self.layout().addWidget(self.plot_button_widget)
 
         self.model.events.adata.connect(self._on_selection)

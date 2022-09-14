@@ -18,6 +18,7 @@ import numpy as np
 import napari
 import pandas as pd
 import matplotlib.pyplot as plt
+from napari_matplotlib.base import NapariMPLWidget, NapariNavigationToolbar
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import (
@@ -27,7 +28,7 @@ from napari_spatialdata._utils import (
     _position_cluster_labels,
 )
 
-__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ComponentWidget", "ObsmIndexWidget", "CBarWidget"]
+__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ComponentWidget", "ObsmIndexWidget", "CBarWidget", "MatplotlibWidget"]
 
 # label string: attribute name
 # TODO(giovp): remove since layer controls private?
@@ -446,6 +447,38 @@ class CBarWidget(QtWidgets.QWidget):
     @property
     def cmap(self) -> str:
         return self._cmap
+
+class MatplotlibWidget(NapariMPLWidget):
+
+    #attrChanged = Signal()
+
+    def __init__(self, viewer: Viewer, model: ImageModel):
+        
+        super().__init__(viewer)
+        #self.attrChanged.connect(self._onClickChange)
+        
+        self.viewer = viewer
+        self.model = model
+        self.axes = self.canvas.figure.subplots()
+
+    def clear(self) -> None:
+        self.axes.clear()
+
+    def _onClickChange(self, clicked: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
+        self.clear()
+        self.draw()
+
+
+    def draw(self) -> None:
+
+        x = np.random.rand(50)
+        y = np.random.rand(50)
+
+        self.axes.scatter(x, y, alpha=0.5)
+
+        self.axes.set_xlabel("test_data_x_axis")
+        self.axes.set_ylabel("test_data_y_axis")
+
 
 
 class RangeSliderWidget(QRangeSlider):
