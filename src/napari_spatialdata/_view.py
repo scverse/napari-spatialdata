@@ -93,7 +93,7 @@ class QtAdataScatterWidget(QWidget):
 
         self.x_component_widget = ComponentWidget(self.model, attr="obsm")
         self.x_component_widget.setToolTip("obsm")
-        # self.x_component_widget.currentTextChanged.connect(self.x_widget.setComponent)
+        self.x_component_widget.currentTextChanged.connect(self.x_widget.setComponent)
         self.x_widget.itemClicked.connect(self.x_component_widget._onClickChange)
 
         self.layout().addWidget(x_label)
@@ -124,7 +124,7 @@ class QtAdataScatterWidget(QWidget):
 
         self.y_component_widget = ComponentWidget(self.model, attr="obsm")
         self.y_component_widget.setToolTip("obsm")
-        # self.y_component_widget.currentTextChanged.connect(self.y_widget.setComponent)
+        self.y_component_widget.currentTextChanged.connect(self.y_widget.setComponent)
         self.y_widget.itemClicked.connect(self.y_component_widget._onClickChange)
 
         self.layout().addWidget(y_label)
@@ -152,7 +152,7 @@ class QtAdataScatterWidget(QWidget):
 
         self.color_component_widget = ComponentWidget(self.model, attr="obs")
         self.color_component_widget.setToolTip("obs")
-        # self.color_component_widget.currentTextChanged.connect(self.color_widget.setComponent)
+        self.color_component_widget.currentTextChanged.connect(self.color_widget.setComponent)
         self.color_widget.itemClicked.connect(self.color_component_widget._onClickChange)
 
         self.layout().addWidget(color_label)

@@ -236,6 +236,22 @@ class ScatterListWidget(AListWidget):
     def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
+        self.data = -1
+
+    def _onAction(self, items: Iterable[str]) -> None:
+        for item in sorted(set(items)):
+            try:
+                vec, _ = self._getter(item, index=self.getIndex())
+            except Exception as e:
+                logger.error(e)
+                continue
+            self.data = vec
+        print(self.data)
+        return
+
+    def getData(self) -> NDArrayA:
+        # check type?
+        return self.data
 
     def setAttribute(self, field: Optional[str]) -> None:
         if field == self.getAttribute():
@@ -251,7 +267,12 @@ class ScatterListWidget(AListWidget):
             assert isinstance(self._attr, str)
         return self._attr
 
-    # def setComponent(self) -> None:
+    def setComponent(self, text: Union[int, Optional[str]]) -> None:
+        if self.getAttribute() == "var":
+            super().setAdataLayer(text)
+        elif self.getAttribute() == "obsm":
+            super().setIndex(text)
+        return
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):
