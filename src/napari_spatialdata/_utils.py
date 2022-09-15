@@ -101,7 +101,7 @@ def _get_categorical(
     palette: Optional[str] = None,
     vec: Union[pd.Series, dict[Any, Any], None] = None,
 ) -> NDArrayA:
-    col_dict = {}
+
     if not isinstance(vec, dict):
         col_dict = _set_palette(adata, key, palette, vec)
     else:
