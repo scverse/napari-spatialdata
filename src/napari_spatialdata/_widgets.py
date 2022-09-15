@@ -237,6 +237,23 @@ class ScatterListWidget(AListWidget):
     def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
+        self.data = -1
+        self.text = ""
+
+    def _onAction(self, items: Iterable[str]) -> None:
+        for item in sorted(set(items)):
+            try:
+                vec, _ = self._getter(item, index=self.getIndex())
+            except Exception as e:
+                logger.error(e)
+                continue
+            self.data = vec
+        print("Selected data: " , self.data)
+        return
+
+    def getData(self) -> NDArrayA:
+        # check type?
+        return self.data
 
     def setAttribute(self, field: Optional[str]) -> None:
         if field == self.getAttribute():
@@ -252,7 +269,17 @@ class ScatterListWidget(AListWidget):
             assert isinstance(self._attr, str)
         return self._attr
 
-    # def setComponent(self) -> None:
+    def getText(self) -> Optional[str]:
+        return self.text
+
+    def setComponent(self, text: Union[int, Optional[str]]) -> None:
+        if self.getAttribute() == "var":
+            super().setAdataLayer(text)
+        elif self.getAttribute() == "obsm":
+            super().setIndex(text)
+
+        self.text = text
+        return
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):
@@ -450,12 +477,10 @@ class CBarWidget(QtWidgets.QWidget):
 
 class MatplotlibWidget(NapariMPLWidget):
 
-    #attrChanged = Signal()
-
+    
     def __init__(self, viewer: Viewer, model: ImageModel):
         
         super().__init__(viewer)
-        #self.attrChanged.connect(self._onClickChange)
         
         self.viewer = viewer
         self.model = model
@@ -464,20 +489,23 @@ class MatplotlibWidget(NapariMPLWidget):
     def clear(self) -> None:
         self.axes.clear()
 
-    def _onClickChange(self, clicked: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
+    def _onClick(self, x_data, x_label, y_data, y_label) -> None:
+        print("X axis data: ", x_data)
+        print("X label: ", x_label)
+        print("Y axis data: ", y_data)
+        print("Y label: ", y_label)
+
         self.clear()
-        self.draw()
+        self.draw(x_data, x_label, y_data, y_label)
 
+    def draw(self, x_data, x_label, y_data, y_label) -> None:
+        
+        #x_data = np.random.rand(50)
+        #y_data = np.random.rand(50)
 
-    def draw(self) -> None:
-
-        x = np.random.rand(50)
-        y = np.random.rand(50)
-
-        self.axes.scatter(x, y, alpha=0.5)
-
-        self.axes.set_xlabel("test_data_x_axis")
-        self.axes.set_ylabel("test_data_y_axis")
+        self.axes.scatter(x_data, y_data, alpha=0.5)
+        self.axes.set_xlabel(x_label)
+        self.axes.set_ylabel(y_label)
 
 
 
