@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import (
     NDArrayA,
+    _set_palette,
     _min_max_norm,
     _get_categorical,
     _position_cluster_labels,
@@ -212,17 +213,17 @@ class AListWidget(ListWidget):
 
     @_get_points_properties.register(pd.Series)
     def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
-        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=vec)
+        colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
+        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=colortypes)
         if layer is not None and isinstance(layer, Labels):
             return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
 
-        cluster_labels = _position_cluster_labels(self.model.coordinates, vec, face_color)
+        cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
         return {
-            # TODO(giovp): fix color
             "text": {
                 "string": "{clusters}",
                 "size": 24,
-                "color": "white",  # "color": cluster_labels["colors"], {"feature": "clusters", "colormap": "colors"},
+                "color": {"feature": "clusters", "colormap": colortypes},
                 "anchor": "center",
             },
             "face_color": face_color,
