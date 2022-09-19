@@ -14,11 +14,11 @@ from napari.viewer import Viewer
 from vispy.scene.widgets import ColorBarWidget
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from sklearn.preprocessing import MinMaxScaler
+from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
 import napari
 import pandas as pd
 import matplotlib.pyplot as plt
-from napari_matplotlib.base import NapariMPLWidget, NapariNavigationToolbar
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import (
@@ -28,7 +28,15 @@ from napari_spatialdata._utils import (
     _position_cluster_labels,
 )
 
-__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ComponentWidget", "ObsmIndexWidget", "CBarWidget", "MatplotlibWidget"]
+__all__ = [
+    "AListWidget",
+    "CBarWidget",
+    "RangeSliderWidget",
+    "ComponentWidget",
+    "ObsmIndexWidget",
+    "CBarWidget",
+    "MatplotlibWidget",
+]
 
 # label string: attribute name
 # TODO(giovp): remove since layer controls private?
@@ -248,7 +256,7 @@ class ScatterListWidget(AListWidget):
                 logger.error(e)
                 continue
             self.data = vec
-        print("Selected data: " , self.data)
+        print("Selected data: ", self.data)
         return
 
     def getData(self) -> NDArrayA:
@@ -475,13 +483,12 @@ class CBarWidget(QtWidgets.QWidget):
     def cmap(self) -> str:
         return self._cmap
 
-class MatplotlibWidget(NapariMPLWidget):
 
-    
+class MatplotlibWidget(NapariMPLWidget):
     def __init__(self, viewer: Viewer, model: ImageModel):
-        
+
         super().__init__(viewer)
-        
+
         self.viewer = viewer
         self.model = model
         self.axes = self.canvas.figure.subplots()
@@ -499,14 +506,13 @@ class MatplotlibWidget(NapariMPLWidget):
         self.draw(x_data, x_label, y_data, y_label)
 
     def draw(self, x_data, x_label, y_data, y_label) -> None:
-        
-        #x_data = np.random.rand(50)
-        #y_data = np.random.rand(50)
+
+        # x_data = np.random.rand(50)
+        # y_data = np.random.rand(50)
 
         self.axes.scatter(x_data, y_data, alpha=0.5)
         self.axes.set_xlabel(x_label)
         self.axes.set_ylabel(y_label)
-
 
 
 class RangeSliderWidget(QRangeSlider):
