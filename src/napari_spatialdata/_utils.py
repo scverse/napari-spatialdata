@@ -9,7 +9,7 @@ from anndata import AnnData
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from pandas.api.types import infer_dtype, is_categorical_dtype
-from matplotlib.colors import to_hex, to_rgb
+from matplotlib.colors import to_rgb, is_color_like
 from scanpy.plotting._utils import add_colors_for_categorical_sample_annotation
 from pandas.core.dtypes.common import (
     is_bool_dtype,
@@ -74,13 +74,12 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
     return decorator
 
 
-def _get_categorical(
+def _set_palette(
     adata: AnnData,
     key: str,
     palette: Optional[str] = None,
     vec: Optional[pd.Series] = None,
-) -> NDArrayA:
-
+) -> dict[Any, Any]:
     if vec is not None:
         if not is_categorical_dtype(vec):
             raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
@@ -92,15 +91,35 @@ def _get_categorical(
     add_colors_for_categorical_sample_annotation(
         adata, key=key, force_update_colors=palette is not None, palette=palette
     )
-    col_dict = dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
+
+    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
+
+
+def _get_categorical(
+    adata: AnnData,
+    key: str,
+    palette: Optional[str] = None,
+    vec: Union[pd.Series, dict[Any, Any], None] = None,
+) -> NDArrayA:
+
+    if not isinstance(vec, dict):
+        col_dict = _set_palette(adata, key, palette, vec)
+    else:
+        col_dict = vec
+        for cat in vec:
+            if cat not in adata.obs[key].cat.categories:
+                raise ValueError(
+                    f"The key `{cat}` in the given dictionary is not an existing category in anndata[`{key}`]."
+                )
+            elif not is_color_like(vec[cat]):
+                raise ValueError(f"`{vec[cat]}` is not an acceptable color.")
 
     return np.array([col_dict[v] for v in adata.obs[key]])
 
 
-def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series, colors: NDArrayA) -> dict[str, NDArrayA]:
+def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str, NDArrayA]:
     if not is_categorical_dtype(clusters):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
-
     coords = coords[:, 1:]
     df = pd.DataFrame(coords)
     df["clusters"] = clusters.values
@@ -110,10 +129,7 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series, colors: NDAr
     clusters = np.full(len(coords), fill_value="", dtype=object)
     # index consists of the categories that need not be string
     clusters[kdtree.query(df.values)[1]] = df.index.astype(str)
-    # napari v0.4.9 - properties must be 1-D in napari/layers/points/points.py:581
-    colors = np.array([to_hex(col) for col in colors])
-    colors = np.array([col if not len(cl) else to_hex((0, 0, 0)) for cl, col in zip(clusters, colors)])
-    return {"clusters": clusters, "colors": colors}
+    return {"clusters": clusters}
 
 
 def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
