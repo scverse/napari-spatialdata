@@ -5,8 +5,7 @@ from anndata import AnnData
 from magicgui import magicgui
 from napari.layers import Layer, Labels
 from napari.viewer import Viewer
-from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QPushButton, QBoxLayout, QVBoxLayout, QScrollBar, QScrollArea
-from napari_matplotlib.scatter import ScatterWidget
+from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QPushButton, QVBoxLayout
 import numpy as np
 import napari
 import pandas as pd
@@ -22,36 +21,13 @@ from napari_spatialdata._widgets import (
     AListWidget,
     ComponentWidget,
     ObsmIndexWidget,
+    MatplotlibWidget,
     RangeSliderWidget,
     ScatterListWidget,
-    MatplotlibWidget
 )
 from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
-
-
-def test_data():
-    from skimage.measure import regionprops_table
-
-    # make a test label image
-    label_image = np.zeros((100, 100), dtype=np.uint16)
-
-    label_image[10:20, 10:20] = 1
-    label_image[50:70, 50:70] = 2
-
-    feature_table_1 = regionprops_table(label_image, properties=("label", "area", "perimeter"))
-    feature_table_1["index"] = feature_table_1["label"]
-
-    # make the points data
-    n_points = 100
-    points_data = 100 * np.random.random((100, 2))
-    points_features = {
-        "feature_0": np.random.random((n_points,)),
-        "feature_1": np.random.random((n_points,)),
-        "feature_2": np.random.random((n_points,)),
-    }
-    return label_image, feature_table_1, points_data, points_features
 
 
 class QtAdataScatterWidget(QWidget):
@@ -70,18 +46,17 @@ class QtAdataScatterWidget(QWidget):
             call_button=False,
         )
         self._layer_selection_widget()
-        
+
         self.setLayout(QVBoxLayout())
         self.layout().addWidget(self._layer_selection_widget.native)
-        
+
         # Scrollbar
-        
- 
+
         # Matplotlib
-       
+
         self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
         self.layout().addWidget(self.matplotlib_widget)
-        
+
         # Dropdown menu to select between obs, obsm, var for X axis
         x_selection_label = QLabel("Select type for X axis:")
         x_selection_label.setToolTip("Select between obs, obsm and var.")
@@ -173,12 +148,15 @@ class QtAdataScatterWidget(QWidget):
         self.color_selection_widget.currentTextChanged.connect(self.color_component_widget.setToolTip)
 
         self.plot_button_widget = QPushButton("Plot")
-        self.plot_button_widget.clicked.connect(lambda: self.matplotlib_widget._onClick(self.x_widget.getData(), self.x_widget.getText(), self.y_widget.getData(), self.y_widget.getText()))        
+        self.plot_button_widget.clicked.connect(
+            lambda: self.matplotlib_widget._onClick(
+                self.x_widget.getData(), self.x_widget.getText(), self.y_widget.getData(), self.y_widget.getText()
+            )
+        )
 
         self.layout().addWidget(self.plot_button_widget)
-    
+
         self.model.events.adata.connect(self._on_selection)
-    
 
     def _on_selection(self, event: Optional[Any] = None) -> None:
         self.x_widget.clear()
