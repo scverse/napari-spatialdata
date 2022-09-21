@@ -125,7 +125,7 @@ class AListWidget(ListWidget):
         for item in sorted(set(items)):
             try:
                 vec, name = self._getter(item, index=self.getIndex())
-            except Exception as e:
+            except Exception as e:  # noqa: B902
                 logger.error(e)
                 continue
             if vec.ndim == 2:
@@ -242,18 +242,18 @@ class AListWidget(ListWidget):
 
 class ScatterListWidget(AListWidget):
     attrChanged = Signal()
+    _text = None
 
     def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self.data = -1
-        self.text = ""
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
             try:
                 vec, _ = self._getter(item, index=self.getIndex())
-            except Exception as e:
+            except Exception as e:  # noqa: B902
                 logger.error(e)
                 continue
             self.data = vec
@@ -278,17 +278,25 @@ class ScatterListWidget(AListWidget):
             assert isinstance(self._attr, str)
         return self._attr
 
-    def getText(self) -> Optional[str]:
-        return self.text
+    def setComponent(self, text: Optional[Union[int, str]]) -> None:
+        self.text = text  # type: ignore[assignment]
 
-    def setComponent(self, text: Union[int, Optional[str]]) -> None:
         if self.getAttribute() == "var":
+            if TYPE_CHECKING:
+                assert isinstance(text, str)
             super().setAdataLayer(text)
         elif self.getAttribute() == "obsm":
+            if TYPE_CHECKING:
+                assert isinstance(text, int)
             super().setIndex(text)
 
-        self.text = text
-        return
+    @property
+    def text(self) -> Optional[str]:
+        return self._text
+
+    @text.setter
+    def text(self, text: Optional[Union[str, int]]) -> None:
+        self._text = str(text) if text is not None else None
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):

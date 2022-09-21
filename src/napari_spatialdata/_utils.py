@@ -4,7 +4,6 @@ from typing import Any, Tuple, Union, Callable, Optional, Sequence, TYPE_CHECKIN
 from functools import wraps
 
 from numba import njit, prange
-from loguru import logger
 from anndata import AnnData
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
@@ -83,10 +82,6 @@ def _set_palette(
     if vec is not None:
         if not is_categorical_dtype(vec):
             raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
-        if key in adata.obs:
-            logger.debug(f"Overwriting `adata.obs[{key!r}]`.")
-
-        adata.obs[key] = vec.values
 
     add_colors_for_categorical_sample_annotation(
         adata, key=key, force_update_colors=palette is not None, palette=palette
