@@ -5,7 +5,13 @@ from anndata import AnnData
 from magicgui import magicgui
 from napari.layers import Layer, Labels
 from napari.viewer import Viewer
-from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QPushButton, QVBoxLayout
+from qtpy.QtWidgets import (
+    QLabel,
+    QWidget,
+    QComboBox,
+    QPushButton,
+    QVBoxLayout,
+)
 import numpy as np
 import napari
 import pandas as pd
