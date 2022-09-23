@@ -247,7 +247,7 @@ class ScatterListWidget(AListWidget):
     def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
-        self.data = -1
+        self._data = None
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
@@ -257,12 +257,8 @@ class ScatterListWidget(AListWidget):
                 logger.error(e)
                 continue
             self.data = vec
-        print("Selected data: ", self.data)
+        # print("Selected data: ", self.data)
         return
-
-    def getData(self) -> NDArrayA:
-        # check type?
-        return self.data
 
     def setAttribute(self, field: Optional[str]) -> None:
         if field == self.getAttribute():
@@ -297,6 +293,14 @@ class ScatterListWidget(AListWidget):
     @text.setter
     def text(self, text: Optional[Union[str, int]]) -> None:
         self._text = str(text) if text is not None else None
+
+    @property
+    def data(self) -> Union[None, NDArrayA]:
+        return self._data
+
+    @data.setter
+    def data(self, data: NDArrayA) -> None:
+        self._data = data
 
 
 class ObsmIndexWidget(QtWidgets.QComboBox):
@@ -342,27 +346,20 @@ class ComponentWidget(ObsmIndexWidget):
         return
 
     def setAttribute(self, field: Optional[str]) -> None:
-        if field == self.getAttribute():
+        if field == self.attr:
             return
-        if field not in ("var", "obs", "obsm"):
-            raise ValueError(f"{field} is not a valid adata field.")
-        self._attr = field
+        self.attr = field
         self._onChange()
 
-    def getAttribute(self) -> Optional[str]:
-        if TYPE_CHECKING:
-            assert isinstance(self._attr, str)
-        return self._attr
-
     def _onChange(self) -> None:
-        if self.getAttribute() == "var":
+        if self.attr == "var":
             self.clear()
             super().addItems(self._getAllLayers())
         else:
             self.clear()
 
     def _onClickChange(self, clicked: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
-        if self.getAttribute() == "obsm":
+        if self.attr == "obsm":
             self.clear()
             self.addItems(clicked)
 
@@ -372,6 +369,18 @@ class ComponentWidget(ObsmIndexWidget):
             adata_layers.insert(0, "X")
             return adata_layers
         return ["X"]
+
+    @property
+    def attr(self) -> Optional[str]:
+        if TYPE_CHECKING:
+            assert isinstance(self._attr, str)
+        return self._attr
+
+    @attr.setter
+    def attr(self, field: Optional[str]) -> None:
+        if field not in ("var", "obs", "obsm"):
+            raise ValueError(f"{field} is not a valid adata field.")
+        self._attr = field
 
 
 class CBarWidget(QtWidgets.QWidget):
