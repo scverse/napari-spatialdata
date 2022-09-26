@@ -1,9 +1,8 @@
-from typing import List
+from typing import List, Any
 import logging
 
 from anndata import AnnData
 import numpy as np
-import pandas as pd
 import pytest
 
 from napari_spatialdata._utils import (
@@ -84,11 +83,16 @@ def test_min_max_norm(vec: np.ndarray) -> None:
     assert (out.min(), out.max()) == (0, 1)
 
 
-def test_logger(caplog, adata_labels: AnnData):
+def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
 
-    vec = pd.Series(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], dtype="category")
+    from napari_spatialdata._widgets import MatplotlibWidget
+    from napari_spatialdata._model import ImageModel
 
-    _get_categorical(adata_labels, key="categorical", vec=vec)
+    viewer = make_napari_viewer()
+    model = ImageModel()
+
+    m = MatplotlibWidget(viewer, model)
+    m._onClick(np.ones(10), "X", np.ones(10), "Y")
 
     with caplog.at_level(logging.INFO):
-        assert "Overwriting `adata.obs" in caplog.records[0].message
+        assert "X-axis Data:" in caplog.records[0].message

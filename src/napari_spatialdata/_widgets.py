@@ -257,7 +257,7 @@ class ScatterListWidget(AListWidget):
                 logger.error(e)
                 continue
             self.data = vec
-        # print("Selected data: ", self.data)
+
         return
 
     def setAttribute(self, field: Optional[str]) -> None:
@@ -511,14 +511,11 @@ class MatplotlibWidget(NapariMPLWidget):
         self.model = model
         self.axes = self.canvas.figure.subplots()
 
-    def clear(self) -> None:
-        self.axes.clear()
-
     def _onClick(self, x_data: NDArrayA, x_label: Optional[str], y_data: NDArrayA, y_label: Optional[str]) -> None:
-        print("X axis data: ", x_data)
-        print("X label: ", x_label)
-        print("Y axis data: ", y_data)
-        print("Y label: ", y_label)
+        logger.info("X-axis Data: ", x_data)
+        logger.info("X-axis Label: ", x_label)
+        logger.info("Y-axis Data: ", y_data)
+        logger.info("Y-axis Label: ", y_label)
 
         self.clear()
         self.draw(x_data, x_label, y_data, y_label)
@@ -528,6 +525,9 @@ class MatplotlibWidget(NapariMPLWidget):
         self.axes.scatter(x_data, y_data, alpha=0.5)
         self.axes.set_xlabel(x_label)
         self.axes.set_ylabel(y_label)
+
+    def clear(self) -> None:
+        self.axes.clear()
 
 
 class RangeSliderWidget(QRangeSlider):
