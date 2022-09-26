@@ -5,7 +5,14 @@ from anndata import AnnData
 from magicgui import magicgui
 from napari.layers import Layer, Labels
 from napari.viewer import Viewer
-from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QPushButton, QGridLayout
+from qtpy.QtWidgets import (
+    QLabel,
+    QWidget,
+    QComboBox,
+    QGridLayout,
+    QPushButton,
+    QVBoxLayout,
+)
 import numpy as np
 import napari
 import pandas as pd
@@ -63,8 +70,8 @@ class QtAdataScatterWidget(QWidget):
         self.x_selection_widget.addItem("obs", None)
         self.x_selection_widget.addItem("var", None)
 
-        self.layout().addWidget(x_selection_label, 2,0,1,1)
-        self.layout().addWidget(self.x_selection_widget, 3,0,1,1)
+        self.layout().addWidget(x_selection_label, 2, 0, 1, 1)
+        self.layout().addWidget(self.x_selection_widget, 3, 0, 1, 1)
 
         # X-axis
         x_label = QLabel("Select type for X-axis:")
@@ -78,9 +85,9 @@ class QtAdataScatterWidget(QWidget):
         self.x_component_widget.currentTextChanged.connect(self.x_widget.setComponent)
         self.x_widget.itemClicked.connect(self.x_component_widget._onClickChange)
 
-        self.layout().addWidget(x_label, 4, 0, 1,1)
-        self.layout().addWidget(self.x_widget, 5, 0,1,1)
-        self.layout().addWidget(self.x_component_widget,6,0,1,1)
+        self.layout().addWidget(x_label, 4, 0, 1, 1)
+        self.layout().addWidget(self.x_widget, 5, 0, 1, 1)
+        self.layout().addWidget(self.x_component_widget, 6, 0, 1, 1)
 
         self.x_selection_widget.currentTextChanged.connect(self.x_widget.setAttribute)
         self.x_selection_widget.currentTextChanged.connect(self.x_component_widget.setAttribute)
@@ -95,8 +102,8 @@ class QtAdataScatterWidget(QWidget):
         self.y_selection_widget.addItem("obs", None)
         self.y_selection_widget.addItem("var", None)
 
-        self.layout().addWidget(y_selection_label,2,1,1,1)
-        self.layout().addWidget(self.y_selection_widget, 3,1,1,1)
+        self.layout().addWidget(y_selection_label, 2, 1, 1, 1)
+        self.layout().addWidget(self.y_selection_widget, 3, 1, 1, 1)
 
         # Y-axis
         y_label = QLabel("Y-axis:")
@@ -109,9 +116,9 @@ class QtAdataScatterWidget(QWidget):
         self.y_component_widget.currentTextChanged.connect(self.y_widget.setComponent)
         self.y_widget.itemClicked.connect(self.y_component_widget._onClickChange)
 
-        self.layout().addWidget(y_label,4,1,1,1)
-        self.layout().addWidget(self.y_widget,5,1,1,1)
-        self.layout().addWidget(self.y_component_widget, 6,1,1,1)
+        self.layout().addWidget(y_label, 4, 1, 1, 1)
+        self.layout().addWidget(self.y_widget, 5, 1, 1, 1)
+        self.layout().addWidget(self.y_component_widget, 6, 1, 1, 1)
 
         self.y_selection_widget.currentTextChanged.connect(self.y_widget.setAttribute)
         self.y_selection_widget.currentTextChanged.connect(self.y_component_widget.setAttribute)
@@ -124,8 +131,8 @@ class QtAdataScatterWidget(QWidget):
         self.color_selection_widget.addItem("obs", None)
         self.color_selection_widget.addItem("var", None)
 
-        self.layout().addWidget(color_selection_label, 2,2,1,1)
-        self.layout().addWidget(self.color_selection_widget,3,2,1,1)
+        self.layout().addWidget(color_selection_label, 2, 2, 1, 1)
+        self.layout().addWidget(self.color_selection_widget, 3, 2, 1, 1)
 
         color_label = QLabel("Color:")
         color_label.setToolTip("Select color to visualise the scatterplot.")
@@ -137,9 +144,9 @@ class QtAdataScatterWidget(QWidget):
         self.color_component_widget.currentTextChanged.connect(self.color_widget.setComponent)
         self.color_widget.itemClicked.connect(self.color_component_widget._onClickChange)
 
-        self.layout().addWidget(color_label,4,2,1,1)
-        self.layout().addWidget(self.color_widget,5,2,1,1)
-        self.layout().addWidget(self.color_component_widget,6,2,1,1)
+        self.layout().addWidget(color_label, 4, 2, 1, 1)
+        self.layout().addWidget(self.color_widget, 5, 2, 1, 1)
+        self.layout().addWidget(self.color_component_widget, 6, 2, 1, 1)
 
         self.color_selection_widget.currentTextChanged.connect(self.color_widget.setAttribute)
         self.color_selection_widget.currentTextChanged.connect(self.color_component_widget.setAttribute)
@@ -152,16 +159,16 @@ class QtAdataScatterWidget(QWidget):
             )
         )
 
-        self.layout().addWidget(self.plot_button_widget,7,0,3,0)
+        self.layout().addWidget(self.plot_button_widget, 7, 0, 3, 0)
 
         self.model.events.adata.connect(self._on_selection)
 
     def _on_selection(self, event: Optional[Any] = None) -> None:
-        
+
         self.x_widget.clear()
         self.y_widget.clear()
         self.color_widget.clear()
-        
+
         self.x_widget._onChange()
         self.x_component_widget._onChange()
         self.y_widget._onChange()
