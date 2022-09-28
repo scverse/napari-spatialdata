@@ -17,6 +17,11 @@ def visium():
     view(path="visium/data.zarr")
 
 
+@click.command()
+def mibitof():
+    view(path="mibitof/data.zarr")
+
+
 @click.group()
 def cli():
     pass
@@ -24,6 +29,7 @@ def cli():
 
 cli.add_command(merfish)
 cli.add_command(visium)
+cli.add_command(mibitof)
 
 
 def view(path: str):

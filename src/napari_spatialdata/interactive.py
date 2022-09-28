@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import TypeVar, Any, TYPE_CHECKING, Optional
+from typing import TypeVar, Any, TYPE_CHECKING, Optional, Union
 import napari
 from loguru import logger
 from napari_spatialdata._utils import save_fig, NDArrayA
@@ -8,6 +8,8 @@ from anndata import AnnData
 import numpy as np
 import itertools
 from napari_spatialdata._constants._pkg_constants import Key
+from skimage.measure import regionprops
+import pandas as pd
 
 # # cannot import these because of cyclic dependencies with spatialdata
 # SpatialData = TypeVar("SpatialData")
@@ -43,10 +45,10 @@ class Interactive:
     def show_widget(self):
         """Load the widget for interative features exploration."""
         from napari.plugins import plugin_manager, _npe2
-        plugin_manager.discover_widgets()
-        _npe2.get_widget_contribution('napari-spatialdata')
-        self._viewer.window.add_plugin_dock_widget('napari-spatialdata')
 
+        plugin_manager.discover_widgets()
+        _npe2.get_widget_contribution("napari-spatialdata")
+        self._viewer.window.add_plugin_dock_widget("napari-spatialdata")
 
     def add_spatial_element(
         self, element: BaseElement, name: Optional[str] = None, annotation_table: Optional[AnnData] = None
@@ -85,8 +87,22 @@ class Interactive:
         self._viewer.add_image(new_image, rgb=rgb, name=name, scale=scale, translate=translate)
         print("TODO: correct transform")
 
-    def _add_labels(iself, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
-        pass
+    def _add_labels(self, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
+        annotation = self._find_annotation_for_regions(
+            base_element=labels, name=name, annotation_table=annotation_table
+        )
+        if annotation is not None:
+            instance_key = annotation_table.uns["mapping_info"]["instance_key"]
+            metadata = {
+                "adata": annotation,
+                "library_id": name,
+                "labels_key": instance_key,
+                # "points": points1,
+                # "point_diameter": 10,
+            }
+        else:
+            metadata = None
+        self._viewer.add_labels(labels.data.transpose(), name=name, metadata=metadata)
 
     def _add_points(self, points: Points, name: str, annotation_table: Optional[AnnData] = None) -> None:
         adata = points.data
@@ -95,7 +111,9 @@ class Interactive:
             radii = adata.obsm["region_radius"]
         else:
             radii = 1
-        annotation = self._find_annotation_for_points(points=points, annotation_table=annotation_table, name=name)
+        annotation = self._find_annotation_for_regions(
+            base_element=points, annotation_table=annotation_table, name=name
+        )
         if annotation is not None:
             # # points_annotation is required from the squidpy legagy code, TODO: remove
             # points_annotation = AnnData(X=points.data.X)
@@ -105,47 +123,140 @@ class Interactive:
         else:
             metadata = None
         self._viewer.add_points(
-            spatial, name=name, edge_color="white", face_color="white", size=2 * radii, metadata=metadata, edge_width=0.
+            spatial,
+            name=name,
+            edge_color="white",
+            face_color="white",
+            size=2 * radii,
+            metadata=metadata,
+            edge_width=0.0,
         )
         # img1, rgb=True, name="image1", metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"}, scale=(1, 1)
 
-    def _find_annotation_for_points(
-        self, points: Points, name: str, annotation_table: Optional[AnnData] = None
+    def _find_annotation_for_regions(
+        self, base_element: Union[Labels, Points, Polygons], name: str, annotation_table: Optional[AnnData] = None
     ) -> Optional[AnnData]:
-        """Find the annotation for a points layer from the annotation table."""
-        annotating_rows = annotation_table[annotation_table.obs["regions_key"] == name, :]
-        if len(annotating_rows) > 0:
-            u = annotating_rows.obs["instance_key"].unique().tolist()
-            assert len(u) == 1
-            instance_key = u[0]
-            assert instance_key in points.data.obs.columns
-            available_instances = points.data.obs[instance_key].tolist()
-            annotated_instances = annotating_rows.obs[instance_key].tolist()
-            assert len(available_instances) == len(set(available_instances)), (
-                "Instance keys must be unique. Found " "multiple regions instances with the " "same key."
-            )
-            assert len(annotated_instances) == len(set(annotated_instances)), (
-                "Instance keys must be unique. Found " "multiple regions instances annotations with the same key."
-            )
-            available_instances = set(available_instances)
-            annotated_instances = set(annotated_instances)
-            assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in points."
-            if len(annotated_instances) != len(available_instances):
-                raise ValueError("TODO: support partial annotation")
+        if annotation_table is None:
+            return None
+        from spatialdata._core.elements import Labels, Points, Polygons
 
-            # fill entries required by the viewer (legacy from squidpy, TODO: remove)
-            annotating_rows.uns[Key.uns.spatial] = {}
-            annotating_rows.uns[Key.uns.spatial][name] = {}
-            annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key] = {}
-            annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key]['tissue_hires_scalef'] = 1.
-            # TODO: we need to flip the y axis here, investigate the reason of this mismatch
-            # a user reported a similar behavior https://github.com/kevinyamauchi/ome-ngff-tables-prototype/pull/8#issuecomment-1165363992
-            annotating_rows.obsm['spatial'] = np.fliplr(points.data.obsm['spatial'])
-            # workaround for the legacy code to support different sizes for different points
-            annotating_rows.obsm['region_radius'] = points.data.obsm['region_radius']
-            return annotating_rows
+        regions, regions_key, instance_key = self._get_mapping_info(annotation_table)
+        if name in regions:
+            annotating_rows = annotation_table[annotation_table.obs[regions_key] == name, :]
+            if len(annotating_rows) == 0:
+                logger.warning(f"Layer {name} expected to be annotated but no annotation found")
+                return None
+            else:
+                if isinstance(base_element, Labels):
+                    return self._find_annotation_for_labels(
+                        labels=base_element, name=name, annotating_rows=annotating_rows, instance_key=instance_key
+                    )
+                elif isinstance(base_element, Points):
+                    return self._find_annotation_for_points(
+                        points=base_element, name=name, annotating_rows=annotating_rows, instance_key=instance_key
+                    )
+                elif isinstance(base_element, Polygons):
+                    return self._find_annotation_for_polygons(
+                        polygons=base_element, name=name, annotating_rows=annotating_rows, instance_key=instance_key
+                    )
+                else:
+                    raise ValueError(f"Unsupported element type: {type(base_element)}")
+
         else:
             return None
+
+        if annotation_table is None:
+            return None
+
+    def _get_mapping_info(self, annotation_table: AnnData):
+        regions = annotation_table.uns["mapping_info"]["regions"]
+        regions_key = annotation_table.uns["mapping_info"]["regions_key"]
+        instance_key = annotation_table.uns["mapping_info"]["instance_key"]
+        return regions, regions_key, instance_key
+
+    def _find_annotation_for_labels(self, labels: Labels, name: str, annotating_rows: AnnData, instance_key: str):
+        # TODO: use xarray apis
+        x = np.array(labels.data)
+        u = np.unique(x)
+        backgrond = 0 in u
+        # adjacent_labels = (len(u) - 1 if backgrond else len(u)) == np.max(u)
+        available_u = annotating_rows.obs[instance_key]
+        u_not_annotated = np.setdiff1d(u, available_u)
+        if len(u_not_annotated) > 0:
+            logger.warning(f"{len(u_not_annotated)}/{len(u)} labels not annotated: {u_not_annotated}")
+            # TODO: display them in a different way, maybe in red
+        annotating_rows = annotating_rows[annotating_rows.obs[instance_key].isin(u), :]
+
+        # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
+        annotating_rows.uns[Key.uns.spatial] = {}
+        annotating_rows.uns[Key.uns.spatial][name] = {}
+        annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key] = {}
+        annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
+        # TODO: we need to flip the y axis here, investigate the reason of this mismatch
+        # a user reported a similar behavior https://github.com/kevinyamauchi/ome-ngff-tables-prototype/pull/8#issuecomment-1165363992
+        list_of_cx = []
+        list_of_cy = []
+        list_of_v = []
+        regions = regionprops(x)
+        for props in regions:
+            cx, cy = props.centroid
+            v = props.label
+            list_of_cx.append(cx)
+            list_of_cy.append(cy)
+            list_of_v.append(v)
+        centroids = pd.DataFrame({"cx": list_of_cx, "cy": list_of_cy, "v": list_of_v})
+        merged = pd.merge(
+            annotating_rows.obs, centroids, left_on=instance_key, right_on="v", how="left", indicator=True
+        )
+        background = merged.query('_merge == "left_only"')
+        assert len(background) == 1
+        assert background.loc[background.index[0], instance_key] == 0
+        index_of_background = merged[merged[instance_key] == 0].index[0]
+        merged.loc[index_of_background, "v"] = 0
+        merged['v'] = merged['v'].astype(int)
+
+        assert len(annotating_rows) == len(merged)
+        assert annotating_rows.obs[instance_key].tolist() == merged["v"].tolist()
+
+        merged_centroids = merged[["cx", "cy"]].to_numpy()
+        assert len(merged_centroids) == len(merged)
+        annotating_rows.obsm["spatial"] = np.fliplr(merged_centroids)
+        annotating_rows.obsm["region_radius"] = np.array([10.] * len(merged_centroids))  # arbitrary value
+        return annotating_rows
+
+    def _find_annotation_for_points(
+        self, points: Points, name: str, annotating_rows: AnnData, instance_key: str
+    ) -> Optional[AnnData]:
+        """Find the annotation for a points layer from the annotation table."""
+        assert instance_key in points.data.obs.columns
+        available_instances = points.data.obs[instance_key].tolist()
+        annotated_instances = annotating_rows.obs[instance_key].tolist()
+        assert len(available_instances) == len(set(available_instances)), (
+            "Instance keys must be unique. Found " "multiple regions instances with the " "same key."
+        )
+        assert len(annotated_instances) == len(set(annotated_instances)), (
+            "Instance keys must be unique. Found " "multiple regions instances annotations with the same key."
+        )
+        available_instances = set(available_instances)
+        annotated_instances = set(annotated_instances)
+        assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in points."
+        if len(annotated_instances) != len(available_instances):
+            raise ValueError("TODO: support partial annotation")
+
+        # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
+        annotating_rows.uns[Key.uns.spatial] = {}
+        annotating_rows.uns[Key.uns.spatial][name] = {}
+        annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key] = {}
+        annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
+        # TODO: we need to flip the y axis here, investigate the reason of this mismatch
+        # a user reported a similar behavior https://github.com/kevinyamauchi/ome-ngff-tables-prototype/pull/8#issuecomment-1165363992
+        annotating_rows.obsm["spatial"] = np.fliplr(points.data.obsm["spatial"])
+        # workaround for the legacy code to support different sizes for different points
+        annotating_rows.obsm["region_radius"] = points.data.obsm["region_radius"]
+        return annotating_rows
+
+    def _find_annotation_for_polygons(self, polygons: Polygons, name: str, annotating_rows: AnnData, instance_key: str):
+        pass
 
     def _add_polygons(self, polygons: Polygons, name: str, annotation_table: Optional[AnnData] = None) -> None:
         pass
@@ -157,39 +268,6 @@ class Interactive:
         )
         for name, element in merged:
             self.add_spatial_element(element, annotation_table=sdata.table, name=name)
-        ##
-        # viewer.add_image(
-        #     img1,
-        #     rgb=True,
-        #     name="image1",
-        # )
-        # viewer.add_labels(
-        #     label1,
-        #     name="label1",
-        #     metadata={
-        #         "adata": adata1,
-        #         "library_id": "1",
-        #         "labels_key": "cell_ID",
-        #         "points": points1,
-        #         "point_diameter": 10,
-        #     },  # adata in labels layer will color segments
-        # )
-        # viewer.add_image(
-        #     img2,
-        #     rgb=True,
-        #     name="image2",
-        # )
-        # viewer.add_labels(
-        #     label2,
-        #     name="label2",
-        #     metadata={
-        #         "adata": adata2,
-        #         "library_id": "2",
-        #         "labels_key": "cell_ID",
-        #         "points": points2,
-        #         "point_diameter": 10,
-        #     },  # adata in labels layer will color segments
-        # )
         ##
 
     def screenshot(
