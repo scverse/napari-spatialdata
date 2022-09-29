@@ -133,6 +133,31 @@ class Interactive:
         )
         # img1, rgb=True, name="image1", metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"}, scale=(1, 1)
 
+    def _add_polygons(self, polygons: Polygons, name: str, annotation_table: Optional[AnnData] = None) -> None:
+        adata = polygons.data
+        spatial = adata.obs.spatial
+        from spatialdata._core import Polygons
+
+        coordinates = [Polygons.string_to_tensor(s).tolist() for s in spatial]
+        annotation = self._find_annotation_for_regions(
+            base_element=polygons, annotation_table=annotation_table, name=name
+        )
+        if annotation is not None:
+            metadata = {'adta': annotation, "library_id": name}
+        else:
+            metadata = None
+        ##
+        self._viewer.add_shapes(
+            coordinates,
+            shape_type="polygon",
+            name=name,
+            edge_width=5.,
+            edge_color="white",
+            face_color=np.array([0.0, 0, 0.0, 0.0]),
+            metadata=metadata
+        )
+        ##
+
     def _find_annotation_for_regions(
         self, base_element: Union[Labels, Points, Polygons], name: str, annotation_table: Optional[AnnData] = None
     ) -> Optional[AnnData]:
@@ -213,7 +238,7 @@ class Interactive:
         assert background.loc[background.index[0], instance_key] == 0
         index_of_background = merged[merged[instance_key] == 0].index[0]
         merged.loc[index_of_background, "v"] = 0
-        merged['v'] = merged['v'].astype(int)
+        merged["v"] = merged["v"].astype(int)
 
         assert len(annotating_rows) == len(merged)
         assert annotating_rows.obs[instance_key].tolist() == merged["v"].tolist()
@@ -221,7 +246,7 @@ class Interactive:
         merged_centroids = merged[["cx", "cy"]].to_numpy()
         assert len(merged_centroids) == len(merged)
         annotating_rows.obsm["spatial"] = np.fliplr(merged_centroids)
-        annotating_rows.obsm["region_radius"] = np.array([10.] * len(merged_centroids))  # arbitrary value
+        annotating_rows.obsm["region_radius"] = np.array([10.0] * len(merged_centroids))  # arbitrary value
         return annotating_rows
 
     def _find_annotation_for_points(
@@ -255,11 +280,10 @@ class Interactive:
         annotating_rows.obsm["region_radius"] = points.data.obsm["region_radius"]
         return annotating_rows
 
-    def _find_annotation_for_polygons(self, polygons: Polygons, name: str, annotating_rows: AnnData, instance_key: str):
-        pass
-
-    def _add_polygons(self, polygons: Polygons, name: str, annotation_table: Optional[AnnData] = None) -> None:
-        pass
+    def _find_annotation_for_polygons(self, polygons: Polygons, name: str, annotating_rows: AnnData, instance_key:
+    str) -> Optional[AnnData]:
+        print('_find_annotation_for_polygons not implemented')
+        return None
 
     def _add_layers_from_sdata(self, sdata: SpatialData):
         ##
@@ -329,3 +353,10 @@ class Interactive:
 
     # def __str__(self) -> str:
     #     return repr(self)
+
+
+if __name__ == "__main__":
+    from spatialdata import SpatialData
+
+    sdata = SpatialData.read("spatialdata-sandbox/merfish/data.zarr")
+    Interactive(sdata)
