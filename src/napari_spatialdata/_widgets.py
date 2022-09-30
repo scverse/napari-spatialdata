@@ -37,6 +37,7 @@ __all__ = [
     "ObsmIndexWidget",
     "CBarWidget",
     "MatplotlibWidget",
+    "AxisWidgets",
 ]
 
 # label string: attribute name
@@ -582,3 +583,40 @@ class RangeSliderWidget(QRangeSlider):
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
         return scaler.fit_transform(vec.reshape(-1, 1))
+
+
+class AxisWidgets(QtWidgets.QWidget):
+    def __init__(self, viewer: Viewer, model: ImageModel, name: str):
+        super().__init__()
+
+        self.viewer = viewer
+        self.model = model
+        selection_label = QtWidgets.QLabel(f"{name} type:")
+        selection_label.setToolTip("Select between obs, obsm and var.")
+        self.selection_widget = QtWidgets.QComboBox()
+        self.selection_widget.addItem("obsm", None)
+        self.selection_widget.addItem("obs", None)
+        self.selection_widget.addItem("var", None)
+
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.layout().addWidget(selection_label)
+        self.layout().addWidget(self.selection_widget)
+
+        label = QtWidgets.QLabel(f"Select for {name}:")
+        label.setToolTip(f"Select {name}.")
+
+        self.widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
+        self.widget.setAttribute("obsm")
+
+        self.component_widget = ComponentWidget(self.model, attr="obsm")
+        self.component_widget.setToolTip("obsm")
+        self.component_widget.currentTextChanged.connect(self.widget.setComponent)
+        self.widget.itemClicked.connect(self.component_widget._onClickChange)
+
+        self.layout().addWidget(label)
+        self.layout().addWidget(self.widget)
+        self.layout().addWidget(self.component_widget)
+
+        self.selection_widget.currentTextChanged.connect(self.widget.setAttribute)
+        self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
+        self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
