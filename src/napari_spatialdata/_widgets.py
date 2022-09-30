@@ -37,6 +37,7 @@ __all__ = [
     "ObsmIndexWidget",
     "CBarWidget",
     "MatplotlibWidget",
+    "AxisWidgets",
 ]
 
 # label string: attribute name
@@ -248,6 +249,10 @@ class ScatterListWidget(AListWidget):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._data = None
+
+    def _onChange(self) -> None:
+        AListWidget._onChange(self)
+        self.data = None
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
@@ -511,19 +516,35 @@ class MatplotlibWidget(NapariMPLWidget):
         self.model = model
         self.axes = self.canvas.figure.subplots()
 
-    def _onClick(self, x_data: NDArrayA, x_label: Optional[str], y_data: NDArrayA, y_label: Optional[str], color_data: NDArrayA, color_label: Optional[str]) -> None:
-        
-        logger.debug("X-axis Data: {}", x_data)
-        logger.debug("X-axis Label: {}", x_label)
-        logger.debug("Y-axis Data: {}", y_data)
-        logger.debug("Y-axis Label: {}", y_label)
-        logger.debug("Color Data: {}", color_data)
-        logger.debug("Color Label: {}", color_label)
+    def _onClick(
+        self,
+        x_data: NDArrayA,
+        x_label: Optional[str],
+        y_data: NDArrayA,
+        y_label: Optional[str],
+        color_data: NDArrayA,
+        color_label: Optional[str],
+    ) -> None:
+
+        logger.debug("X-axis Data: {}", x_data)  # noqa: P103
+        logger.debug("X-axis Label: {}", x_label)  # noqa: P103
+        logger.debug("Y-axis Data: {}", y_data)  # noqa: P103
+        logger.debug("Y-axis Label: {}", y_label)  # noqa: P103
+        logger.debug("Color Data: {}", color_data)  # noqa: P103
+        logger.debug("Color Label: {}", color_label)  # noqa: P103
 
         self.clear()
         self.draw(x_data, x_label, y_data, y_label, color_data, color_label)
 
-    def draw(self, x_data: NDArrayA, x_label: Optional[str], y_data: NDArrayA, y_label: Optional[str], color_data: NDArrayA, color_label: Optional[str]) -> None:
+    def draw(
+        self,
+        x_data: NDArrayA,
+        x_label: Optional[str],
+        y_data: NDArrayA,
+        y_label: Optional[str],
+        color_data: NDArrayA,
+        color_label: Optional[str],
+    ) -> None:
 
         self.axes.scatter(x=x_data, y=y_data, c=color_data, alpha=0.5)
         self.axes.set_xlabel(x_label)
@@ -585,3 +606,40 @@ class RangeSliderWidget(QRangeSlider):
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
         return scaler.fit_transform(vec.reshape(-1, 1))
+
+
+class AxisWidgets(QtWidgets.QWidget):
+    def __init__(self, viewer: Viewer, model: ImageModel, name: str):
+        super().__init__()
+
+        self.viewer = viewer
+        self.model = model
+        selection_label = QtWidgets.QLabel(f"{name} type:")
+        selection_label.setToolTip("Select between obs, obsm and var.")
+        self.selection_widget = QtWidgets.QComboBox()
+        self.selection_widget.addItem("obsm", None)
+        self.selection_widget.addItem("obs", None)
+        self.selection_widget.addItem("var", None)
+
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.layout().addWidget(selection_label)
+        self.layout().addWidget(self.selection_widget)
+
+        label = QtWidgets.QLabel(f"Select for {name}:")
+        label.setToolTip(f"Select {name}.")
+
+        self.widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
+        self.widget.setAttribute("obsm")
+
+        self.component_widget = ComponentWidget(self.model, attr="obsm")
+        self.component_widget.setToolTip("obsm")
+        self.component_widget.currentTextChanged.connect(self.widget.setComponent)
+        self.widget.itemClicked.connect(self.component_widget._onClickChange)
+
+        self.layout().addWidget(label)
+        self.layout().addWidget(self.widget)
+        self.layout().addWidget(self.component_widget)
+
+        self.selection_widget.currentTextChanged.connect(self.widget.setAttribute)
+        self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
+        self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
