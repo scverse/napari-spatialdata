@@ -250,6 +250,10 @@ class ScatterListWidget(AListWidget):
         self.attrChanged.connect(self._onChange)
         self._data = None
 
+    def _onChange(self) -> None:
+        AListWidget._onChange(self)
+        self.data = None
+
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
             try:
@@ -513,6 +517,9 @@ class MatplotlibWidget(NapariMPLWidget):
         self.axes = self.canvas.figure.subplots()
 
     def _onClick(self, x_data: NDArrayA, x_label: Optional[str], y_data: NDArrayA, y_label: Optional[str]) -> None:
+        if x_data is None or y_data is None:
+            logger.error("Please select the fields you want to plot.")
+            return
         logger.info("X-axis Data: ", x_data)
         logger.info("X-axis Label: ", x_label)
         logger.info("Y-axis Data: ", y_data)
