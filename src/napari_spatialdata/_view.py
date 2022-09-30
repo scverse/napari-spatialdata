@@ -74,7 +74,7 @@ class QtAdataScatterWidget(QWidget):
         self.layout().addWidget(self.x_selection_widget, 3, 0, 1, 1)
 
         # X-axis
-        x_label = QLabel("Select type for X-axis:")
+        x_label = QLabel("X-axis:")
         x_label.setToolTip("Select layer to visualise in x-axis.")
 
         self.x_widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
@@ -94,7 +94,7 @@ class QtAdataScatterWidget(QWidget):
         self.x_selection_widget.currentTextChanged.connect(self.x_component_widget.setToolTip)
 
         # Y selection
-        y_selection_label = QLabel("Select type for Y axis:")
+        y_selection_label = QLabel("Y-axis type:")
         y_selection_label.setToolTip("Select between obs, obsm and var.")
 
         self.y_selection_widget = QComboBox()
@@ -155,7 +155,7 @@ class QtAdataScatterWidget(QWidget):
         self.plot_button_widget = QPushButton("Plot")
         self.plot_button_widget.clicked.connect(
             lambda: self.matplotlib_widget._onClick(
-                self.x_widget.data, self.x_widget.text, self.y_widget.data, self.y_widget.text
+                self.x_widget.data, self.x_widget.text, self.y_widget.data, self.y_widget.text, self.color_widget.data, self.color_widget.text
             )
         )
 

@@ -511,18 +511,21 @@ class MatplotlibWidget(NapariMPLWidget):
         self.model = model
         self.axes = self.canvas.figure.subplots()
 
-    def _onClick(self, x_data: NDArrayA, x_label: Optional[str], y_data: NDArrayA, y_label: Optional[str]) -> None:
-        logger.info("X-axis Data: ", x_data)
-        logger.info("X-axis Label: ", x_label)
-        logger.info("Y-axis Data: ", y_data)
-        logger.info("Y-axis Label: ", y_label)
+    def _onClick(self, x_data: NDArrayA, x_label: Optional[str], y_data: NDArrayA, y_label: Optional[str], color_data: NDArrayA, color_label: Optional[str]) -> None:
+        
+        logger.debug("X-axis Data: {}", x_data)
+        logger.debug("X-axis Label: {}", x_label)
+        logger.debug("Y-axis Data: {}", y_data)
+        logger.debug("Y-axis Label: {}", y_label)
+        logger.debug("Color Data: {}", color_data)
+        logger.debug("Color Label: {}", color_label)
 
         self.clear()
-        self.draw(x_data, x_label, y_data, y_label)
+        self.draw(x_data, x_label, y_data, y_label, color_data, color_label)
 
-    def draw(self, x_data: NDArrayA, x_label: Optional[str], y_data: NDArrayA, y_label: Optional[str]) -> None:
+    def draw(self, x_data: NDArrayA, x_label: Optional[str], y_data: NDArrayA, y_label: Optional[str], color_data: NDArrayA, color_label: Optional[str]) -> None:
 
-        self.axes.scatter(x_data, y_data, alpha=0.5)
+        self.axes.scatter(x=x_data, y=y_data, c=color_data, alpha=0.5)
         self.axes.set_xlabel(x_label)
         self.axes.set_ylabel(y_label)
 
