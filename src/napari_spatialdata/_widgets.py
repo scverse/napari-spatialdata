@@ -245,9 +245,10 @@ class ScatterListWidget(AListWidget):
     attrChanged = Signal()
     _text = None
 
-    def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
+    def __init__(self, viewer: Viewer, model: ImageModel, attr: str, color: bool, **kwargs: Any):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
+        self._color = color
         self._data = None
 
     def _onChange(self) -> None:
@@ -261,8 +262,14 @@ class ScatterListWidget(AListWidget):
             except Exception as e:  # noqa: B902
                 logger.error(e)
                 continue
-            self.data = vec
-
+            if isinstance(vec, np.ndarray):
+                self.data = vec
+            elif vec.dtype == "category":
+                self.data = vec
+                if self._color:
+                    self.data = _get_categorical(self.model.adata, key=item, palette=self.model.palette, vec=self.data)
+            else:
+                raise TypeError(f"The chosen field's datatype ({vec.dtype.name}) cannot be plotted")
         return
 
     def setAttribute(self, field: Optional[str]) -> None:
@@ -609,7 +616,7 @@ class RangeSliderWidget(QRangeSlider):
 
 
 class AxisWidgets(QtWidgets.QWidget):
-    def __init__(self, viewer: Viewer, model: ImageModel, name: str):
+    def __init__(self, viewer: Viewer, model: ImageModel, name: str, color: bool = False):
         super().__init__()
 
         self.viewer = viewer
@@ -628,7 +635,7 @@ class AxisWidgets(QtWidgets.QWidget):
         label = QtWidgets.QLabel(f"Select for {name}:")
         label.setToolTip(f"Select {name}.")
 
-        self.widget = ScatterListWidget(self.viewer, self.model, attr="obsm")
+        self.widget = ScatterListWidget(self.viewer, self.model, attr="obsm", color=color)
         self.widget.setAttribute("obsm")
 
         self.component_widget = ComponentWidget(self.model, attr="obsm")

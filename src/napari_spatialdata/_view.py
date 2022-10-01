@@ -67,7 +67,7 @@ class QtAdataScatterWidget(QWidget):
         self.y_widget = AxisWidgets(self.viewer, self.model, "Y-axis")
         self.layout().addWidget(self.y_widget, 2, 1, 6, 1)
 
-        self.color_widget = AxisWidgets(self.viewer, self.model, "Color")
+        self.color_widget = AxisWidgets(self.viewer, self.model, "Color", True)
         self.layout().addWidget(self.color_widget, 2, 2, 6, 1)
 
         self.plot_button_widget = QPushButton("Plot")
