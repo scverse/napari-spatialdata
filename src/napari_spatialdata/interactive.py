@@ -67,6 +67,20 @@ class Interactive:
         else:
             raise ValueError(f"Unsupported element type: {type(element)}")
 
+    def _get_transform(self, element: BaseElement) -> np.ndarray:
+        affine: np.ndarray
+        if element.transforms is not None:
+            from spatialdata import Identity, Scale, Translation, Affine, Rotation
+            if isinstance(element.transforms, Identity):
+                affine = np.eye(3)
+            elif any([isinstance(element.transforms, t) for t in [Scale, Translation, Affine, Rotation]]):
+                affine = element.transforms.to_affine().affine
+            else:
+                raise TypeError(f"Unsupported transform type: {type(element.transforms)}")
+        else:
+            affine = np.eye(3)
+        return affine
+
     def _add_image(self, image: Image, name: str = None) -> None:
         # TODO: add logic which takes into account for axes labels ([y, x, c] vs [c, y, x] vs [y, x], etc)
         # dropping c channel
@@ -76,16 +90,16 @@ class Interactive:
             new_image = image.data.transpose(dims[1], dims[0], dims[2])
             if new_image.shape[2] in [3, 4]:
                 rgb = True
-            scale = image.transforms.scale_factors[1:]
-            translate = image.transforms.translation[1:]
+            # scale = image.transforms.scale_factors[1:]
+            # translate = image.transforms.translation[1:]
         elif len(dims) == 2:  # [y, x]
             new_image = image.data.transpose(dims[1], dims[0])
-            scale = image.transforms.scale_factors
-            translate = image.transforms.translation
+            # scale = image.transforms.scale_factors
+            # translate = image.transforms.translation
         else:
             raise ValueError(f"Unsupported image dimensions: {dims}")
-        self._viewer.add_image(new_image, rgb=rgb, name=name, scale=scale, translate=translate)
-        print("TODO: correct transform")
+        affine = self._get_transform(element=image)
+        self._viewer.add_image(new_image, rgb=rgb, name=name, affine=affine)
 
     def _add_labels(self, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
         annotation = self._find_annotation_for_regions(
@@ -102,7 +116,8 @@ class Interactive:
             }
         else:
             metadata = None
-        self._viewer.add_labels(labels.data.transpose(), name=name, metadata=metadata)
+        affine = self._get_transform(element=image)
+        self._viewer.add_labels(labels.data.transpose(), name=name, metadata=metadata, affine=affine)
 
     def _add_points(self, points: Points, name: str, annotation_table: Optional[AnnData] = None) -> None:
         adata = points.data
@@ -122,6 +137,7 @@ class Interactive:
             metadata = {"adata": annotation, "library_id": name}
         else:
             metadata = None
+        affine = self._get_transform(element=points)
         self._viewer.add_points(
             spatial,
             name=name,
@@ -130,6 +146,7 @@ class Interactive:
             size=2 * radii,
             metadata=metadata,
             edge_width=0.0,
+            affine=affine
         )
         # img1, rgb=True, name="image1", metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"}, scale=(1, 1)
 
@@ -143,10 +160,11 @@ class Interactive:
             base_element=polygons, annotation_table=annotation_table, name=name
         )
         if annotation is not None:
-            metadata = {'adta': annotation, "library_id": name}
+            metadata = {'adata': annotation, "library_id": name}
         else:
             metadata = None
         ##
+        affine = self._get_transform(element=polygons)
         self._viewer.add_shapes(
             coordinates,
             shape_type="polygon",
@@ -154,7 +172,8 @@ class Interactive:
             edge_width=5.,
             edge_color="white",
             face_color=np.array([0.0, 0, 0.0, 0.0]),
-            metadata=metadata
+            metadata=metadata,
+            affine=affine
         )
         ##
 
@@ -358,5 +377,6 @@ class Interactive:
 if __name__ == "__main__":
     from spatialdata import SpatialData
 
-    sdata = SpatialData.read("spatialdata-sandbox/merfish/data.zarr")
+    # sdata = SpatialData.read("spatialdata-sandbox/merfish/data.zarr")
+    sdata = SpatialData.read("spatialdata-sandbox/visium/data.zarr")
     Interactive(sdata)
