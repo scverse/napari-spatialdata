@@ -34,7 +34,6 @@ __all__ = [
     "CBarWidget",
     "RangeSliderWidget",
     "ComponentWidget",
-    "ObsmIndexWidget",
     "CBarWidget",
     "MatplotlibWidget",
     "AxisWidgets",
@@ -315,14 +314,15 @@ class ScatterListWidget(AListWidget):
         self._data = data
 
 
-class ObsmIndexWidget(QtWidgets.QComboBox):
-    def __init__(self, model: ImageModel, max_visible: int = 6, **kwargs: Any):
+class ComponentWidget(QtWidgets.QComboBox):
+    def __init__(self, model: ImageModel, attr: str, max_visible: int = 4, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._model = model
         self.view().setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.setMaxVisibleItems(max_visible)
         self.setStyleSheet("combobox-popup: 0;")
+        self._attr = attr
 
     def addItems(self, texts: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
         if isinstance(texts, QtWidgets.QListWidgetItem):
@@ -341,12 +341,6 @@ class ObsmIndexWidget(QtWidgets.QComboBox):
 
         self.clear()
         super().addItems(tuple(texts))
-
-
-class ComponentWidget(ObsmIndexWidget):
-    def __init__(self, model: ImageModel, attr: str, max_visible: int = 4, **kwargs: Any):
-        super().__init__(model, max_visible, **kwargs)
-        self._attr = attr
 
     def setToolTip(self, click: str) -> None:
         if click == "obsm":

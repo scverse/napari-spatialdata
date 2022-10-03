@@ -27,7 +27,7 @@ from napari_spatialdata._widgets import (
     CBarWidget,
     AListWidget,
     AxisWidgets,
-    ObsmIndexWidget,
+    ComponentWidget,
     MatplotlibWidget,
     RangeSliderWidget,
 )
@@ -197,7 +197,7 @@ class QtAdataViewWidget(QWidget):
         obsm_label = QLabel("Obsm:")
         obsm_label.setToolTip("Keys in `adata.obsm` containing multidimensional cell information.")
         self.obsm_widget = AListWidget(self.viewer, self.model, attr="obsm", multiselect=False)
-        self.obsm_index_widget = ObsmIndexWidget(self.model)
+        self.obsm_index_widget = ComponentWidget(self.model, attr="obsm", max_visible=6)
         self.obsm_index_widget.setToolTip("Indices for current key in `adata.obsm`.")
         self.obsm_index_widget.currentTextChanged.connect(self.obsm_widget.setIndex)
         self.obsm_widget.itemClicked.connect(self.obsm_index_widget.addItems)
