@@ -86,7 +86,7 @@ def test_min_max_norm(vec: np.ndarray) -> None:
 def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
 
     from napari_spatialdata._model import ImageModel
-    from napari_spatialdata._widgets import MatplotlibWidget
+    from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
     viewer = make_napari_viewer()
     model = ImageModel()

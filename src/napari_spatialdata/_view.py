@@ -26,11 +26,10 @@ from napari_spatialdata._utils import (
 from napari_spatialdata._widgets import (
     CBarWidget,
     AListWidget,
-    AxisWidgets,
     ComponentWidget,
-    MatplotlibWidget,
     RangeSliderWidget,
 )
+from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
