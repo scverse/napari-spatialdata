@@ -10,6 +10,7 @@ import itertools
 from napari_spatialdata._constants._pkg_constants import Key
 from skimage.measure import regionprops
 import pandas as pd
+from xarray import DataArray
 
 # # cannot import these because of cyclic dependencies with spatialdata
 # SpatialData = TypeVar("SpatialData")
@@ -67,38 +68,59 @@ class Interactive:
         else:
             raise ValueError(f"Unsupported element type: {type(element)}")
 
-    def _get_transform(self, element: BaseElement) -> np.ndarray:
+    def _get_transform(self, element: BaseElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
         affine: np.ndarray
-        if element.transforms is not None:
-            from spatialdata import Identity, Scale, Translation, Affine, Rotation
-            if isinstance(element.transforms, Identity):
-                affine = np.eye(3)
-            elif any([isinstance(element.transforms, t) for t in [Scale, Translation, Affine, Rotation]]):
-                affine = element.transforms.to_affine().affine
-            else:
-                raise TypeError(f"Unsupported transform type: {type(element.transforms)}")
+        if coordinate_system_name is None:
+            coordinate_system_name, cs = element.coordinate_systems.items().__iter__().__next__()
         else:
-            affine = np.eye(3)
-        return affine
+            cs = element.coordinate_systems[coordinate_system_name]
+        ct = element.transformations[coordinate_system_name]
+        from spatialdata import Identity, Scale, Translation, Affine, Rotation
+        if isinstance(ct, Identity):
+            affine = np.eye(element.ndim + 1)
+        elif any([isinstance(ct, tt) for tt in [Scale, Translation, Affine, Rotation]]):
+            affine = ct.to_affine().affine
+        else:
+            raise TypeError(f"Unsupported transform type: {type(t)}")
+        # axes of the target coordinate space
+        axes = [axis.name for axis in cs.axes]
+        return affine, axes
+
+    def _get_affine_for_images_labels(self, element: Union[Image, Labels]) -> Tuple[DataArray, np.ndarray, bool]:
+        # adjust affine transform
+        # napari doesn't want channels in the affine transform, I guess also not time
+        # this subset of the matrix is possible because ngff 0.4 assumes that the axes are ordered as [t, c, z, y, x]
+        dims = element.data.dims
+        affine, axes = self._get_transform(element=element)
+        i = 0
+        if 't' in axes:
+            i += 1
+        if 'c' in axes:
+            i += 1
+        j = 0
+        if 't' in dims:
+            j += 1
+        if 'c' in dims:
+            j += 1
+        cropped_affine = affine[i:, j:]
+
+        # adjust channel ordering
+        rgb = False
+        if 't' in dims:
+            # where do we put the time axis?
+            raise NotImplementedError('Time dimension not supported yet')
+        if 'c' in dims:
+            assert 'c' in dims
+            assert dims.index('c') == 0
+            new_order = [dims[i] for i in range(1, len(dims))] + ['c']
+            new_raster = element.data.transpose(*new_order)
+            rgb = True
+        else:
+            new_raster = element.data
+        return new_raster, cropped_affine, rgb
 
     def _add_image(self, image: Image, name: str = None) -> None:
-        # TODO: add logic which takes into account for axes labels ([y, x, c] vs [c, y, x] vs [y, x], etc)
-        # dropping c channel
-        dims = image.data.dims
-        rgb = False
-        if len(dims) == 3:  # [c, y, x]
-            new_image = image.data.transpose(dims[1], dims[0], dims[2])
-            if new_image.shape[2] in [3, 4]:
-                rgb = True
-            # scale = image.transforms.scale_factors[1:]
-            # translate = image.transforms.translation[1:]
-        elif len(dims) == 2:  # [y, x]
-            new_image = image.data.transpose(dims[1], dims[0])
-            # scale = image.transforms.scale_factors
-            # translate = image.transforms.translation
-        else:
-            raise ValueError(f"Unsupported image dimensions: {dims}")
-        affine = self._get_transform(element=image)
+        new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
         self._viewer.add_image(new_image, rgb=rgb, name=name, affine=affine)
 
     def _add_labels(self, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
@@ -116,8 +138,22 @@ class Interactive:
             }
         else:
             metadata = None
-        affine = self._get_transform(element=image)
-        self._viewer.add_labels(labels.data.transpose(), name=name, metadata=metadata, affine=affine)
+        new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
+        self._viewer.add_labels(new_labels, name=name, metadata=metadata, affine=affine)
+
+    def _get_affine_for_points_polygons(self, element: BaseElement) -> np.ndarray:
+        affine, axes = self._get_transform(element)
+        # assuming no time dimensions, TODO: consider time dimension
+        ndim = element.ndim
+        out_space_dim = affine.shape[0] - 1
+        in_space_dim = affine.shape[1] - 1
+        assert in_space_dim == ndim
+        if out_space_dim != ndim:
+            assert out_space_dim == ndim + 1
+            # remove the first row of the affine since it contains only channel information (it should be zero)
+            assert np.isclose(np.linalg.norm(affine[0, :]), 0)
+            affine = affine[1:, :]
+        return affine
 
     def _add_points(self, points: Points, name: str, annotation_table: Optional[AnnData] = None) -> None:
         adata = points.data
@@ -137,7 +173,7 @@ class Interactive:
             metadata = {"adata": annotation, "library_id": name}
         else:
             metadata = None
-        affine = self._get_transform(element=points)
+        affine = self._get_affine_for_points_polygons(element=points)
         self._viewer.add_points(
             spatial,
             name=name,
@@ -164,7 +200,7 @@ class Interactive:
         else:
             metadata = None
         ##
-        affine = self._get_transform(element=polygons)
+        affine = self._get_affine_for_points_polygons(element=polygons)
         self._viewer.add_shapes(
             coordinates,
             shape_type="polygon",
