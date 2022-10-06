@@ -37,7 +37,8 @@ class Interactive:
 
     def __init__(self, sdata: SpatialData, with_widgets: bool = True):
         self._viewer = napari.Viewer()
-        self._add_layers_from_sdata(sdata=sdata)
+        self.sdata = sdata
+        self._add_layers_from_sdata(sdata=self.sdata)
         # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
         if with_widgets:
             self.show_widget()
@@ -71,11 +72,16 @@ class Interactive:
     def _get_transform(self, element: BaseElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
         affine: np.ndarray
         if coordinate_system_name is None:
+            if len(element.coordinate_systems) > 1:
+                # TODO: An easy workaround is to add one layer per coordinate system, another better method is to
+                #  change the affine matrix when the coordinate system is changed.
+                raise ValueError("Only one coordinate system per element is supported at the moment.")
             coordinate_system_name, cs = element.coordinate_systems.items().__iter__().__next__()
         else:
             cs = element.coordinate_systems[coordinate_system_name]
         ct = element.transformations[coordinate_system_name]
         from spatialdata import Identity, Scale, Translation, Affine, Rotation
+
         if isinstance(ct, Identity):
             affine = np.eye(element.ndim + 1)
         elif any([isinstance(ct, tt) for tt in [Scale, Translation, Affine, Rotation]]):
@@ -93,26 +99,26 @@ class Interactive:
         dims = element.data.dims
         affine, axes = self._get_transform(element=element)
         i = 0
-        if 't' in axes:
+        if "t" in axes:
             i += 1
-        if 'c' in axes:
+        if "c" in axes:
             i += 1
         j = 0
-        if 't' in dims:
+        if "t" in dims:
             j += 1
-        if 'c' in dims:
+        if "c" in dims:
             j += 1
         cropped_affine = affine[i:, j:]
 
         # adjust channel ordering
         rgb = False
-        if 't' in dims:
+        if "t" in dims:
             # where do we put the time axis?
-            raise NotImplementedError('Time dimension not supported yet')
-        if 'c' in dims:
-            assert 'c' in dims
-            assert dims.index('c') == 0
-            new_order = [dims[i] for i in range(1, len(dims))] + ['c']
+            raise NotImplementedError("Time dimension not supported yet")
+        if "c" in dims:
+            assert "c" in dims
+            assert dims.index("c") == 0
+            new_order = [dims[i] for i in range(1, len(dims))] + ["c"]
             new_raster = element.data.transpose(*new_order)
             rgb = True
         else:
@@ -121,7 +127,8 @@ class Interactive:
 
     def _add_image(self, image: Image, name: str = None) -> None:
         new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
-        self._viewer.add_image(new_image, rgb=rgb, name=name, affine=affine)
+        metadata = {"coordinate_systems": list(image.coordinate_systems.keys()), 'sdata': self.sdata}
+        self._viewer.add_image(new_image, rgb=rgb, name=name, affine=affine, visible=False, metadata=metadata)
 
     def _add_labels(self, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
         annotation = self._find_annotation_for_regions(
@@ -137,9 +144,11 @@ class Interactive:
                 # "point_diameter": 10,
             }
         else:
-            metadata = None
+            metadata = {}
+        metadata["coordinate_systems"] = list(labels.coordinate_systems.keys())
+        metadata['sdata'] = self.sdata
         new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
-        self._viewer.add_labels(new_labels, name=name, metadata=metadata, affine=affine)
+        self._viewer.add_labels(new_labels, name=name, metadata=metadata, affine=affine, visible=False)
 
     def _get_affine_for_points_polygons(self, element: BaseElement) -> np.ndarray:
         affine, axes = self._get_transform(element)
@@ -172,7 +181,9 @@ class Interactive:
             # metadata = {"adata": annotation, "library_id": name, "points": points_annotation}
             metadata = {"adata": annotation, "library_id": name}
         else:
-            metadata = None
+            metadata = {}
+        metadata["coordinate_systems"] = list(points.coordinate_systems.keys())
+        metadata['sdata'] = self.sdata
         affine = self._get_affine_for_points_polygons(element=points)
         self._viewer.add_points(
             spatial,
@@ -182,7 +193,8 @@ class Interactive:
             size=2 * radii,
             metadata=metadata,
             edge_width=0.0,
-            affine=affine
+            affine=affine,
+            visible=False,
         )
         # img1, rgb=True, name="image1", metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"}, scale=(1, 1)
 
@@ -196,20 +208,23 @@ class Interactive:
             base_element=polygons, annotation_table=annotation_table, name=name
         )
         if annotation is not None:
-            metadata = {'adata': annotation, "library_id": name}
+            metadata = {"adata": annotation, "library_id": name}
         else:
-            metadata = None
+            metadata = {}
         ##
+        metadata["coordinate_systems"] = list(polygons.coordinate_systems.keys())
+        metadata['sdata'] = self.sdata
         affine = self._get_affine_for_points_polygons(element=polygons)
         self._viewer.add_shapes(
             coordinates,
             shape_type="polygon",
             name=name,
-            edge_width=5.,
+            edge_width=5.0,
             edge_color="white",
             face_color=np.array([0.0, 0, 0.0, 0.0]),
             metadata=metadata,
-            affine=affine
+            affine=affine,
+            visible=False,
         )
         ##
 
@@ -335,9 +350,10 @@ class Interactive:
         annotating_rows.obsm["region_radius"] = points.data.obsm["region_radius"]
         return annotating_rows
 
-    def _find_annotation_for_polygons(self, polygons: Polygons, name: str, annotating_rows: AnnData, instance_key:
-    str) -> Optional[AnnData]:
-        print('_find_annotation_for_polygons not implemented')
+    def _find_annotation_for_polygons(
+        self, polygons: Polygons, name: str, annotating_rows: AnnData, instance_key: str
+    ) -> Optional[AnnData]:
+        print("_find_annotation_for_polygons not implemented")
         return None
 
     def _add_layers_from_sdata(self, sdata: SpatialData):

@@ -1,4 +1,4 @@
-from typing import Any, Optional, Sequence, FrozenSet
+from typing import Any, Optional, Sequence, FrozenSet, Dict
 
 from loguru import logger
 from anndata import AnnData
@@ -21,6 +21,7 @@ from napari_spatialdata._widgets import (
     AListWidget,
     ObsmIndexWidget,
     RangeSliderWidget,
+    CoordinateSystemSelector,
 )
 from napari_spatialdata._constants._pkg_constants import Key
 
@@ -43,8 +44,13 @@ class QtAdataViewWidget(QWidget):
             call_button=False,
         )
         self._layer_selection_widget()
+        self._coordinate_system_selector = CoordinateSystemSelector(self._viewer, multiselect=False)
+        self._coordinate_system_selector.setCurrentRow(0)
 
         self.setLayout(QVBoxLayout())
+        cs_label = QLabel("Coordinate space:")
+        self.layout().addWidget(cs_label)
+        self.layout().addWidget(self._coordinate_system_selector)
         self.layout().addWidget(self._layer_selection_widget.native)
 
         # obs
@@ -134,8 +140,8 @@ class QtAdataViewWidget(QWidget):
             self.model.points_var = layer.metadata["points"].obs["gene"]
             self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
         # workaround to support different sizes for different point, for layers coming from SpatialData
-        if 'region_radius' in self.model.adata.obsm:
-            self.model.spot_diameter = 2 * self.model.adata.obsm['region_radius']
+        if "region_radius" in self.model.adata.obsm:
+            self.model.spot_diameter = 2 * self.model.adata.obsm["region_radius"]
         else:
             self.model.spot_diameter = (
                 np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
@@ -176,6 +182,39 @@ class QtAdataViewWidget(QWidget):
             logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
             self._save_shapes(layer, key=key)
             self._update_obs_items(key)
+            sdata = None
+            for ll in self.viewer.layers:
+                if ll.visible:
+                    if "sdata" in ll.metadata:
+                        sdata = ll.metadata["sdata"]
+            if sdata is None:
+                raise RuntimeError(
+                    "Cannot save polygons because no layer associated with a SpatialData object is "
+                    "currently visible."
+                )
+            else:
+                ##
+                from spatialdata._core.elements import Polygons
+                from spatialdata import Identity
+
+                # get current coordinate system
+                selected = self._coordinate_system_selector.selectedItems()
+                assert len(selected) == 1
+                cs_name = selected[0].text()
+                cs_valid = [cs for cs in sdata.coordinate_systems if cs.name == cs_name]
+                assert len(cs_valid) == 1
+                cs = cs_valid[0]
+                coords = self.model.adata.uns[key]["meshes"]
+                string_coords = [Polygons.tensor_to_string(c) for c in coords]
+                names = [f"poly_{i}" for i in range(len(coords))]
+                adata = AnnData(shape=(len(coords), 0), obs=pd.DataFrame({"name": names, "spatial": string_coords}))
+                polygons = Polygons(adata, alignment_info={cs: Identity()})
+                zarr_name = key.replace(' ', '_').replace('[', '').replace(']', '')
+                sdata.polygons[zarr_name] = polygons
+                if sdata.is_backed():
+                    sdata.save_element("polygons", zarr_name, overwrite=True)
+                ##
+                # TODO: associate the current layer with the SpatialData object
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
         shape_list = layer._data_view

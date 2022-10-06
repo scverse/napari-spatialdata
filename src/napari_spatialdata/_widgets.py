@@ -433,3 +433,35 @@ class RangeSliderWidget(QRangeSlider):
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
         return scaler.fit_transform(vec.reshape(-1, 1))
+
+class CoordinateSystemSelector(ListWidget):
+    def __init__(self, viewer: Viewer, **kwargs: Any):
+        super().__init__(viewer, **kwargs)
+        self.viewer = viewer
+        self.coordinate_systems = []
+        for layer in self.viewer.layers:
+            metadata = layer.metadata
+            if 'coordinate_systems' in metadata:
+                coordinate_systems = metadata['coordinate_systems']
+                for cs in coordinate_systems:
+                    if cs not in self.coordinate_systems:
+                        self.coordinate_systems.append(cs)
+        self._create_ui()
+
+    def _create_ui(self) -> None:
+        self.addItems(self.coordinate_systems)
+        self.currentTextChanged.connect(self._onCoordinateSystemChange)
+
+    def _onCoordinateSystemChange(self, text: str) -> None:
+        for layer in self.viewer.layers:
+            metadata = layer.metadata
+            if 'coordinate_systems' in metadata:
+                coordinate_systems = metadata['coordinate_systems']
+                if text in coordinate_systems:
+                    if not layer.visible:
+                        layer.visible = True
+                        # layer.refresh()
+                else:
+                    if layer.visible:
+                        layer.visible = False
+                        # layer.refresh()
