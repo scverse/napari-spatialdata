@@ -80,14 +80,14 @@ class Interactive:
         else:
             cs = element.coordinate_systems[coordinate_system_name]
         ct = element.transformations[coordinate_system_name]
-        from spatialdata import Identity, Scale, Translation, Affine, Rotation
+        from spatialdata import Identity, Scale, Translation, Affine, Rotation, Sequence
 
         if isinstance(ct, Identity):
-            affine = np.eye(element.ndim + 1)
-        elif any([isinstance(ct, tt) for tt in [Scale, Translation, Affine, Rotation]]):
+            affine = np.eye(len(cs.axes) + 1, element.ndim + 1)
+        elif any([isinstance(ct, tt) for tt in [Scale, Translation, Affine, Rotation, Sequence]]):
             affine = ct.to_affine().affine
         else:
-            raise TypeError(f"Unsupported transform type: {type(t)}")
+            raise TypeError(f"Unsupported transform type: {type(ct)}")
         # axes of the target coordinate space
         axes = [axis.name for axis in cs.axes]
         return affine, axes
@@ -96,19 +96,34 @@ class Interactive:
         # adjust affine transform
         # napari doesn't want channels in the affine transform, I guess also not time
         # this subset of the matrix is possible because ngff 0.4 assumes that the axes are ordered as [t, c, z, y, x]
+
+        # "dims" are the axes of the element in the source coordinate system (implicit coordinate system of the labels
+        # or image)
         dims = element.data.dims
+        assert list(dims) == [ax for ax in ["t", "c", "z", "y", "x"] if ax in dims]
+        # "axes" are the axes of the element in the target coordinate system
         affine, axes = self._get_transform(element=element)
-        i = 0
+
+        target_order_pre = [ax for ax in axes if ax in dims]
+        target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in axes]
+
+        from spatialdata import Affine
+
+        fix_order_pre = Affine._get_affine_iniection_from_axes(dims, target_order_pre)
+        fix_order_post = Affine._get_affine_iniection_from_axes(axes, target_order_post)
+        affine = fix_order_post @ affine @ fix_order_pre
+
+        rows_to_keep = list(range(affine.shape[0]))
         if "t" in axes:
-            i += 1
+            rows_to_keep.remove(axes.index("t"))
         if "c" in axes:
-            i += 1
-        j = 0
+            rows_to_keep.remove(axes.index("c"))
+        cols_to_keep = list(range(affine.shape[1]))
         if "t" in dims:
-            j += 1
+            cols_to_keep.remove(dims.index("t"))
         if "c" in dims:
-            j += 1
-        cropped_affine = affine[i:, j:]
+            cols_to_keep.remove(dims.index("c"))
+        cropped_affine = affine[np.ix_(rows_to_keep, cols_to_keep)]
 
         # adjust channel ordering
         rgb = False
@@ -125,10 +140,15 @@ class Interactive:
             new_raster = element.data
         return new_raster, cropped_affine, rgb
 
+    def _suffix_from_full_name(self, name: str):
+        return "/".join(name.split("/")[2:])
+
     def _add_image(self, image: Image, name: str = None) -> None:
         new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
-        metadata = {"coordinate_systems": list(image.coordinate_systems.keys()), 'sdata': self.sdata}
-        self._viewer.add_image(new_image, rgb=rgb, name=name, affine=affine, visible=False, metadata=metadata)
+        metadata = {"coordinate_systems": list(image.coordinate_systems.keys()), "sdata": self.sdata}
+        self._viewer.add_image(
+            new_image, rgb=rgb, name=self._suffix_from_full_name(name), affine=affine, visible=False, metadata=metadata
+        )
 
     def _add_labels(self, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
         annotation = self._find_annotation_for_regions(
@@ -146,13 +166,31 @@ class Interactive:
         else:
             metadata = {}
         metadata["coordinate_systems"] = list(labels.coordinate_systems.keys())
-        metadata['sdata'] = self.sdata
+        metadata["sdata"] = self.sdata
         new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
-        self._viewer.add_labels(new_labels, name=name, metadata=metadata, affine=affine, visible=False)
+        self._viewer.add_labels(
+            new_labels, name=self._suffix_from_full_name(name), metadata=metadata, affine=affine, visible=False
+        )
 
     def _get_affine_for_points_polygons(self, element: BaseElement) -> np.ndarray:
-        affine, axes = self._get_transform(element)
-        # assuming no time dimensions, TODO: consider time dimension
+        # the whole function assumes there is no time dimension
+        ndim = element.ndim
+        # "dims" are the axes of the element in the source coordinate system (implicit coordinate system of the labels
+        dims = ['x', 'y', 'z'][:ndim]
+
+        assert list(dims) == [ax for ax in ["x", "y", "z"] if ax in dims]
+        # "axes" are the axes of the element in the target coordinate system
+        affine, axes = self._get_transform(element=element)
+
+        target_order_pre = [ax for ax in axes if ax in dims]
+        target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in axes]
+
+        from spatialdata import Affine
+
+        fix_order_pre = Affine._get_affine_iniection_from_axes(dims, target_order_pre)
+        fix_order_post = Affine._get_affine_iniection_from_axes(axes, target_order_post)
+        affine = fix_order_post @ affine @ fix_order_pre
+
         ndim = element.ndim
         out_space_dim = affine.shape[0] - 1
         in_space_dim = affine.shape[1] - 1
@@ -183,11 +221,11 @@ class Interactive:
         else:
             metadata = {}
         metadata["coordinate_systems"] = list(points.coordinate_systems.keys())
-        metadata['sdata'] = self.sdata
+        metadata["sdata"] = self.sdata
         affine = self._get_affine_for_points_polygons(element=points)
         self._viewer.add_points(
             spatial,
-            name=name,
+            name=self._suffix_from_full_name(name),
             edge_color="white",
             face_color="white",
             size=2 * radii,
@@ -213,12 +251,12 @@ class Interactive:
             metadata = {}
         ##
         metadata["coordinate_systems"] = list(polygons.coordinate_systems.keys())
-        metadata['sdata'] = self.sdata
+        metadata["sdata"] = self.sdata
         affine = self._get_affine_for_points_polygons(element=polygons)
         self._viewer.add_shapes(
             coordinates,
             shape_type="polygon",
-            name=name,
+            name=self._suffix_from_full_name(name),
             edge_width=5.0,
             edge_color="white",
             face_color=np.array([0.0, 0, 0.0, 0.0]),
@@ -358,11 +396,10 @@ class Interactive:
 
     def _add_layers_from_sdata(self, sdata: SpatialData):
         ##
-        merged = itertools.chain.from_iterable(
-            (sdata.images.items(), sdata.labels.items(), sdata.points.items(), sdata.polygons.items())
-        )
-        for name, element in merged:
-            self.add_spatial_element(element, annotation_table=sdata.table, name=name)
+        for prefix in ["images", "labels", "points", "polygons"]:
+            d = sdata.__getattribute__(prefix)
+            for name, element in d.items():
+                self.add_spatial_element(element, annotation_table=sdata.table, name=f"/{prefix}/{name}")
         ##
 
     def screenshot(

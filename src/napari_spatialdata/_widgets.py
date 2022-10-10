@@ -122,7 +122,8 @@ class AListWidget(ListWidget):
                 continue
             if vec.ndim == 2:
                 self.viewer.add_points(
-                    vec,
+                    # is fliplr the right thing here or is the first column to be kept as it is?
+                    np.fliplr(vec),
                     name=name,
                     edge_color="white",
                     face_color="white",
@@ -134,7 +135,7 @@ class AListWidget(ListWidget):
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
                 if isinstance(self.model.layer, Image) or isinstance(self.model.layer, Points):
                     self.viewer.add_points(
-                        self.model.coordinates,
+                        self.model.coordinates[:, np.array([0, 2, 1])],
                         name=name,
                         size=self.model.spot_diameter,
                         opacity=1,
@@ -146,7 +147,7 @@ class AListWidget(ListWidget):
                     )
                 elif isinstance(self.model.layer, Labels):
                     self.viewer.add_labels(
-                        self.model.layer.data.copy(),
+                        self.model.layer.data.copy().transpose(),
                         name=name,
                         **properties,
                     )
