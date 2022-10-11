@@ -99,41 +99,41 @@ class Interactive:
 
         # "dims" are the axes of the element in the source coordinate system (implicit coordinate system of the labels
         # or image)
-        dims = element.data.dims
-        assert list(dims) == [ax for ax in ["t", "c", "z", "y", "x"] if ax in dims]
+        src_axes = element.data.dims
+        assert list(src_axes) == [ax for ax in ["t", "c", "z", "y", "x"] if ax in src_axes]
         # "axes" are the axes of the element in the target coordinate system
-        affine, axes = self._get_transform(element=element)
+        affine, des_axes = self._get_transform(element=element)
 
-        target_order_pre = [ax for ax in axes if ax in dims]
-        target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in axes]
+        target_order_pre = [ax for ax in des_axes if ax in src_axes]
+        target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in des_axes]
 
         from spatialdata import Affine
 
-        fix_order_pre = Affine._get_affine_iniection_from_axes(dims, target_order_pre)
-        fix_order_post = Affine._get_affine_iniection_from_axes(axes, target_order_post)
-        affine = fix_order_post @ affine @ fix_order_pre
+        # fix_order_pre = Affine._get_affine_iniection_from_axes(src_axes, target_order_pre)
+        # fix_order_post = Affine._get_affine_iniection_from_axes(des_axes, target_order_post)
+        # affine = fix_order_post @ affine @ fix_order_pre
 
         rows_to_keep = list(range(affine.shape[0]))
-        if "t" in axes:
-            rows_to_keep.remove(axes.index("t"))
-        if "c" in axes:
-            rows_to_keep.remove(axes.index("c"))
+        if "t" in des_axes:
+            rows_to_keep.remove(des_axes.index("t"))
+        if "c" in des_axes:
+            rows_to_keep.remove(des_axes.index("c"))
         cols_to_keep = list(range(affine.shape[1]))
-        if "t" in dims:
-            cols_to_keep.remove(dims.index("t"))
-        if "c" in dims:
-            cols_to_keep.remove(dims.index("c"))
+        if "t" in src_axes:
+            cols_to_keep.remove(src_axes.index("t"))
+        if "c" in src_axes:
+            cols_to_keep.remove(src_axes.index("c"))
         cropped_affine = affine[np.ix_(rows_to_keep, cols_to_keep)]
 
         # adjust channel ordering
         rgb = False
-        if "t" in dims:
+        if "t" in src_axes:
             # where do we put the time axis?
             raise NotImplementedError("Time dimension not supported yet")
-        if "c" in dims:
-            assert "c" in dims
-            assert dims.index("c") == 0
-            new_order = [dims[i] for i in range(1, len(dims))] + ["c"]
+        if "c" in src_axes:
+            assert "c" in src_axes
+            assert src_axes.index("c") == 0
+            new_order = [src_axes[i] for i in range(1, len(src_axes))] + ["c"]
             new_raster = element.data.transpose(*new_order)
             rgb = True
         else:
@@ -175,7 +175,8 @@ class Interactive:
     def _get_affine_for_points_polygons(self, element: BaseElement) -> np.ndarray:
         # the whole function assumes there is no time dimension
         ndim = element.ndim
-        # "dims" are the axes of the element in the source coordinate system (implicit coordinate system of the labels
+        # "src_axes" are the axes of the element in the source coordinate system (implicit coordinate system of the
+        # labels
         dims = ['x', 'y', 'z'][:ndim]
 
         assert list(dims) == [ax for ax in ["x", "y", "z"] if ax in dims]

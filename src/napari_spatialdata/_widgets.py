@@ -147,7 +147,7 @@ class AListWidget(ListWidget):
                     )
                 elif isinstance(self.model.layer, Labels):
                     self.viewer.add_labels(
-                        self.model.layer.data.copy().transpose(),
+                        self.model.layer.data.copy(),
                         name=name,
                         **properties,
                     )
