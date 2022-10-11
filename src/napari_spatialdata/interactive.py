@@ -312,13 +312,12 @@ class Interactive:
         # TODO: use xarray apis
         x = np.array(labels.data)
         u = np.unique(x)
-        backgrond = 0 in u
+        # backgrond = 0 in u
         # adjacent_labels = (len(u) - 1 if backgrond else len(u)) == np.max(u)
         available_u = annotating_rows.obs[instance_key]
         u_not_annotated = np.setdiff1d(u, available_u)
         if len(u_not_annotated) > 0:
             logger.warning(f"{len(u_not_annotated)}/{len(u)} labels not annotated: {u_not_annotated}")
-            # TODO: display them in a different way, maybe in red
         annotating_rows = annotating_rows[annotating_rows.obs[instance_key].isin(u), :]
 
         # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
@@ -326,8 +325,6 @@ class Interactive:
         annotating_rows.uns[Key.uns.spatial][name] = {}
         annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key] = {}
         annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
-        # TODO: we need to flip the y axis here, investigate the reason of this mismatch
-        # a user reported a similar behavior https://github.com/kevinyamauchi/ome-ngff-tables-prototype/pull/8#issuecomment-1165363992
         list_of_cx = []
         list_of_cy = []
         list_of_v = []
@@ -342,11 +339,11 @@ class Interactive:
         merged = pd.merge(
             annotating_rows.obs, centroids, left_on=instance_key, right_on="v", how="left", indicator=True
         )
-        background = merged.query('_merge == "left_only"')
-        assert len(background) == 1
-        assert background.loc[background.index[0], instance_key] == 0
-        index_of_background = merged[merged[instance_key] == 0].index[0]
-        merged.loc[index_of_background, "v"] = 0
+        # background = merged.query('_merge == "left_only"')
+        # assert len(background) == 1
+        # assert background.loc[background.index[0], instance_key] == 0
+        # index_of_background = merged[merged[instance_key] == 0].index[0]
+        # merged.loc[index_of_background, "v"] = 0
         merged["v"] = merged["v"].astype(int)
 
         assert len(annotating_rows) == len(merged)
@@ -354,7 +351,7 @@ class Interactive:
 
         merged_centroids = merged[["cx", "cy"]].to_numpy()
         assert len(merged_centroids) == len(merged)
-        annotating_rows.obsm["spatial"] = np.fliplr(merged_centroids)
+        annotating_rows.obsm["spatial"] = merged_centroids
         annotating_rows.obsm["region_radius"] = np.array([10.0] * len(merged_centroids))  # arbitrary value
         return annotating_rows
 
@@ -382,9 +379,7 @@ class Interactive:
         annotating_rows.uns[Key.uns.spatial][name] = {}
         annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key] = {}
         annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
-        # TODO: we need to flip the y axis here, investigate the reason of this mismatch
-        # a user reported a similar behavior https://github.com/kevinyamauchi/ome-ngff-tables-prototype/pull/8#issuecomment-1165363992
-        annotating_rows.obsm["spatial"] = np.fliplr(points.data.obsm["spatial"])
+        annotating_rows.obsm["spatial"] = points.data.obsm["spatial"]
         # workaround for the legacy code to support different sizes for different points
         annotating_rows.obsm["region_radius"] = points.data.obsm["region_radius"]
         return annotating_rows
