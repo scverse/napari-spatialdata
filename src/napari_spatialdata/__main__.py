@@ -1,10 +1,9 @@
 import click
 import os
-import pathlib
 
 
 @click.command(help="Interactive visualization of OME-NGFF spatial data (.zarr) with napari")
-@click.argument("dataset", default=False, type=str)
+@click.argument("path", default=False, type=str)
 def view(path):
     if not os.path.isdir(path):
         print(

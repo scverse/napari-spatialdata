@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import TypeVar, Any, TYPE_CHECKING, Optional, Union
+
+import os
+from typing import TypeVar, Any, TYPE_CHECKING, Optional, Union, Tuple
 import napari
 from loguru import logger
 from napari_spatialdata._utils import save_fig, NDArrayA
@@ -36,6 +38,8 @@ class Interactive:
     """
 
     def __init__(self, sdata: SpatialData, with_widgets: bool = True):
+        # os.environ['NAPARI_ASYNC'] = '1'
+        # os.environ['NAPARI_OCTREE'] = '1'
         self._viewer = napari.Viewer()
         self.sdata = sdata
         self._add_layers_from_sdata(sdata=self.sdata)
@@ -83,7 +87,11 @@ class Interactive:
         from spatialdata import Identity, Scale, Translation, Affine, Rotation, Sequence
 
         if isinstance(ct, Identity):
+            assert len(cs.axes) == element.ndim
             affine = np.eye(len(cs.axes) + 1, element.ndim + 1)
+            # affine = np.hstack((affine, np.zeros((len(cs.axes), 1))))
+            # affine = np.vstack((affine, np.zeros((1, element.ndim + 1))))
+            # affine[-1, -1] = 1
         elif any([isinstance(ct, tt) for tt in [Scale, Translation, Affine, Rotation, Sequence]]):
             affine = ct.to_affine().affine
         else:
@@ -104,10 +112,10 @@ class Interactive:
         # "axes" are the axes of the element in the target coordinate system
         affine, des_axes = self._get_transform(element=element)
 
-        target_order_pre = [ax for ax in des_axes if ax in src_axes]
-        target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in des_axes]
-
-        from spatialdata import Affine
+        # target_order_pre = [ax for ax in des_axes if ax in src_axes]
+        # target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in des_axes]
+        #
+        # from spatialdata import Affine
 
         # fix_order_pre = Affine._get_affine_iniection_from_axes(src_axes, target_order_pre)
         # fix_order_post = Affine._get_affine_iniection_from_axes(des_axes, target_order_post)
@@ -134,10 +142,16 @@ class Interactive:
             assert "c" in src_axes
             assert src_axes.index("c") == 0
             new_order = [src_axes[i] for i in range(1, len(src_axes))] + ["c"]
-            new_raster = element.data.transpose(*new_order)
+            if element.multiscales is None:
+                new_raster = element.data.transpose(*new_order)
+            else:
+                new_raster = [data.transpose(*new_order) for data in element.multiscales]
             rgb = True
         else:
-            new_raster = element.data
+            if element.multiscales is None:
+                new_raster = element.data
+            else:
+                new_raster = element.multiscales
         return new_raster, cropped_affine, rgb
 
     def _suffix_from_full_name(self, name: str):
@@ -177,19 +191,19 @@ class Interactive:
         ndim = element.ndim
         # "src_axes" are the axes of the element in the source coordinate system (implicit coordinate system of the
         # labels
-        dims = ['x', 'y', 'z'][:ndim]
+        src_axes = ['x', 'y', 'z'][:ndim]
 
-        assert list(dims) == [ax for ax in ["x", "y", "z"] if ax in dims]
+        assert list(src_axes) == [ax for ax in ["x", "y", "z"] if ax in src_axes]
         # "axes" are the axes of the element in the target coordinate system
-        affine, axes = self._get_transform(element=element)
+        affine, des_axes = self._get_transform(element=element)
 
-        target_order_pre = [ax for ax in axes if ax in dims]
-        target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in axes]
+        target_order_pre = [ax for ax in des_axes if ax in src_axes]
+        target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in des_axes]
 
         from spatialdata import Affine
 
-        fix_order_pre = Affine._get_affine_iniection_from_axes(dims, target_order_pre)
-        fix_order_post = Affine._get_affine_iniection_from_axes(axes, target_order_post)
+        fix_order_pre = Affine._get_affine_iniection_from_axes(src_axes, target_order_pre)
+        fix_order_post = Affine._get_affine_iniection_from_axes(des_axes, target_order_post)
         affine = fix_order_post @ affine @ fix_order_pre
 
         ndim = element.ndim
@@ -258,8 +272,8 @@ class Interactive:
             coordinates,
             shape_type="polygon",
             name=self._suffix_from_full_name(name),
-            edge_width=5.0,
-            edge_color="white",
+            edge_width=10.0,
+            edge_color="red",
             face_color=np.array([0.0, 0, 0.0, 0.0]),
             metadata=metadata,
             affine=affine,

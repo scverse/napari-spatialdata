@@ -126,7 +126,7 @@ class AListWidget(ListWidget):
                     name=name,
                     edge_color="white",
                     face_color="white",
-                    edge_width=0.,
+                    edge_width=0.0,
                     size=self.model.point_diameter,
                     symbol=self.model.symbol,
                 )
@@ -140,13 +140,16 @@ class AListWidget(ListWidget):
                         opacity=1,
                         face_colormap=self.model.cmap,
                         edge_colormap=self.model.cmap,
-                        edge_width=0.,
+                        edge_width=0.0,
                         symbol=self.model.symbol,
                         **properties,
                     )
                 elif isinstance(self.model.layer, Labels):
+                    # TODO: fix this workaround; do we need to copy?
                     self.viewer.add_labels(
-                        self.model.layer.data.copy(),
+                        self.model.layer.data.copy()
+                        if not isinstance(self.model.layer.data, napari.layers._multiscale_data.MultiScaleData)
+                        else self.model.layer.data,
                         name=name,
                         **properties,
                     )
@@ -434,6 +437,7 @@ class RangeSliderWidget(QRangeSlider):
         scaler = MinMaxScaler(feature_range=(minn, maxx))
         return scaler.fit_transform(vec.reshape(-1, 1))
 
+
 class CoordinateSystemSelector(ListWidget):
     def __init__(self, viewer: Viewer, **kwargs: Any):
         super().__init__(viewer, **kwargs)
@@ -441,8 +445,8 @@ class CoordinateSystemSelector(ListWidget):
         self.coordinate_systems = []
         for layer in self.viewer.layers:
             metadata = layer.metadata
-            if 'coordinate_systems' in metadata:
-                coordinate_systems = metadata['coordinate_systems']
+            if "coordinate_systems" in metadata:
+                coordinate_systems = metadata["coordinate_systems"]
                 for cs in coordinate_systems:
                     if cs not in self.coordinate_systems:
                         self.coordinate_systems.append(cs)
@@ -455,8 +459,8 @@ class CoordinateSystemSelector(ListWidget):
     def _onCoordinateSystemChange(self, text: str) -> None:
         for layer in self.viewer.layers:
             metadata = layer.metadata
-            if 'coordinate_systems' in metadata:
-                coordinate_systems = metadata['coordinate_systems']
+            if "coordinate_systems" in metadata:
+                coordinate_systems = metadata["coordinate_systems"]
                 if text in coordinate_systems:
                     if not layer.visible:
                         layer.visible = True

@@ -24,6 +24,7 @@ from napari_spatialdata._widgets import (
     CoordinateSystemSelector,
 )
 from napari_spatialdata._constants._pkg_constants import Key
+from napari.utils.notifications import show_info
 
 __all__ = ["QtAdataViewWidget"]
 
@@ -170,51 +171,57 @@ class QtAdataViewWidget(QWidget):
 
     def export(self, _: napari.viewer.Viewer) -> None:
         """Export shapes into :class:`AnnData` object."""
-        for layer in self.viewer.layers:
-            if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
-                continue
-            if not len(layer.data):
-                logger.warn(f"Shape layer `{layer.name}` has no visible shapes.")
-                continue
 
-            key = f"{layer.name}_{self.model.layer.name}"
+        # for layer in self.viewer.layers:
+        #     if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
+        #         continue
+        #     if not len(layer.data):
+        #         logger.warn(f"Shape layer `{layer.name}` has no visible shapes.")
+        #         continue
+        #
+        #     key = f"{layer.name}_{self.model.layer.name}"
 
-            logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
-            self._save_shapes(layer, key=key)
-            self._update_obs_items(key)
-            sdata = None
-            for ll in self.viewer.layers:
-                if ll.visible:
-                    if "sdata" in ll.metadata:
-                        sdata = ll.metadata["sdata"]
-            if sdata is None:
-                raise RuntimeError(
-                    "Cannot save polygons because no layer associated with a SpatialData object is "
-                    "currently visible."
-                )
-            else:
-                ##
-                from spatialdata._core.elements import Polygons
-                from spatialdata import Identity
+        # logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
+        # self._save_shapes(layer, key=key)
+        # self._update_obs_items(key)
+        selection = self.viewer.layers.selection
+        assert len(selection) == 1
+        layer = selection.__iter__().__next__()
+        # key = f"{layer.name}_{self.model.layer.name}"
+        sdata = None
+        for ll in self.viewer.layers:
+            if ll.visible:
+                if "sdata" in ll.metadata:
+                    sdata = ll.metadata["sdata"]
+        if sdata is None:
+            raise RuntimeError(
+                "Cannot save polygons because no layer associated with a SpatialData object is " "currently visible."
+            )
+        else:
+            ##
+            from spatialdata._core.elements import Polygons
+            from spatialdata import Affine
 
-                # get current coordinate system
-                selected = self._coordinate_system_selector.selectedItems()
-                assert len(selected) == 1
-                cs_name = selected[0].text()
-                cs_valid = [cs for cs in sdata.coordinate_systems if cs.name == cs_name]
-                assert len(cs_valid) == 1
-                cs = cs_valid[0]
-                coords = self.model.adata.uns[key]["meshes"]
-                string_coords = [Polygons.tensor_to_string(c) for c in coords]
-                names = [f"poly_{i}" for i in range(len(coords))]
-                adata = AnnData(shape=(len(coords), 0), obs=pd.DataFrame({"name": names, "spatial": string_coords}))
-                polygons = Polygons(adata, alignment_info={cs: Identity()})
-                zarr_name = key.replace(' ', '_').replace('[', '').replace(']', '')
-                sdata.polygons[zarr_name] = polygons
-                if sdata.is_backed():
-                    sdata.save_element("polygons", zarr_name, overwrite=True)
-                ##
-                # TODO: associate the current layer with the SpatialData object
+            # get current coordinate system
+            selected = self._coordinate_system_selector.selectedItems()
+            assert len(selected) == 1
+            cs_name = selected[0].text()
+            cs = sdata.coordinate_systems[cs_name]
+            key = f"{layer.name}_{cs_name}"
+            # coords = self.model.adata.uns[key]["meshes"]
+            coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
+            string_coords = [Polygons.tensor_to_string(c) for c in coords]
+            names = [f"poly_{i}" for i in range(len(coords))]
+            adata = AnnData(shape=(len(coords), 0), obs=pd.DataFrame({"name": names, "spatial": string_coords}))
+            logger.info(str(cs.to_dict()))
+            polygons = Polygons(adata, alignment_info={cs: Affine([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])})
+            zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
+            sdata.polygons[zarr_name] = polygons
+            if sdata.is_backed():
+                sdata._save_element("polygons", zarr_name, overwrite=True)
+            show_info(f"Polygons saved in the SpatialData object")
+            ##
+            # TODO: associate the current layer with the SpatialData object
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
         shape_list = layer._data_view
