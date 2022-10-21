@@ -146,7 +146,6 @@ class QtAdataScatterWidget(QWidget):
             logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
             self._update_obs_items(key)
 
-
     def _update_obs_items(self, key: str) -> None:
         self.obs_widget.addItems(key)
         if key in self.layernames:
