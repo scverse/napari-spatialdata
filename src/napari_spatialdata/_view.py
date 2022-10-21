@@ -83,6 +83,7 @@ class QtAdataScatterWidget(QWidget):
 
         self.layout().addWidget(self.plot_button_widget, 8, 0, 8, 0)
 
+        self.viewer.bind_key("Shift-S", self.export)
         self.model.events.adata.connect(self._on_selection)
 
     def _on_selection(self, event: Optional[Any] = None) -> None:
@@ -130,6 +131,30 @@ class QtAdataScatterWidget(QWidget):
                 "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
             )
         return adata_layers
+
+    def export(self, _: napari.viewer.Viewer) -> None:
+        """Export shapes into :class:`AnnData` object."""
+        for layer in self.viewer.layers:
+            if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
+                continue
+            if not len(layer.data):
+                logger.warn(f"Shape layer `{layer.name}` has no visible shapes.")
+                continue
+
+            key = f"{layer.name}_selection_scatter"
+
+            logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
+            self._update_obs_items(key)
+
+
+    def _update_obs_items(self, key: str) -> None:
+        self.obs_widget.addItems(key)
+        if key in self.layernames:
+            # update already present layer
+            layer = self.viewer.layers[key]
+            layer.face_color = _get_categorical(self.model.adata, key)
+            layer._update_thumbnail()
+            layer.refresh_colors()
 
     @property
     def viewer(self) -> napari.Viewer:

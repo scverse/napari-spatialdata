@@ -73,10 +73,11 @@ class SelectFromCollection:
         self.fc[self.ind, -1] = 1
         self.collection.set_facecolors(self.fc)
         self.canvas.draw_idle()
-                
+        self.selected_coordinates = self.xys[self.ind].data
+    
         # TODO: (1) store indicies to anndata (2) color selected points separately
 
-        logger.debug(self.ind)
+        logger.debug(self.selected_coordinates)
 
     def disconnect(self):
         self.selector.disconnect_events()
