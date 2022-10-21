@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
@@ -7,6 +6,8 @@ from qtpy import QtWidgets
 from loguru import logger
 from qtpy.QtCore import Signal
 from napari.viewer import Viewer
+from matplotlib.path import Path
+from matplotlib.widgets import LassoSelector
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
 
@@ -14,13 +15,11 @@ from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA, _get_categorical
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
 
-from matplotlib.widgets import LassoSelector, PolygonSelector
-from matplotlib.path import Path
-
 __all__ = [
     "MatplotlibWidget",
     "AxisWidgets",
 ]
+
 
 class SelectFromCollection:
     """
@@ -56,16 +55,15 @@ class SelectFromCollection:
         # Ensure that we have separate colors for each object
         self.fc = collection.get_facecolors()
         if len(self.fc) == 0:
-            raise ValueError('Collection must have a facecolor')
+            raise ValueError("Collection must have a facecolor")
         elif len(self.fc) == 1:
             self.fc = np.tile(self.fc, (self.Npts, 1))
 
         self.selector = LassoSelector(ax, onselect=self.onselect)
-        #self.selector = PolygonSelector(ax, self.onselect)
+        # self.selector = PolygonSelector(ax, self.onselect)
 
         self.ind = []
 
-    
     def onselect(self, verts):
         path = Path(verts)
         self.ind = np.nonzero(path.contains_points(self.xys))[0]
@@ -85,6 +83,7 @@ class SelectFromCollection:
         self.fc[:, -1] = 1
         self.collection.set_facecolors(self.fc)
         self.canvas.draw_idle()
+
 
 class ScatterListWidget(AListWidget):
     attrChanged = Signal()
@@ -199,9 +198,8 @@ class MatplotlibWidget(NapariMPLWidget):
         color_label: Optional[str],
     ) -> None:
 
-    
         self.points = self.axes.scatter(x=x_data, y=y_data, c=color_data, alpha=0.5)
-        
+
         logger.debug("Points: {}", self.points)
         logger.debug("X axis: {}", x_data)
         logger.debug("Y axis: {}", y_data)
