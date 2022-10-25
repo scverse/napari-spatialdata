@@ -12,7 +12,7 @@ from napari_spatialdata._utils import NDArrayA
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
 @pytest.mark.parametrize("widget", [QtAdataViewWidget])
 def test_creating_widget_with_data(
-    make_napari_viewer: Any,
+    make_napari_viewer: Any,    
     widget: Any,
     image: NDArrayA,
     adata_shapes: AnnData,
