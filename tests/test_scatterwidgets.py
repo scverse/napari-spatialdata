@@ -1,7 +1,6 @@
 from typing import Any
 
 from anndata import AnnData
-from napari.layers import Image, Labels, Points
 import pytest
 
 from napari_spatialdata._view import QtAdataScatterWidget
@@ -12,7 +11,7 @@ from napari_spatialdata._utils import NDArrayA
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
 @pytest.mark.parametrize("widget", [QtAdataScatterWidget])
 def test_creating_widget_with_data(
-    make_napari_viewer: Any,    
+    make_napari_viewer: Any,
     widget: Any,
     image: NDArrayA,
     adata_shapes: AnnData,
