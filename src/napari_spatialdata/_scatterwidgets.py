@@ -82,7 +82,7 @@ class ScatterListWidget(AListWidget):
 
     @text.setter
     def text(self, text: Optional[Union[str, int]]) -> None:
-        self._text = str(text) if text is not None else None
+        self._text = text if text is not None else None
 
     @property
     def data(self) -> Union[None, NDArrayA]:

@@ -1,7 +1,8 @@
-from typing import Any
+from typing import Any, Union
 
 from anndata import AnnData
 from napari.layers import Image, Labels, Points
+import numpy as np
 import pytest
 
 from napari_spatialdata._view import QtAdataViewWidget, QtAdataScatterWidget
@@ -139,3 +140,80 @@ def test_change_layer(
     # check adata layers
     assert len(widget._get_adata_layer()) == 1
     assert widget._get_adata_layer()[0] is None
+
+
+@pytest.mark.parametrize("widget", [QtAdataScatterWidget])
+@pytest.mark.parametrize("attr, item, text", [("obs", "a", None), ("obsm", "spatial", 1)])
+def test_scatterlistwidget(
+    make_napari_viewer: Any,
+    widget: Any,
+    adata_labels: AnnData,
+    image: NDArrayA,
+    attr: str,
+    item: str,
+    text: Union[str, int, None],
+) -> None:
+    viewer = make_napari_viewer()
+    layer_name = "labels"
+
+    viewer.add_labels(
+        image,
+        name=layer_name,
+        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
+    )
+
+    widget = widget(viewer)
+    layer = viewer.layers.selection.active
+    widget._layer_selection_widget(layer)
+    assert isinstance(widget.model, ImageModel)
+    assert isinstance(widget.model.layer, Labels)
+    assert widget.model.library_id == "labels"
+
+    # change attr
+
+    widget.x_widget.widget.setAttribute(attr)
+    assert widget.x_widget.widget.getAttribute() == attr
+    widget.x_widget.widget.setComponent(text)
+    assert widget.x_widget.widget.text == text
+    widget.x_widget.widget._onAction(items=[item])
+    if attr == "obsm":
+        assert np.array_equal(widget.x_widget.widget.data, getattr(adata_labels, attr)[item][:, text])
+    else:
+        assert np.array_equal(widget.x_widget.widget.data, getattr(adata_labels, attr)[item])
+
+
+@pytest.mark.parametrize("widget", [QtAdataScatterWidget])
+@pytest.mark.parametrize("attr, item", [("obs", "categorical")])
+def test_categorical(
+    make_napari_viewer: Any,
+    widget: Any,
+    adata_labels: AnnData,
+    image: NDArrayA,
+    attr: str,
+    item: str,
+) -> None:
+    viewer = make_napari_viewer()
+    layer_name = "labels"
+
+    viewer.add_labels(
+        image,
+        name=layer_name,
+        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
+    )
+
+    widget = widget(viewer)
+    layer = viewer.layers.selection.active
+    widget._layer_selection_widget(layer)
+    assert isinstance(widget.model, ImageModel)
+    assert isinstance(widget.model.layer, Labels)
+    assert widget.model.library_id == "labels"
+
+    widget.x_widget.widget.setAttribute(attr)
+    widget.x_widget.widget._onAction(items=[item])
+
+    widget.color_widget.widget.setAttribute(attr)
+    widget.color_widget.widget._onAction(items=[item])
+
+    assert widget.x_widget.widget.data.dtype.name == "category"
+    assert widget.color_widget.widget.data.dtype.name != "category"
+    assert isinstance(widget.color_widget.widget.data, np.ndarray)
