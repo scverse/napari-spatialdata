@@ -120,9 +120,9 @@ class MatplotlibWidget(NapariMPLWidget):
         logger.debug("Color Label: {}", color_label)  # noqa: P103
 
         self.clear()
-        self.draw(x_data, x_label, y_data, y_label, color_data, color_label)
+        self.plot(x_data, x_label, y_data, y_label, color_data, color_label)
 
-    def draw(
+    def plot(
         self,
         x_data: NDArrayA,
         x_label: Optional[str],
