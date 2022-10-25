@@ -1,65 +1,19 @@
 from typing import Any
 
-from anndata import AnnData
-import pytest
-
-from napari_spatialdata._view import QtAdataScatterWidget
-from napari_spatialdata._utils import NDArrayA
+from napari_spatialdata._model import ImageModel
+from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
 
-# make_napari_viewer is a pytest fixture that returns a napari viewer object
-@pytest.mark.parametrize("widget", [QtAdataScatterWidget])
-def test_creating_widget_with_data(
-    make_napari_viewer: Any,
-    widget: Any,
-    image: NDArrayA,
-    adata_shapes: AnnData,
-) -> None:
-    # make viewer and add an image layer using our fixture
+def test_matplotlib_widget(make_napari_viewer: Any):
+    # Smoke test adding a matplotlib widget
     viewer = make_napari_viewer()
-    viewer.add_image(
-        image,
-        rgb=True,
-        name="image",
-        metadata={"adata": adata_shapes, "library_id": "shapes"},
-    )
 
-    # create our widget, passing in the viewer
-    _ = widget(viewer)
+    import numpy as np
+
+    viewer.add_image(np.random.random((100, 100)))
+    viewer.add_labels(np.random.randint(0, 5, (100, 100)))
+    MatplotlibWidget(viewer, ImageModel)
 
 
-# @pytest.mark.parametrize("widget", [QtAdataScatterWidget])
-# def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> None:
-#     # make viewer and add an image layer using our fixture
-#     viewer = make_napari_viewer()
-
-#     # create our widget, passing in the viewer
-#     with pytest.raises(NotImplementedError, match=r"`AnnData` not found."):
-#         _ = widget(viewer)
-
-
-# @pytest.mark.parametrize("widget", [QtAdataScatterWidget])
-# def test_model(
-#     make_napari_viewer: Any,
-#     widget: Any,
-#     labels: NDArrayA,
-#     adata_labels: AnnData,
-# ) -> None:
-#     # make viewer and add an image layer using our fixture
-#     viewer = make_napari_viewer()
-
-#     viewer.add_labels(
-#         labels,
-#         name="labels",
-#         metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
-#     )
-
-#     widget = widget(viewer)
-#     layer = viewer.layers.selection.active
-#     widget._layer_selection_widget(layer)
-#     assert isinstance(widget.model, ImageModel)
-#     assert widget.model.library_id == "labels"
-#     assert widget.model.adata is adata_labels
-#     assert widget.model.coordinates.shape[0] == adata_labels.shape[0]
-# assert widget.model.coordinates.ndim == 2
-# assert widget.model.labels_key == "cell_id"
+# TODO: Add more tests (tests for napari-matplotlib seems like a good place to start)
+# https://github.com/matplotlib/napari-matplotlib/blob/main/src/napari_matplotlib/tests/test_scatter.py

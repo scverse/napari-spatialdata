@@ -4,13 +4,13 @@ from anndata import AnnData
 from napari.layers import Image, Labels, Points
 import pytest
 
-from napari_spatialdata._view import QtAdataViewWidget
+from napari_spatialdata._view import QtAdataViewWidget, QtAdataScatterWidget
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
-@pytest.mark.parametrize("widget", [QtAdataViewWidget])
+@pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
 def test_creating_widget_with_data(
     make_napari_viewer: Any,
     widget: Any,
@@ -30,7 +30,7 @@ def test_creating_widget_with_data(
     _ = widget(viewer)
 
 
-@pytest.mark.parametrize("widget", [QtAdataViewWidget])
+@pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
 def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> None:
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
@@ -40,7 +40,7 @@ def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> 
         _ = widget(viewer)
 
 
-@pytest.mark.parametrize("widget", [QtAdataViewWidget])
+@pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
 def test_model(
     make_napari_viewer: Any,
     widget: Any,
