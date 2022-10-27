@@ -119,11 +119,13 @@ class MatplotlibWidget(NapariMPLWidget):
         logger.debug("Color Data: {}", color_data)  # noqa: P103
         logger.debug("Color Label: {}", color_label)  # noqa: P103
 
-        self.clear()
-        self.axes.scatter(x=x_data, y=y_data, c=color_data, alpha=0.5)
+        self.axes.clear()
 
+        self.axes.scatter(x=x_data, y=y_data, c=color_data, alpha=0.5)
         self.axes.set_xlabel(x_label)
         self.axes.set_ylabel(y_label)
+
+        self.canvas.draw()
 
     def clear(self) -> None:
         self.axes.clear()
