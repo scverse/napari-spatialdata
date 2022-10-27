@@ -3,6 +3,7 @@ from typing import Any, Union
 from anndata import AnnData
 from napari.layers import Image, Labels, Points
 import numpy as np
+import pandas as pd
 import pytest
 
 from napari_spatialdata._view import QtAdataViewWidget, QtAdataScatterWidget
@@ -218,3 +219,51 @@ def test_categorical_and_error(
     with pytest.raises(ValueError) as err:
         widget.y_widget.widget.setAttribute("nothing")
     assert "nothing is not a valid adata field." in str(err.value)
+
+
+@pytest.mark.parametrize("widget", [QtAdataScatterWidget])
+def test_component_widget(
+    make_napari_viewer: Any,
+    widget: Any,
+    adata_labels: AnnData,
+    image: NDArrayA,
+) -> None:
+    viewer = make_napari_viewer()
+    layer_name = "labels"
+
+    viewer.add_labels(
+        image,
+        name=layer_name,
+        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
+    )
+
+    widget = widget(viewer)
+    layer = viewer.layers.selection.active
+    widget._layer_selection_widget(layer)
+
+    widget.x_widget.selection_widget.setCurrentText("obsm")
+    for i in range(widget.x_widget.widget.count()):
+        widget.x_widget.component_widget._onClickChange(widget.x_widget.widget.item(i))
+        if isinstance(adata_labels.obsm[widget.x_widget.widget.item(i).text()], pd.DataFrame):
+            assert (
+                (
+                    widget.x_widget.component_widget.itemText(i)
+                    in adata_labels.obsm[widget.x_widget.widget.item(i).text()].keys()
+                )
+                for i in range(widget.x_widget.component_widget.count())
+            )
+        else:
+            assert (
+                widget.x_widget.component_widget.count()
+                == np.shape(adata_labels.obsm[widget.x_widget.widget.item(i).text()])[1]
+            )
+
+    widget.x_widget.selection_widget.setCurrentText("obs")
+    assert widget.x_widget.component_widget.count() == 0
+
+    widget.x_widget.selection_widget.setCurrentText("var")
+    assert widget.x_widget.component_widget.count() == len(adata_labels.layers.keys()) + 1
+    assert (
+        widget.x_widget.component_widget.itemText(i) in [adata_labels.layers.keys(), "X"]
+        for i in range(widget.x_widget.component_widget.count())
+    )
