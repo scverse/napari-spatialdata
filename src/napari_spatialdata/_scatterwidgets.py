@@ -8,6 +8,7 @@ from qtpy.QtCore import Signal
 from napari.viewer import Viewer
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
+import napari
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA, _get_categorical
@@ -98,8 +99,8 @@ class MatplotlibWidget(NapariMPLWidget):
 
         super().__init__(viewer)
 
-        self.viewer = viewer
-        self.model = model
+        self._viewer = viewer
+        self._model = model
         self.axes = self.canvas.figure.subplots()
 
     def plot(
@@ -133,10 +134,12 @@ class MatplotlibWidget(NapariMPLWidget):
 
 class AxisWidgets(QtWidgets.QWidget):
     def __init__(self, viewer: Viewer, model: ImageModel, name: str, color: bool = False):
+
         super().__init__()
 
-        self.viewer = viewer
-        self.model = model
+        self._viewer = viewer
+        self._model = model
+
         selection_label = QtWidgets.QLabel(f"{name} type:")
         selection_label.setToolTip("Select between obs, obsm and var.")
         self.selection_widget = QtWidgets.QComboBox()
@@ -166,3 +169,13 @@ class AxisWidgets(QtWidgets.QWidget):
         self.selection_widget.currentTextChanged.connect(self.widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
+
+    @property
+    def viewer(self) -> napari.Viewer:
+        """:mod:`napari` viewer."""
+        return self._viewer
+
+    @property
+    def model(self) -> ImageModel:
+        """:mod:`napari` viewer."""
+        return self._model

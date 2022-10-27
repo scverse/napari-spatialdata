@@ -104,8 +104,8 @@ class AListWidget(ListWidget):
             raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
 
-        self.viewer = viewer
-        self.model = model
+        self._viewer = viewer
+        self._model = model
 
         self._attr = attr
         self._getter = getattr(self.model, f"get_{attr}")
@@ -234,6 +234,16 @@ class AListWidget(ListWidget):
             "features": cluster_labels,
             "metadata": None,
         }
+
+    @property
+    def viewer(self) -> napari.Viewer:
+        """:mod:`napari` viewer."""
+        return self._viewer
+
+    @property
+    def model(self) -> ImageModel:
+        """:mod:`napari` viewer."""
+        return self._model
 
 
 class ComponentWidget(QtWidgets.QComboBox):
@@ -434,8 +444,8 @@ class RangeSliderWidget(QRangeSlider):
     def __init__(self, viewer: Viewer, model: ImageModel, colorbar: CBarWidget, **kwargs: Any):
         super().__init__(**kwargs)
 
-        self.viewer = viewer
-        self.model = model
+        self._viewer = viewer
+        self._model = model
         self._colorbar = colorbar
         self._cmap = plt.get_cmap(self._colorbar.cmap)
         self.setValue((0, 100))
@@ -482,3 +492,13 @@ class RangeSliderWidget(QRangeSlider):
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
         return scaler.fit_transform(vec.reshape(-1, 1))
+
+    @property
+    def viewer(self) -> napari.Viewer:
+        """:mod:`napari` viewer."""
+        return self._viewer
+
+    @property
+    def model(self) -> ImageModel:
+        """:mod:`napari` viewer."""
+        return self._model
