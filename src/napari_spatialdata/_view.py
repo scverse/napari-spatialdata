@@ -71,7 +71,7 @@ class QtAdataScatterWidget(QWidget):
 
         self.plot_button_widget = QPushButton("Plot")
         self.plot_button_widget.clicked.connect(
-            lambda: self.matplotlib_widget._onClick(
+            lambda: self.matplotlib_widget.plot(
                 self.x_widget.widget.data,
                 self.x_widget.widget.text,
                 self.y_widget.widget.data,

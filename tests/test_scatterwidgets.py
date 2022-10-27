@@ -1,19 +1,40 @@
 from typing import Any
 
+import numpy as np
+
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
 
+def prepare_test_data():
+
+    x_data = np.random.random((100, 100))
+    y_data = np.random.random((100, 100))
+    color_data = np.random.random((100, 100))
+    x_label = "X-axis"
+    y_label = "Y-axis"
+    color_label = "Color label"
+    return x_data, y_data, color_data, x_label, y_label, color_label
+
+
 def test_matplotlib_widget(make_napari_viewer: Any):
+
     # Smoke test adding a matplotlib widget
+
     viewer = make_napari_viewer()
-
-    import numpy as np
-
     viewer.add_image(np.random.random((100, 100)))
     viewer.add_labels(np.random.randint(0, 5, (100, 100)))
+
     MatplotlibWidget(viewer, ImageModel)
 
 
-# TODO: Add more tests (tests for napari-matplotlib seems like a good place to start)
-# https://github.com/matplotlib/napari-matplotlib/blob/main/src/napari_matplotlib/tests/test_scatter.py
+def test_matplotlib_widget_plot(make_napari_viewer: Any):
+
+    viewer = make_napari_viewer()
+    x_data, y_data, color_data, x_label, y_label, color_label = prepare_test_data()
+    mpl_widget = MatplotlibWidget(viewer, ImageModel)
+
+    mpl_widget.plot(x_data, x_label, y_data, y_label, color_data, color_label)
+
+    assert mpl_widget.axes.get_xlabel() == x_label
+    assert mpl_widget.axes.get_ylabel() == y_label

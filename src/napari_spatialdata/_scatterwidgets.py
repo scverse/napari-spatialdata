@@ -102,7 +102,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self.model = model
         self.axes = self.canvas.figure.subplots()
 
-    def _onClick(
+    def plot(
         self,
         x_data: NDArrayA,
         x_label: Optional[str],
@@ -120,19 +120,8 @@ class MatplotlibWidget(NapariMPLWidget):
         logger.debug("Color Label: {}", color_label)  # noqa: P103
 
         self.clear()
-        self.plot(x_data, x_label, y_data, y_label, color_data, color_label)
-
-    def plot(
-        self,
-        x_data: NDArrayA,
-        x_label: Optional[str],
-        y_data: NDArrayA,
-        y_label: Optional[str],
-        color_data: NDArrayA,
-        color_label: Optional[str],
-    ) -> None:
-
         self.axes.scatter(x=x_data, y=y_data, c=color_data, alpha=0.5)
+
         self.axes.set_xlabel(x_label)
         self.axes.set_ylabel(y_label)
 
