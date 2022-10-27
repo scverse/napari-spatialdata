@@ -143,7 +143,7 @@ def test_change_layer(
 
 
 @pytest.mark.parametrize("widget", [QtAdataScatterWidget])
-@pytest.mark.parametrize("attr, item, text", [("obs", "a", None), ("obsm", "spatial", 1)])
+@pytest.mark.parametrize("attr, item, text", [("obs", "a", None), ("obsm", "spatial", 1), ("var", 27, "X")])
 def test_scatterlistwidget(
     make_napari_viewer: Any,
     widget: Any,
@@ -165,26 +165,26 @@ def test_scatterlistwidget(
     widget = widget(viewer)
     layer = viewer.layers.selection.active
     widget._layer_selection_widget(layer)
-    assert isinstance(widget.model, ImageModel)
-    assert isinstance(widget.model.layer, Labels)
-    assert widget.model.library_id == "labels"
-
     # change attr
 
-    widget.x_widget.widget.setAttribute(attr)
+    widget.x_widget.selection_widget.setCurrentText(attr)
     assert widget.x_widget.widget.getAttribute() == attr
+    assert widget.x_widget.component_widget.attr == attr
     widget.x_widget.widget.setComponent(text)
     assert widget.x_widget.widget.text == text
+
     widget.x_widget.widget._onAction(items=[item])
     if attr == "obsm":
         assert np.array_equal(widget.x_widget.widget.data, getattr(adata_labels, attr)[item][:, text])
-    else:
+    elif attr == "obs":
         assert np.array_equal(widget.x_widget.widget.data, getattr(adata_labels, attr)[item])
+    else:
+        assert np.array_equal(widget.x_widget.widget.data, adata_labels.X[:, item])
 
 
 @pytest.mark.parametrize("widget", [QtAdataScatterWidget])
 @pytest.mark.parametrize("attr, item", [("obs", "categorical")])
-def test_categorical(
+def test_categorical_and_error(
     make_napari_viewer: Any,
     widget: Any,
     adata_labels: AnnData,
@@ -204,9 +204,6 @@ def test_categorical(
     widget = widget(viewer)
     layer = viewer.layers.selection.active
     widget._layer_selection_widget(layer)
-    assert isinstance(widget.model, ImageModel)
-    assert isinstance(widget.model.layer, Labels)
-    assert widget.model.library_id == "labels"
 
     widget.x_widget.widget.setAttribute(attr)
     widget.x_widget.widget._onAction(items=[item])
@@ -217,3 +214,7 @@ def test_categorical(
     assert widget.x_widget.widget.data.dtype.name == "category"
     assert widget.color_widget.widget.data.dtype.name != "category"
     assert isinstance(widget.color_widget.widget.data, np.ndarray)
+
+    with pytest.raises(ValueError) as err:
+        widget.y_widget.widget.setAttribute("nothing")
+    assert "nothing is not a valid adata field." in str(err.value)
