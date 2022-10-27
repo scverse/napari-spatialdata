@@ -42,7 +42,7 @@ def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> 
         _ = widget(viewer)
 
 
-@pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
+@pytest.mark.parametrize("widget", [QtAdataViewWidget])
 def test_model(
     make_napari_viewer: Any,
     widget: Any,
