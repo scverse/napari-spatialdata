@@ -92,7 +92,7 @@ def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
     model = ImageModel()
 
     m = MatplotlibWidget(viewer, model)
-    m.plot(np.ones(10), "X", np.ones(10), "Y", np.ones(10), "Color")
+    m._onClick(np.ones(10), np.ones(10), np.ones(10), "X", "Y")
 
     with caplog.at_level(logging.INFO):
         assert "X-axis Data:" in caplog.records[0].message

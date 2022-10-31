@@ -9,6 +9,7 @@ from napari.viewer import Viewer
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
 import napari
+import pandas as pd
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA, _get_categorical
@@ -103,14 +104,13 @@ class MatplotlibWidget(NapariMPLWidget):
         self._model = model
         self.axes = self.canvas.figure.subplots()
 
-    def plot(
+    def _onClick(
         self,
-        x_data: NDArrayA,
+        x_data: Union[NDArrayA, pd.Series],
+        y_data: Union[NDArrayA, pd.Series],
+        color_data: Union[NDArrayA, pd.Series],
         x_label: Optional[str],
-        y_data: NDArrayA,
         y_label: Optional[str],
-        color_data: NDArrayA,
-        color_label: Optional[str],
     ) -> None:
 
         logger.debug("X-axis Data: {}", x_data)  # noqa: P103
@@ -118,14 +118,29 @@ class MatplotlibWidget(NapariMPLWidget):
         logger.debug("Y-axis Data: {}", y_data)  # noqa: P103
         logger.debug("Y-axis Label: {}", y_label)  # noqa: P103
         logger.debug("Color Data: {}", color_data)  # noqa: P103
-        logger.debug("Color Label: {}", color_label)  # noqa: P103
+
+        self.set_data(x_data, y_data, color_data, x_label, y_label)
+        self.plot()
+
+    def set_data(
+        self,
+        x_data: Union[NDArrayA, pd.Series],
+        y_data: Union[NDArrayA, pd.Series],
+        color_data: Union[NDArrayA, pd.Series],
+        x_label: Optional[str],
+        y_label: Optional[str],
+    ) -> None:
+
+        self.data = [x_data, y_data, color_data]
+        self.x_label = x_label
+        self.y_label = y_label
+
+    def plot(self) -> None:
 
         self.axes.clear()
-
-        self.axes.scatter(x=x_data, y=y_data, c=color_data, alpha=0.5)
-        self.axes.set_xlabel(x_label)
-        self.axes.set_ylabel(y_label)
-
+        self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2], alpha=0.5)
+        self.axes.set_xlabel(self.x_label)
+        self.axes.set_ylabel(self.y_label)
         self.canvas.draw()
 
     def clear(self) -> None:
