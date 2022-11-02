@@ -210,7 +210,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self.canvas.draw()
 
         self.selector = SelectFromCollection(self.axes, self.points)
-        
+
     def clear(self) -> None:
         self.axes.clear()
 
