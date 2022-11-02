@@ -204,7 +204,7 @@ class MatplotlibWidget(NapariMPLWidget):
     def plot(self) -> None:
 
         self.axes.clear()
-        self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2], alpha=0.5)
+        self.points = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2], alpha=0.5)
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
         self.canvas.draw()
