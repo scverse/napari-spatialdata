@@ -29,6 +29,8 @@ Run examples e.g. `python shape_regions.py` or via notebook for the shape export
 
 More documentation on usage will be added later on.
 
+The main branch is currently opeating on the Squidpy/AnnData data model, SpatialData is handled in different branches not yet merged.
+
 Expect breaking changes.
 
 ## Installation

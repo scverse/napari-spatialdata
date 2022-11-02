@@ -10,6 +10,8 @@ from matplotlib.path import Path
 from matplotlib.widgets import LassoSelector
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
+import napari
+import pandas as pd
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA, _get_categorical
@@ -139,7 +141,7 @@ class ScatterListWidget(AListWidget):
             super().setAdataLayer(text)
         elif self.getAttribute() == "obsm":
             if TYPE_CHECKING:
-                assert isinstance(text, int)
+                assert isinstance(text, int) or isinstance(text, str)
             super().setIndex(text)
 
     @property
@@ -148,7 +150,7 @@ class ScatterListWidget(AListWidget):
 
     @text.setter
     def text(self, text: Optional[Union[str, int]]) -> None:
-        self._text = str(text) if text is not None else None
+        self._text = text if text is not None else None
 
     @property
     def data(self) -> Union[None, NDArrayA]:
@@ -164,18 +166,17 @@ class MatplotlibWidget(NapariMPLWidget):
 
         super().__init__(viewer)
 
-        self.viewer = viewer
-        self.model = model
+        self._viewer = viewer
+        self._model = model
         self.axes = self.canvas.figure.subplots()
 
     def _onClick(
         self,
-        x_data: NDArrayA,
+        x_data: Union[NDArrayA, pd.Series],
+        y_data: Union[NDArrayA, pd.Series],
+        color_data: Union[NDArrayA, pd.Series],
         x_label: Optional[str],
-        y_data: NDArrayA,
         y_label: Optional[str],
-        color_data: NDArrayA,
-        color_label: Optional[str],
     ) -> None:
 
         logger.debug("X-axis Data: {}", x_data)  # noqa: P103
@@ -183,41 +184,45 @@ class MatplotlibWidget(NapariMPLWidget):
         logger.debug("Y-axis Data: {}", y_data)  # noqa: P103
         logger.debug("Y-axis Label: {}", y_label)  # noqa: P103
         logger.debug("Color Data: {}", color_data)  # noqa: P103
-        logger.debug("Color Label: {}", color_label)  # noqa: P103
 
-        self.clear()
-        self.draw(x_data, x_label, y_data, y_label, color_data, color_label)
+        self.set_data(x_data, y_data, color_data, x_label, y_label)
+        self.plot()
 
-    def draw(
+    def set_data(
         self,
-        x_data: NDArrayA,
+        x_data: Union[NDArrayA, pd.Series],
+        y_data: Union[NDArrayA, pd.Series],
+        color_data: Union[NDArrayA, pd.Series],
         x_label: Optional[str],
-        y_data: NDArrayA,
         y_label: Optional[str],
-        color_data: NDArrayA,
-        color_label: Optional[str],
     ) -> None:
 
-        self.points = self.axes.scatter(x=x_data, y=y_data, c=color_data, alpha=0.5)
+        self.data = [x_data, y_data, color_data]
+        self.x_label = x_label
+        self.y_label = y_label
 
-        logger.debug("Points: {}", self.points)
-        logger.debug("X axis: {}", x_data)
-        logger.debug("Y axis: {}", y_data)
+    def plot(self) -> None:
+
+        self.axes.clear()
+        self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2], alpha=0.5)
+        self.axes.set_xlabel(self.x_label)
+        self.axes.set_ylabel(self.y_label)
+        self.canvas.draw()
 
         self.selector = SelectFromCollection(self.axes, self.points)
-        self.axes.set_xlabel(x_label)
-        self.axes.set_ylabel(y_label)
-
+        
     def clear(self) -> None:
         self.axes.clear()
 
 
 class AxisWidgets(QtWidgets.QWidget):
     def __init__(self, viewer: Viewer, model: ImageModel, name: str, color: bool = False):
+
         super().__init__()
 
-        self.viewer = viewer
-        self.model = model
+        self._viewer = viewer
+        self._model = model
+
         selection_label = QtWidgets.QLabel(f"{name} type:")
         selection_label.setToolTip("Select between obs, obsm and var.")
         self.selection_widget = QtWidgets.QComboBox()
@@ -247,3 +252,13 @@ class AxisWidgets(QtWidgets.QWidget):
         self.selection_widget.currentTextChanged.connect(self.widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
+
+    @property
+    def viewer(self) -> napari.Viewer:
+        """:mod:`napari` viewer."""
+        return self._viewer
+
+    @property
+    def model(self) -> ImageModel:
+        """:mod:`napari` viewer."""
+        return self._model
