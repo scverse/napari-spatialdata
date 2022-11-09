@@ -30,6 +30,7 @@ class ScatterListWidget(AListWidget):
         self.attrChanged.connect(self._onChange)
         self._color = color
         self._data = None
+        self.itemClicked.connect(lambda item: self._onOneClick((item.text(),)))
 
     def _onChange(self) -> None:
         AListWidget._onChange(self)
@@ -50,6 +51,12 @@ class ScatterListWidget(AListWidget):
                     self.data = _get_categorical(self.model.adata, key=item, palette=self.model.palette, vec=self.data)
             else:
                 raise TypeError(f"The chosen field's datatype ({vec.dtype.name}) cannot be plotted")
+        return
+
+    def _onOneClick(self, items: Iterable[str]) -> None:
+        if self.getAttribute() == "obsm":
+            return
+        self._onAction(items)
         return
 
     def setAttribute(self, field: Optional[str]) -> None:
