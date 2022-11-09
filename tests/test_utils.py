@@ -95,4 +95,4 @@ def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
     m._onClick(np.ones(10), np.ones(10), np.ones(10), "X", "Y")
 
     with caplog.at_level(logging.INFO):
-        assert "X-axis Data:" in caplog.records[0].message
+        assert "Plotting" in caplog.records[0].message

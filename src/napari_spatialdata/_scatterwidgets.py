@@ -110,7 +110,6 @@ class MatplotlibWidget(NapariMPLWidget):
         self._viewer = viewer
         self._model = model
         self.axes = self.canvas.figure.subplots()
-        self.legend = self.axes.legend()
 
     def _onClick(
         self,
@@ -138,6 +137,8 @@ class MatplotlibWidget(NapariMPLWidget):
         self.y_label = y_label
 
     def plot(self) -> None:
+
+        logger.info("Plotting coordinates.")
 
         self.axes.clear()
         self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2], alpha=0.5)
