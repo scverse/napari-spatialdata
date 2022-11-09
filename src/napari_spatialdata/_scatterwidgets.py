@@ -103,6 +103,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self._viewer = viewer
         self._model = model
         self.axes = self.canvas.figure.subplots()
+        self.legend = self.axes.legend()
 
     def _onClick(
         self,
@@ -112,12 +113,6 @@ class MatplotlibWidget(NapariMPLWidget):
         x_label: Optional[str],
         y_label: Optional[str],
     ) -> None:
-
-        logger.debug("X-axis Data: {}", x_data)  # noqa: P103
-        logger.debug("X-axis Label: {}", x_label)  # noqa: P103
-        logger.debug("Y-axis Data: {}", y_data)  # noqa: P103
-        logger.debug("Y-axis Label: {}", y_label)  # noqa: P103
-        logger.debug("Color Data: {}", color_data)  # noqa: P103
 
         self.set_data(x_data, y_data, color_data, x_label, y_label)
         self.plot()
