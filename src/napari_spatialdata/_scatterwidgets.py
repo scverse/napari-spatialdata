@@ -142,6 +142,8 @@ class MatplotlibWidget(NapariMPLWidget):
 
         logger.info("Plotting coordinates.")
 
+        self.clear()
+
         self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
         self.colorbar = self.canvas.figure.colorbar(
             ScalarMappable(norm=self.scatterplot.norm, cmap=self.scatterplot.cmap)
@@ -151,7 +153,6 @@ class MatplotlibWidget(NapariMPLWidget):
         self.axes.set_ylabel(self.y_label)
 
         self.canvas.draw()
-        self.clear()
 
     def clear(self) -> None:
 
