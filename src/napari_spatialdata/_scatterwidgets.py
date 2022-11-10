@@ -5,6 +5,7 @@ from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
 from qtpy import QtWidgets
 from loguru import logger
 from qtpy.QtCore import Signal
+from matplotlib.cm import ScalarMappable
 from napari.viewer import Viewer
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
@@ -110,6 +111,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self._viewer = viewer
         self._model = model
         self.axes = self.canvas.figure.subplots()
+        self.colorbar = None
 
     def _onClick(
         self,
@@ -140,14 +142,23 @@ class MatplotlibWidget(NapariMPLWidget):
 
         logger.info("Plotting coordinates.")
 
-        self.axes.clear()
-        self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2], alpha=0.5)
+        self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
+        self.colorbar = self.canvas.figure.colorbar(
+            ScalarMappable(norm=self.scatterplot.norm, cmap=self.scatterplot.cmap)
+        )
+
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
+
         self.canvas.draw()
+        self.clear()
 
     def clear(self) -> None:
+
         self.axes.clear()
+
+        if self.colorbar:
+            self.colorbar.remove()
 
 
 class AxisWidgets(QtWidgets.QWidget):
