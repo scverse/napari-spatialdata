@@ -25,6 +25,7 @@ __all__ = [
 class ScatterListWidget(AListWidget):
     attrChanged = Signal()
     _text = None
+    _chosen = None
 
     def __init__(self, viewer: Viewer, model: ImageModel, attr: str, color: bool, **kwargs: Any):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
@@ -36,6 +37,8 @@ class ScatterListWidget(AListWidget):
     def _onChange(self) -> None:
         AListWidget._onChange(self)
         self.data = None
+        self.text = None
+        self.chosen = None
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
@@ -44,6 +47,7 @@ class ScatterListWidget(AListWidget):
             except Exception as e:  # noqa: B902
                 logger.error(e)
                 continue
+            self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = vec
             elif vec.dtype == "category":
@@ -93,6 +97,14 @@ class ScatterListWidget(AListWidget):
     @text.setter
     def text(self, text: Optional[Union[str, int]]) -> None:
         self._text = text if text is not None else None
+
+    @property
+    def chosen(self) -> Optional[str]:
+        return self._chosen
+
+    @chosen.setter
+    def chosen(self, chosen: Optional[str]) -> None:
+        self._chosen = chosen if chosen is not None else None
 
     @property
     def data(self) -> Union[None, NDArrayA]:
