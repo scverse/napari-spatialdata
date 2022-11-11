@@ -5,7 +5,6 @@ from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
 from qtpy import QtWidgets
 from loguru import logger
 from qtpy.QtCore import Signal
-from matplotlib.cm import ScalarMappable
 from napari.viewer import Viewer
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
@@ -13,7 +12,7 @@ import napari
 import pandas as pd
 
 from napari_spatialdata._model import ImageModel
-from napari_spatialdata._utils import NDArrayA, _get_categorical, _get_palette
+from napari_spatialdata._utils import NDArrayA, _get_categorical
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
 
 __all__ = [
@@ -132,7 +131,7 @@ class MatplotlibWidget(NapariMPLWidget):
         color_data: Union[NDArrayA, pd.Series],
         x_label: Optional[str],
         y_label: Optional[str],
-        color_label: Optional[str]
+        color_label: Optional[str],
     ) -> None:
 
         self.data = [x_data, y_data, color_data]
@@ -142,16 +141,15 @@ class MatplotlibWidget(NapariMPLWidget):
 
         self.plot()
 
-
     def plot(self) -> None:
 
         logger.info("Plotting coordinates.")
 
         self.clear()
-     
+
         self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2], cmap=self._model.cmap)
         self.colorbar = self.canvas.figure.colorbar(self.scatterplot)
-        
+
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
 
