@@ -75,23 +75,9 @@ class QtAdataScatterWidget(QWidget):
                 self.x_widget.widget.data,
                 self.y_widget.widget.data,
                 self.color_widget.widget.data,
-                self.x_widget.widget.getAttribute() + ": " + str(self.x_widget.widget.chosen)
-                if self.x_widget.widget.text is None
-                else self.x_widget.widget.getAttribute()
-                + ": "
-                + self.x_widget.widget.chosen
-                + "["
-                + self.x_widget.widget.text
-                + "]",
-                self.y_widget.widget.getAttribute() + ": " + str(self.y_widget.widget.chosen)
-                if self.y_widget.widget.text is None
-                else self.y_widget.widget.getAttribute()
-                + ": "
-                + self.y_widget.widget.chosen
-                + "["
-                + self.y_widget.widget.text
-                + "]",
-                self.color_widget.widget.chosen,
+                self.x_widget.getFormattedLabel(),
+                self.y_widget.getFormattedLabel(),
+                self.color_widget.getFormattedLabel(),
             )
         )
 

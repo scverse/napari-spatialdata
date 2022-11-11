@@ -149,14 +149,13 @@ class MatplotlibWidget(NapariMPLWidget):
 
         self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
         self.colorbar = self.canvas.figure.colorbar(self.scatterplot)
-
-        # logger.debug("CMAP: ")
-        # logger.debug(self._model.cmap)
-        # logger.debug("MAPPING: ")
-        # logger.debug(mapping)
-
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
+
+        if self.colorbar is None:
+            raise ValueError("Colorbar hasn't been created.")
+
+        self.colorbar.set_label(self.color_label)
 
         self.canvas.draw()
 
@@ -205,6 +204,14 @@ class AxisWidgets(QtWidgets.QWidget):
         self.selection_widget.currentTextChanged.connect(self.widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
+
+    def getFormattedLabel(self) -> Optional[str]:
+
+        return (
+            str(self.widget.getAttribute()) + ": " + str(self.widget.chosen)
+            if self.widget.text is None
+            else str(self.widget.getAttribute()) + ": " + str(self.widget.chosen) + "[" + str(self.widget.text) + "]"
+        )
 
     @property
     def viewer(self) -> napari.Viewer:
