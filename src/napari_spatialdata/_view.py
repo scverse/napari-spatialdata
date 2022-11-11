@@ -91,6 +91,7 @@ class QtAdataScatterWidget(QWidget):
                 + "["
                 + self.y_widget.widget.text
                 + "]",
+                self.color_widget.widget.chosen,                
             )
         )
 
