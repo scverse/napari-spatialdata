@@ -13,7 +13,8 @@ def prepare_test_data():
     color_data = np.random.random((100, 100))
     x_label = "X-axis"
     y_label = "Y-axis"
-    return x_data, y_data, color_data, x_label, y_label
+    color_label = "Color Label"
+    return x_data, y_data, color_data, x_label, y_label, color_label
 
 
 def test_matplotlib_widget(make_napari_viewer: Any):
@@ -30,10 +31,10 @@ def test_matplotlib_widget(make_napari_viewer: Any):
 def test_matplotlib_widget_plot(make_napari_viewer: Any):
 
     viewer = make_napari_viewer()
-    x_data, y_data, color_data, x_label, y_label = prepare_test_data()
+    x_data, y_data, color_data, x_label, y_label, color_label = prepare_test_data()
     mpl_widget = MatplotlibWidget(viewer, ImageModel)
 
-    mpl_widget._onClick(x_data, y_data, color_data, x_label, y_label)
+    mpl_widget._onClick(x_data, y_data, color_data, x_label, y_label, color_label)
 
     assert mpl_widget.axes.get_xlabel() == x_label
     assert mpl_widget.axes.get_ylabel() == y_label
