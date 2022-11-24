@@ -213,8 +213,10 @@ def test_categorical_and_error(
     widget.color_widget.widget._onAction(items=[item])
 
     assert widget.x_widget.widget.data.dtype.name == "category"
-    assert widget.color_widget.widget.data.dtype.name != "category"
-    assert isinstance(widget.color_widget.widget.data, np.ndarray)
+    assert isinstance(widget.color_widget.widget.data, dict)
+    assert isinstance(widget.color_widget.widget.data["vec"], np.ndarray)
+    assert isinstance(widget.color_widget.widget.data["palette"], dict)
+    assert widget.color_widget.widget.data["cat"].dtype.name == "category"
 
     with pytest.raises(ValueError) as err:
         widget.y_widget.widget.setAttribute("nothing")
