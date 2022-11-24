@@ -46,8 +46,8 @@ main_doc = "index"
 
 # General information about the project.
 project = "napari-spatialdata"
-copyright = "2022, giovanni palla"
-author = "giovanni palla"
+copyright = "2022, scverse"
+author = "scverse team"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the

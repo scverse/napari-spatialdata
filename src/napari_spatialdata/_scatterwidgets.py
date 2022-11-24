@@ -90,16 +90,20 @@ class SelectFromCollection:
 class ScatterListWidget(AListWidget):
     attrChanged = Signal()
     _text = None
+    _chosen = None
 
     def __init__(self, viewer: Viewer, model: ImageModel, attr: str, color: bool, **kwargs: Any):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
         self._data = None
+        self.itemClicked.connect(lambda item: self._onOneClick((item.text(),)))
 
     def _onChange(self) -> None:
         AListWidget._onChange(self)
         self.data = None
+        self.text = None
+        self.chosen = None
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
@@ -108,6 +112,7 @@ class ScatterListWidget(AListWidget):
             except Exception as e:  # noqa: B902
                 logger.error(e)
                 continue
+            self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = vec
             elif vec.dtype == "category":
@@ -116,6 +121,12 @@ class ScatterListWidget(AListWidget):
                     self.data = _get_categorical(self.model.adata, key=item, palette=self.model.palette, vec=self.data)
             else:
                 raise TypeError(f"The chosen field's datatype ({vec.dtype.name}) cannot be plotted")
+        return
+
+    def _onOneClick(self, items: Iterable[str]) -> None:
+        if self.getAttribute() == "obsm":
+            return
+        self._onAction(items)
         return
 
     def setAttribute(self, field: Optional[str]) -> None:
@@ -153,6 +164,14 @@ class ScatterListWidget(AListWidget):
         self._text = text if text is not None else None
 
     @property
+    def chosen(self) -> Optional[str]:
+        return self._chosen
+
+    @chosen.setter
+    def chosen(self, chosen: Optional[str]) -> None:
+        self._chosen = chosen if chosen is not None else None
+
+    @property
     def data(self) -> Union[None, NDArrayA]:
         return self._data
 
@@ -169,6 +188,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self._viewer = viewer
         self._model = model
         self.axes = self.canvas.figure.subplots()
+        self.colorbar = None
 
     def _onClick(
         self,
@@ -177,42 +197,42 @@ class MatplotlibWidget(NapariMPLWidget):
         color_data: Union[NDArrayA, pd.Series],
         x_label: Optional[str],
         y_label: Optional[str],
-    ) -> None:
-
-        logger.debug("X-axis Data: {}", x_data)  # noqa: P103
-        logger.debug("X-axis Label: {}", x_label)  # noqa: P103
-        logger.debug("Y-axis Data: {}", y_data)  # noqa: P103
-        logger.debug("Y-axis Label: {}", y_label)  # noqa: P103
-        logger.debug("Color Data: {}", color_data)  # noqa: P103
-
-        self.set_data(x_data, y_data, color_data, x_label, y_label)
-        self.plot()
-
-    def set_data(
-        self,
-        x_data: Union[NDArrayA, pd.Series],
-        y_data: Union[NDArrayA, pd.Series],
-        color_data: Union[NDArrayA, pd.Series],
-        x_label: Optional[str],
-        y_label: Optional[str],
+        color_label: Optional[str],
     ) -> None:
 
         self.data = [x_data, y_data, color_data]
         self.x_label = x_label
         self.y_label = y_label
+        self.color_label = color_label
+
+        self.plot()
 
     def plot(self) -> None:
 
-        self.axes.clear()
-        self.points = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2], alpha=0.5)
+        logger.info("Plotting coordinates.")
+
+        self.clear()
+
+        self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
+        self.colorbar = self.canvas.figure.colorbar(self.scatterplot)
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
+
+        if self.colorbar is None:
+            raise ValueError("Colorbar hasn't been created.")
+
+        self.colorbar.set_label(self.color_label)
+
         self.canvas.draw()
 
         self.selector = SelectFromCollection(self.axes, self.points)
 
     def clear(self) -> None:
+
         self.axes.clear()
+
+        if self.colorbar:
+            self.colorbar.remove()
 
 
 class AxisWidgets(QtWidgets.QWidget):
@@ -252,6 +272,14 @@ class AxisWidgets(QtWidgets.QWidget):
         self.selection_widget.currentTextChanged.connect(self.widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
+
+    def getFormattedLabel(self) -> Optional[str]:
+
+        return (
+            str(self.widget.getAttribute()) + ": " + str(self.widget.chosen)
+            if self.widget.text is None
+            else str(self.widget.getAttribute()) + ": " + str(self.widget.chosen) + "[" + str(self.widget.text) + "]"
+        )
 
     @property
     def viewer(self) -> napari.Viewer:

@@ -16,7 +16,6 @@ adata1.obsm.pop("X_scanorama")
 adata2.obsm.pop("X_umap")
 adata1.obs.pop("batch")
 adata1 = adata1[:, 0:10].copy()
-adata1.obsm["obs_copy"] = adata1.obs.iloc[:, 0:5].copy()
 adata1.layers["counts"] = adata1.X.copy()
 
 viewer = napari.Viewer()

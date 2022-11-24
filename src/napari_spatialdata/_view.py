@@ -75,8 +75,9 @@ class QtAdataScatterWidget(QWidget):
                 self.x_widget.widget.data,
                 self.y_widget.widget.data,
                 self.color_widget.widget.data,
-                self.x_widget.widget.text,
-                self.y_widget.widget.text,
+                self.x_widget.getFormattedLabel(),
+                self.y_widget.getFormattedLabel(),
+                self.color_widget.getFormattedLabel(),
             )
         )
 
