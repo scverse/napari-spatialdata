@@ -12,8 +12,9 @@ import napari
 import pandas as pd
 
 from napari_spatialdata._model import ImageModel
-from napari_spatialdata._utils import NDArrayA, _get_categorical
+from napari_spatialdata._utils import NDArrayA, _set_palette, _get_categorical
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
+from napari_spatialdata._utils_from_scanpy import _add_categorical_legend
 
 __all__ = [
     "MatplotlibWidget",
@@ -51,8 +52,13 @@ class ScatterListWidget(AListWidget):
                 self.data = vec
             elif vec.dtype == "category":
                 self.data = vec
+                colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=self.data)
                 if self._color:
-                    self.data = _get_categorical(self.model.adata, key=item, palette=self.model.palette, vec=self.data)
+                    self.data = {
+                        "vec": _get_categorical(self.model.adata, key=item, palette=self.model.palette, vec=colortypes),
+                        "cat": self.data,
+                        "palette": colortypes,
+                    }
             else:
                 raise TypeError(f"The chosen field's datatype ({vec.dtype.name}) cannot be plotted")
         return
@@ -129,13 +135,21 @@ class MatplotlibWidget(NapariMPLWidget):
         self,
         x_data: Union[NDArrayA, pd.Series],
         y_data: Union[NDArrayA, pd.Series],
-        color_data: Union[NDArrayA, pd.Series],
+        color_data: Union[NDArrayA, dict[str, Union[NDArrayA, pd.Series, dict[str, str]]]],
         x_label: Optional[str],
         y_label: Optional[str],
         color_label: Optional[str],
     ) -> None:
 
-        self.data = [x_data, y_data, color_data]
+        self.cat = None
+        self.palette = None
+
+        if isinstance(color_data, dict):
+            self.data = [x_data, y_data, color_data["vec"]]
+            self.cat = color_data["cat"]
+            self.palette = color_data["palette"]
+        else:
+            self.data = [x_data, y_data, color_data]
         self.x_label = x_label
         self.y_label = y_label
         self.color_label = color_label
@@ -149,14 +163,21 @@ class MatplotlibWidget(NapariMPLWidget):
         self.clear()
 
         self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
-        self.colorbar = self.canvas.figure.colorbar(self.scatterplot)
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
 
-        if self.colorbar is None:
-            raise ValueError("Colorbar hasn't been created.")
-
-        self.colorbar.set_label(self.color_label)
+        if self.palette is not None:
+            _add_categorical_legend(
+                self.axes,
+                self.cat,
+                palette=self.palette,
+            )
+            self.colorbar = None
+        else:
+            self.colorbar = self.canvas.figure.colorbar(self.scatterplot)
+            if self.colorbar is None:
+                raise ValueError("Colorbar hasn't been created.")
+            self.colorbar.set_label(self.color_label)
 
         self.canvas.draw()
 

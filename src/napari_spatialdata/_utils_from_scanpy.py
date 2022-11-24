@@ -6,6 +6,7 @@ from loguru import logger
 from matplotlib import cm, colors, pyplot as pl, rcParams
 from matplotlib.colors import to_hex, is_color_like
 import numpy as np
+import pandas as pd
 
 # Colorblindness adjusted vega_10
 # See https://github.com/scverse/scanpy/issues/387
@@ -363,3 +364,67 @@ def add_colors_for_categorical_sample_annotation(adata, key, palette=None, force
         _validate_palette(adata, key)
     else:
         _set_default_colors_for_categorical_obs(adata, key)
+
+
+def _add_categorical_legend(
+    ax,
+    color_source_vector,
+    palette: dict,
+    legend_loc: str = "right margin",
+    legend_fontweight="bold",
+    legend_fontsize=None,
+    legend_fontoutline=None,
+    multi_panel=False,
+    na_color="lightgray",
+    na_in_legend: bool = True,
+    scatter_array=None,  # added defaults compared to scanpy
+):
+    """Add a legend to the passed Axes."""
+    if na_in_legend and pd.isnull(color_source_vector).any():
+        if "NA" in color_source_vector:
+            raise NotImplementedError("No fallback for null labels has been defined if NA already in categories.")
+        color_source_vector = color_source_vector.add_categories("NA").fillna("NA")
+        palette = palette.copy()
+        palette["NA"] = na_color
+    cats = color_source_vector.cat.categories  # changed compared to original function from scanpy
+
+    if multi_panel is True:
+        # Shrink current axis by 10% to fit legend and match
+        # size of plots that are not categorical
+        box = ax.get_position()
+        ax.set_position([box.x0, box.y0, box.width * 0.91, box.height])
+
+    if legend_loc == "right margin":
+        for label in cats:
+            ax.scatter([], [], c=palette[label], label=label)
+        ax.legend(
+            frameon=False,
+            loc="center left",
+            bbox_to_anchor=(1, 0.5),
+            ncol=(1 if len(cats) <= 14 else 2 if len(cats) <= 30 else 3),
+            fontsize=legend_fontsize,
+        )
+    elif legend_loc == "on data":
+        # identify centroids to put labels
+
+        all_pos = (
+            pd.DataFrame(scatter_array, columns=["x", "y"])
+            .groupby(color_source_vector, observed=True)
+            .median()
+            # Have to sort_index since if observed=True and categorical is unordered
+            # the order of values in .index is undefined. Related issue:
+            # https://github.com/pandas-dev/pandas/issues/25167
+            .sort_index()
+        )
+
+        for label, x_pos, y_pos in all_pos.itertuples():
+            ax.text(
+                x_pos,
+                y_pos,
+                label,
+                weight=legend_fontweight,
+                verticalalignment="center",
+                horizontalalignment="center",
+                fontsize=legend_fontsize,
+                path_effects=legend_fontoutline,
+            )
