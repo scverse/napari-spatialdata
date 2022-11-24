@@ -78,15 +78,16 @@ class ScatterListWidget(AListWidget):
         return self._attr
 
     def setComponent(self, text: Optional[Union[int, str]]) -> None:
-        self.text = text  # type: ignore[assignment]
 
         if self.getAttribute() == "var":
             if TYPE_CHECKING:
                 assert isinstance(text, str)
+            self.text = text
             super().setAdataLayer(text)
         elif self.getAttribute() == "obsm":
             if TYPE_CHECKING:
                 assert isinstance(text, int) or isinstance(text, str)
+            self.text = text  # type: ignore[assignment]
             super().setIndex(text)
 
     @property
@@ -210,7 +211,15 @@ class AxisWidgets(QtWidgets.QWidget):
         return (
             str(self.widget.getAttribute()) + ": " + str(self.widget.chosen)
             if self.widget.text is None
-            else str(self.widget.getAttribute()) + ": " + str(self.widget.chosen) + "[" + str(self.widget.text) + "]"
+            else (
+                str(self.widget.getAttribute()) + ": " + str(self.widget.chosen) + "[" + str(self.widget.text) + "]"
+                if self.widget.getAttribute() == "obsm"
+                else str(self.widget.getAttribute())
+                + ": "
+                + str(self.widget.chosen)
+                + " on layer "
+                + str(self.widget.text)
+            )
         )
 
     @property
