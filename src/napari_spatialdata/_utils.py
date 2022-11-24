@@ -10,7 +10,6 @@ from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from pandas.api.types import infer_dtype, is_categorical_dtype
 from matplotlib.colors import to_rgb, is_color_like
-from scanpy.plotting._utils import add_colors_for_categorical_sample_annotation
 from pandas.core.dtypes.common import (
     is_bool_dtype,
     is_object_dtype,
@@ -21,6 +20,9 @@ from pandas.core.dtypes.common import (
 import numpy as np
 import pandas as pd
 
+from napari_spatialdata._utils_from_scanpy import (
+    add_colors_for_categorical_sample_annotation,
+)
 from napari_spatialdata._constants._pkg_constants import Key
 
 try:
