@@ -112,8 +112,7 @@ def _get_categorical(
             elif not is_color_like(vec[cat]):
                 raise ValueError(f"`{vec[cat]}` is not an acceptable color.")
 
-    logger.debug("KEY: ")
-    logger.debug(key)
+    logger.debug(f"KEY: {key}")
     return np.array([col_dict[v] for v in adata.obs[key]])
 
 

@@ -221,13 +221,11 @@ additional_colors = {
 
 
 def _validate_palette(adata, key):
-    """
-    checks if the list of colors in adata.uns[f'{key}_colors'] is valid
-    and updates the color list in adata.uns[f'{key}_colors'] if needed.
-    Not only valid matplotlib colors are checked but also if the color name
-    is a valid R color name, in which case it will be translated to a valid name
-    """
-
+    """Validate palette."""
+    # Checks if the list of colors in adata.uns[f'{key}_colors'] is valid
+    # and updates the color list in adata.uns[f'{key}_colors'] if needed.
+    # Not only valid matplotlib colors are checked but also if the color name
+    # is a valid R color name, in which case it will be translated to a valid name.
     _palette = []
     color_key = f"{key}_colors"
 
@@ -253,7 +251,8 @@ def _validate_palette(adata, key):
 
 def _set_colors_for_categorical_obs(adata, value_to_plot, palette: Union[str, Sequence[str], Cycler]):
     """
-    Sets the adata.uns[value_to_plot + '_colors'] according to the given palette
+    Set the adata.uns[value_to_plot + '_colors'] according to the given palette.
+
     Parameters
     ----------
     adata
@@ -263,12 +262,12 @@ def _set_colors_for_categorical_obs(adata, value_to_plot, palette: Union[str, Se
     palette
         Palette should be either a valid :func:`~matplotlib.pyplot.colormaps` string,
         a sequence of colors (in a format that can be understood by matplotlib,
-        eg. RGB, RGBS, hex, or a cycler object with key='color'
+        eg. RGB, RGBS, hex, or a cycler object with key='color'.
+
     Returns
     -------
     None
     """
-
     categories = adata.obs[value_to_plot].cat.categories
     # check is palette is a valid matplotlib colormap
     if isinstance(palette, str) and palette in pl.colormaps():
@@ -318,13 +317,15 @@ def _set_colors_for_categorical_obs(adata, value_to_plot, palette: Union[str, Se
 
 def _set_default_colors_for_categorical_obs(adata, value_to_plot):
     """
-    Sets the adata.uns[value_to_plot + '_colors'] using default color palettes
+    Set the adata.uns[value_to_plot + '_colors'] using default color palettes.
+
     Parameters
     ----------
     adata
         AnnData object
     value_to_plot
         Name of a valid categorical observation
+
     Returns
     -------
     None
@@ -355,7 +356,7 @@ def _set_default_colors_for_categorical_obs(adata, value_to_plot):
 
 
 def add_colors_for_categorical_sample_annotation(adata, key, palette=None, force_update_colors=False):
-
+    """Add colors for categorical annotation."""
     color_key = f"{key}_colors"
     colors_needed = len(adata.obs[key].cat.categories)
     if palette and force_update_colors:
@@ -396,7 +397,7 @@ def _add_categorical_legend(
 
     if legend_loc == "right margin":
         for label in cats:
-            ax.scatter([], [], c=palette[label], label=label)
+            ax.scatter([], [], color=palette[label], label=label)
         ax.legend(
             frameon=False,
             loc="center left",
