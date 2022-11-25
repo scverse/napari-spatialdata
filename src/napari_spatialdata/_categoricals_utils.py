@@ -1,10 +1,11 @@
-from typing import List, Union, Optional, Sequence
+from typing import Any, Dict, List, Union, Optional, Sequence
 import collections.abc as cabc
 
 from cycler import Cycler, cycler
 from loguru import logger
 from anndata import AnnData
 from matplotlib import cm, colors, pyplot as pl, rcParams
+from matplotlib.axes import Axes
 from matplotlib.colors import to_hex, is_color_like
 import numpy as np
 import pandas as pd
@@ -360,7 +361,7 @@ def _set_default_colors_for_categorical_obs(adata: AnnData, value_to_plot: str) 
 
 def add_colors_for_categorical_sample_annotation(
     adata: AnnData, key: str, palette: Optional[List[str]] = None, force_update_colors: bool = False
-):
+) -> None:
     """Add colors for categorical annotation."""
     color_key = f"{key}_colors"
     colors_needed = len(adata.obs[key].cat.categories)
@@ -373,18 +374,18 @@ def add_colors_for_categorical_sample_annotation(
 
 
 def _add_categorical_legend(
-    ax,
-    color_source_vector,
-    palette: dict,
+    ax: Axes,
+    color_source_vector: pd.Series,
+    palette: Dict[str, str],
     legend_loc: str = "right margin",
-    legend_fontweight="bold",
-    legend_fontsize=None,
-    legend_fontoutline=None,
-    multi_panel=False,
-    na_color="lightgray",
+    legend_fontweight: str = "bold",
+    legend_fontsize: Optional[float] = None,
+    legend_fontoutline: Optional[float] = None,
+    multi_panel: bool = False,
+    na_color: str = "lightgray",
     na_in_legend: bool = True,
-    scatter_array=None,  # added defaults compared to scanpy
-):
+    scatter_array: Optional[Any] = None,  # added defaults compared to scanpy
+) -> None:
     """Add a legend to the passed Axes."""
     if na_in_legend and pd.isnull(color_source_vector).any():
         if "NA" in color_source_vector:

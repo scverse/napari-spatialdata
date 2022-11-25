@@ -438,7 +438,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     @property
     def cmap(self) -> str:
-        return self._model.cmap
+        return self._model.cmap  # type: ignore[no-any-return]
 
 
 class RangeSliderWidget(QRangeSlider):
