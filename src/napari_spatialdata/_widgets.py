@@ -329,6 +329,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     def __init__(
         self,
+        model: ImageModel,
         cmap: str = "viridis",
         label: Optional[str] = None,
         width: Optional[int] = 250,
@@ -337,7 +338,7 @@ class CBarWidget(QtWidgets.QWidget):
     ):
         super().__init__(**kwargs)
 
-        self._cmap = cmap
+        self._model = model
 
         self._clim = (0.0, 1.0)
         self._oclim = self._clim
@@ -389,7 +390,7 @@ class CBarWidget(QtWidgets.QWidget):
         return Colormap(cm[np.linspace(minn, maxx, len(cm.colors))], interpolation="linear")
 
     def getCmap(self) -> str:
-        return self._cmap
+        return self.cmap
 
     def onCmapChanged(self, value: str) -> None:
         # this does not trigger update for some reason...
@@ -437,7 +438,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     @property
     def cmap(self) -> str:
-        return self._cmap
+        return self._model.cmap
 
 
 class RangeSliderWidget(QRangeSlider):

@@ -14,7 +14,7 @@ import pandas as pd
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA, _set_palette, _get_categorical
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
-from napari_spatialdata._utils_from_scanpy import _add_categorical_legend
+from napari_spatialdata._categoricals_utils import _add_categorical_legend
 
 __all__ = [
     "MatplotlibWidget",

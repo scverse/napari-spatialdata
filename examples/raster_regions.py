@@ -33,6 +33,7 @@ viewer.add_labels(
         "adata": adata1,
         "library_id": "point8",
         "labels_key": "cell_id",
+        "colormap": "inferno",
     },  # adata in labels layer will color segments
 )
 viewer.add_labels(
