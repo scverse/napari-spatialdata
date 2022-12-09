@@ -1,26 +1,20 @@
 from __future__ import annotations
 
-import os
-from typing import TypeVar, Any, TYPE_CHECKING, Optional, Union, Tuple
+from typing import Any, TYPE_CHECKING, Optional, Union, Tuple
 import napari
 from loguru import logger
 from napari_spatialdata._utils import save_fig, NDArrayA
-from napari_spatialdata._view import QtAdataViewWidget
-from anndata import AnnData
 import numpy as np
-import itertools
 from napari_spatialdata._constants._pkg_constants import Key
 from skimage.measure import regionprops
 import pandas as pd
+import pyarrow as pa
 from xarray import DataArray
-
-# # cannot import these because of cyclic dependencies with spatialdata
-# SpatialData = TypeVar("SpatialData")
-# BaseElement = TypeVar("BaseElement")
-
-if TYPE_CHECKING:
-    from spatialdata import SpatialData
-    from spatialdata._core.elements import BaseElement, Image, Labels, Points, Polygons
+from anndata import AnnData
+from spatial_image import SpatialImage
+from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
+from geopandas import GeoDataFrame
+from spatialdata import SpatialData, get_transform, SpatialElement, get_dims
 
 import matplotlib.pyplot as plt
 
@@ -37,10 +31,10 @@ class Interactive:
     %(_interactive.parameters)s
     """
 
-    def __init__(self, sdata: SpatialData, with_widgets: bool = True):
+    def __init__(self, sdata: SpatialData, with_widgets: bool = True, headless: bool = False):
         # os.environ['NAPARI_ASYNC'] = '1'
         # os.environ['NAPARI_OCTREE'] = '1'
-        self._viewer = napari.Viewer()
+        self._viewer = napari.Viewer(show=not headless)
         self.sdata = sdata
         self._add_layers_from_sdata(sdata=self.sdata)
         # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
@@ -56,39 +50,25 @@ class Interactive:
         _npe2.get_widget_contribution("napari-spatialdata")
         self._viewer.window.add_plugin_dock_widget("napari-spatialdata")
 
-    def add_spatial_element(
-        self, element: BaseElement, name: Optional[str] = None, annotation_table: Optional[AnnData] = None
-    ) -> None:
-        from spatialdata._core.elements import Image, Labels, Points, Polygons
-
-        if isinstance(element, Image):
-            # ignoring the annotation table
-            self._add_image(element, name=name)
-        elif isinstance(element, Labels):
-            self._add_labels(element, annotation_table=annotation_table, name=name)
-        elif isinstance(element, Points):
-            self._add_points(element, annotation_table=annotation_table, name=name)
-        elif isinstance(element, Polygons):
-            self._add_polygons(element, annotation_table=annotation_table, name=name)
-        else:
-            raise ValueError(f"Unsupported element type: {type(element)}")
-
-    def _get_transform(self, element: BaseElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
+    def _get_transform(self, element: SpatialElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
         affine: np.ndarray
-        if coordinate_system_name is None:
-            if len(element.coordinate_systems) > 1:
-                # TODO: An easy workaround is to add one layer per coordinate system, another better method is to
-                #  change the affine matrix when the coordinate system is changed.
-                raise ValueError("Only one coordinate system per element is supported at the moment.")
-            coordinate_system_name, cs = element.coordinate_systems.items().__iter__().__next__()
-        else:
-            cs = element.coordinate_systems[coordinate_system_name]
-        ct = element.transformations[coordinate_system_name]
+        # TODO: refactor when multiple coordinate transformations per element are supported
+        # if coordinate_system_name is None:
+        #     if len(element.coordinate_systems) > 1:
+        #         # TODO: An easy workaround is to add one layer per coordinate system, another better method is to
+        #         #  change the affine matrix when the coordinate system is changed.
+        #         raise ValueError("Only one coordinate system per element is supported at the moment.")
+        #     coordinate_system_name, cs = element.coordinate_systems.items().__iter__().__next__()
+        # else:
+        #     cs = element.coordinate_systems[coordinate_system_name]
+        # ct = element.transformations[coordinate_system_name]
+        ct = get_transform(element)
+        cs = ct.output_coordinate_system
         from spatialdata import Identity, Scale, Translation, Affine, Rotation, Sequence
 
         if isinstance(ct, Identity):
-            assert len(cs.axes) == element.ndim
-            affine = np.eye(len(cs.axes) + 1, element.ndim + 1)
+            assert len(cs.axes_names) == element.ndim
+            affine = np.eye(len(cs.axes_names) + 1, element.ndim + 1)
             # affine = np.hstack((affine, np.zeros((len(cs.axes), 1))))
             # affine = np.vstack((affine, np.zeros((1, element.ndim + 1))))
             # affine[-1, -1] = 1
@@ -97,17 +77,17 @@ class Interactive:
         else:
             raise TypeError(f"Unsupported transform type: {type(ct)}")
         # axes of the target coordinate space
-        axes = [axis.name for axis in cs.axes]
+        axes = cs.axes_names
         return affine, axes
 
-    def _get_affine_for_images_labels(self, element: Union[Image, Labels]) -> Tuple[DataArray, np.ndarray, bool]:
+    def _get_affine_for_images_labels(self, element: Union[SpatialImage, MultiscaleSpatialImage]) -> Tuple[DataArray, np.ndarray, bool]:
         # adjust affine transform
         # napari doesn't want channels in the affine transform, I guess also not time
         # this subset of the matrix is possible because ngff 0.4 assumes that the axes are ordered as [t, c, z, y, x]
 
         # "dims" are the axes of the element in the source coordinate system (implicit coordinate system of the labels
         # or image)
-        src_axes = element.data.dims
+        src_axes = element.dims
         assert list(src_axes) == [ax for ax in ["t", "c", "z", "y", "x"] if ax in src_axes]
         # "axes" are the axes of the element in the target coordinate system
         affine, des_axes = self._get_transform(element=element)
@@ -142,71 +122,82 @@ class Interactive:
             assert "c" in src_axes
             assert src_axes.index("c") == 0
             new_order = [src_axes[i] for i in range(1, len(src_axes))] + ["c"]
-            if element.multiscales is None:
-                new_raster = element.data.transpose(*new_order)
+            if isinstance(element, SpatialImage):
+                if element.shape[0] > 1:
+                    new_raster = element.transpose(*new_order)
+                else:
+                    new_raster = element
             else:
-                new_raster = [data.transpose(*new_order) for data in element.multiscales]
-            rgb = True
+                if element.shape[0] > 1:
+                    new_raster = [data.transpose(*new_order) for data in element.multiscales]
+                else:
+                    new_raster = element
+            if element.shape[0] == 3:
+                rgb = True
         else:
-            if element.multiscales is None:
-                new_raster = element.data
-            else:
-                new_raster = element.multiscales
+            new_raster = element
         return new_raster, cropped_affine, rgb
 
-    def _suffix_from_full_name(self, name: str):
-        return "/".join(name.split("/")[2:])
+    def _suffix_from_full_name(self, element_path: str):
+        return "/".join(element_path.split("/")[2:])
 
-    def _add_image(self, image: Image, name: str = None) -> None:
+    def _add_image(self, image: Union[SpatialImage, MultiscaleSpatialImage], element_path: str = None) -> None:
         new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
-        metadata = {"coordinate_systems": list(image.coordinate_systems.keys()), "sdata": self.sdata}
+        ct = get_transform(image)
+        cs = ct.output_coordinate_system
+        metadata = {"coordinate_systems": [cs.name], "sdata": self.sdata}
         self._viewer.add_image(
-            new_image, rgb=rgb, name=self._suffix_from_full_name(name), affine=affine, visible=False, metadata=metadata
+            new_image, rgb=rgb, name=self._suffix_from_full_name(element_path), affine=affine, visible=False,
+            metadata=metadata
         )
 
-    def _add_labels(self, labels: Labels, name: str = None, annotation_table: Optional[AnnData] = None) -> None:
+    def _add_labels(self, labels: Union[SpatialImage, MultiscaleSpatialImage], element_path: str = None, annotation_table: Optional[AnnData]
+    = None) -> \
+            None:
         annotation = self._find_annotation_for_regions(
-            base_element=labels, name=name, annotation_table=annotation_table
+            base_element=labels, element_path=element_path, annotation_table=annotation_table
         )
         if annotation is not None:
-            instance_key = annotation_table.uns["mapping_info"]["instance_key"]
+            _, _, instance_key = self._get_mapping_info(annotation)
             metadata = {
                 "adata": annotation,
-                "library_id": name,
+                "library_id": element_path,
                 "labels_key": instance_key,
                 # "points": points1,
                 # "point_diameter": 10,
             }
         else:
             metadata = {}
-        metadata["coordinate_systems"] = list(labels.coordinate_systems.keys())
+        ct = get_transform(labels)
+        cs = ct.output_coordinate_system
+        metadata["coordinate_systems"] = [cs.name]
         metadata["sdata"] = self.sdata
         new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
         self._viewer.add_labels(
-            new_labels, name=self._suffix_from_full_name(name), metadata=metadata, affine=affine, visible=False
+            new_labels, name=self._suffix_from_full_name(element_path), metadata=metadata, affine=affine, visible=False
         )
 
-    def _get_affine_for_points_polygons(self, element: BaseElement) -> np.ndarray:
+    def _get_affine_for_points_polygons(self, element: Union[GeoDataFrame, pa.Table]) -> np.ndarray:
         # the whole function assumes there is no time dimension
-        ndim = element.ndim
+        ndim = len(get_dims(element))
         # "src_axes" are the axes of the element in the source coordinate system (implicit coordinate system of the
         # labels
         src_axes = ['x', 'y', 'z'][:ndim]
+        assert tuple(src_axes) == get_dims(element)
 
         assert list(src_axes) == [ax for ax in ["x", "y", "z"] if ax in src_axes]
         # "axes" are the axes of the element in the target coordinate system
         affine, des_axes = self._get_transform(element=element)
 
-        target_order_pre = [ax for ax in des_axes if ax in src_axes]
-        target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in des_axes]
+        # target_order_pre = [ax for ax in des_axes if ax in src_axes]
+        # target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in des_axes]
+        #
+        # from spatialdata import Affine
+        #
+        # fix_order_pre = Affine._get_affine_iniection_from_axes(src_axes, target_order_pre)
+        # fix_order_post = Affine._get_affine_iniection_from_axes(des_axes, target_order_post)
+        # affine = fix_order_post @ affine @ fix_order_pre
 
-        from spatialdata import Affine
-
-        fix_order_pre = Affine._get_affine_iniection_from_axes(src_axes, target_order_pre)
-        fix_order_post = Affine._get_affine_iniection_from_axes(des_axes, target_order_post)
-        affine = fix_order_post @ affine @ fix_order_pre
-
-        ndim = element.ndim
         out_space_dim = affine.shape[0] - 1
         in_space_dim = affine.shape[1] - 1
         assert in_space_dim == ndim
@@ -217,30 +208,31 @@ class Interactive:
             affine = affine[1:, :]
         return affine
 
-    def _add_points(self, points: Points, name: str, annotation_table: Optional[AnnData] = None) -> None:
-        adata = points.data
-        spatial = adata.obsm["spatial"]
-        if "region_radius" in adata.obsm:
-            radii = adata.obsm["region_radius"]
+    def _add_shapes(self, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None) -> None:
+        spatial = shapes.obsm["spatial"]
+        if "size" in shapes.obs:
+            radii = shapes.obs["size"]
         else:
             radii = 1
         annotation = self._find_annotation_for_regions(
-            base_element=points, annotation_table=annotation_table, name=name
+            base_element=shapes, annotation_table=annotation_table, element_path=element_path
         )
         if annotation is not None:
             # # points_annotation is required from the squidpy legagy code, TODO: remove
-            # points_annotation = AnnData(X=points.data.X)
+            # points_annotation = AnnData(X=shapes.data.X)
             # points_annotation.obs['gene'] = annotation.obs
-            # metadata = {"adata": annotation, "library_id": name, "points": points_annotation}
-            metadata = {"adata": annotation, "library_id": name}
+            # metadata = {"adata": annotation, "library_id": element_path, "shapes": points_annotation}
+            metadata = {"adata": annotation, "library_id": element_path}
         else:
             metadata = {}
-        metadata["coordinate_systems"] = list(points.coordinate_systems.keys())
+        ct = get_transform(shapes)
+        cs = ct.output_coordinate_system
+        metadata["coordinate_systems"] = [cs.name]
         metadata["sdata"] = self.sdata
-        affine = self._get_affine_for_points_polygons(element=points)
+        affine = self._get_affine_for_points_polygons(element=shapes)
         self._viewer.add_points(
             spatial,
-            name=self._suffix_from_full_name(name),
+            name=self._suffix_from_full_name(element_path),
             edge_color="white",
             face_color="white",
             size=2 * radii,
@@ -249,31 +241,63 @@ class Interactive:
             affine=affine,
             visible=False,
         )
-        # img1, rgb=True, name="image1", metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"}, scale=(1, 1)
 
-    def _add_polygons(self, polygons: Polygons, name: str, annotation_table: Optional[AnnData] = None) -> None:
-        adata = polygons.data
-        spatial = adata.obs.spatial
-        from spatialdata._core import Polygons
+    def _add_points(self, points: pa.Table, element_path: str) -> None:
+        dims = get_dims(points)
+        spatial = points.select(dims).to_pandas().to_numpy()
+        radii = 1
+        annotations_columns = list(set(points.column_names).difference(dims))
+        if len(annotations_columns) > 0:
+            df = points.select(annotations_columns).to_pandas()
+            annotation = AnnData(shape=(len(points), 0), obs=df, obsm={'spatial': spatial})
+        else:
+            annotation = None
+        if annotation is not None:
+            # # points_annotation is required from the squidpy legagy code, TODO: remove
+            # points_annotation = AnnData(X=shapes.data.X)
+            # points_annotation.obs['gene'] = annotation.obs
+            # metadata = {"adata": annotation, "library_id": element_path, "shapes": points_annotation}
+            metadata = {"adata": annotation, "library_id": element_path}
+        else:
+            metadata = {}
+        ct = get_transform(points)
+        cs = ct.output_coordinate_system
+        metadata["coordinate_systems"] = [cs.name]
+        metadata["sdata"] = self.sdata
+        affine = self._get_affine_for_points_polygons(element=points)
+        self._viewer.add_points(
+            spatial,
+            name=self._suffix_from_full_name(element_path),
+            edge_color="white",
+            face_color="white",
+            size=2 * radii,
+            metadata=metadata,
+            edge_width=0.0,
+            affine=affine,
+            visible=False,
+        )
 
-        coordinates = [Polygons.string_to_tensor(s).tolist() for s in spatial]
+    def _add_polygons(self, polygons: GeoDataFrame, element_path: str, annotation_table: Optional[AnnData] = None) -> None:
+        coordinates = polygons.geometry.apply(lambda x: np.array(x.exterior.coords).tolist()).tolist()
         annotation = self._find_annotation_for_regions(
-            base_element=polygons, annotation_table=annotation_table, name=name
+            base_element=polygons, annotation_table=annotation_table, element_path=element_path
         )
         if annotation is not None:
-            metadata = {"adata": annotation, "library_id": name}
+            metadata = {"adata": annotation, "library_id": element_path}
         else:
             metadata = {}
         ##
-        metadata["coordinate_systems"] = list(polygons.coordinate_systems.keys())
+        ct = get_transform(polygons)
+        cs = ct.output_coordinate_system
+        metadata["coordinate_systems"] = [cs.name]
         metadata["sdata"] = self.sdata
         affine = self._get_affine_for_points_polygons(element=polygons)
         self._viewer.add_shapes(
             coordinates,
             shape_type="polygon",
-            name=self._suffix_from_full_name(name),
-            edge_width=10.0,
-            edge_color="red",
+            name=self._suffix_from_full_name(element_path),
+            edge_width=20.0,
+            edge_color="green",
             face_color=np.array([0.0, 0, 0.0, 0.0]),
             metadata=metadata,
             affine=affine,
@@ -282,30 +306,39 @@ class Interactive:
         ##
 
     def _find_annotation_for_regions(
-        self, base_element: Union[Labels, Points, Polygons], name: str, annotation_table: Optional[AnnData] = None
+        self, base_element: SpatialElement, element_path: str, annotation_table: Optional[AnnData] =
+            None
     ) -> Optional[AnnData]:
         if annotation_table is None:
             return None
-        from spatialdata._core.elements import Labels, Points, Polygons
 
         regions, regions_key, instance_key = self._get_mapping_info(annotation_table)
-        if name in regions:
-            annotating_rows = annotation_table[annotation_table.obs[regions_key] == name, :]
+        if element_path in regions:
+            assert regions is not None
+            if isinstance(regions, list):
+                annotating_rows = annotation_table[annotation_table.obs[regions_key] == element_path, :]
+            else:
+                assert isinstance(regions, str)
+                assert regions_key is None
+                annotating_rows = annotation_table
             if len(annotating_rows) == 0:
-                logger.warning(f"Layer {name} expected to be annotated but no annotation found")
+                logger.warning(f"Layer {element_path} expected to be annotated but no annotation found")
                 return None
             else:
-                if isinstance(base_element, Labels):
+                if isinstance(base_element, SpatialImage) or isinstance(base_element, MultiscaleSpatialImage):
                     return self._find_annotation_for_labels(
-                        labels=base_element, name=name, annotating_rows=annotating_rows, instance_key=instance_key
+                        labels=base_element, element_path=element_path, annotating_rows=annotating_rows,
+                        instance_key=instance_key
                     )
-                elif isinstance(base_element, Points):
-                    return self._find_annotation_for_points(
-                        points=base_element, name=name, annotating_rows=annotating_rows, instance_key=instance_key
+                elif isinstance(base_element, AnnData):
+                    return self._find_annotation_for_shapes(
+                        points=base_element, element_path=element_path, annotating_rows=annotating_rows,
+                        instance_key=instance_key
                     )
-                elif isinstance(base_element, Polygons):
+                elif isinstance(base_element, GeoDataFrame):
                     return self._find_annotation_for_polygons(
-                        polygons=base_element, name=name, annotating_rows=annotating_rows, instance_key=instance_key
+                        polygons=base_element, element_path=element_path, annotating_rows=annotating_rows,
+                        instance_key=instance_key
                     )
                 else:
                     raise ValueError(f"Unsupported element type: {type(base_element)}")
@@ -313,16 +346,15 @@ class Interactive:
         else:
             return None
 
-        if annotation_table is None:
-            return None
-
     def _get_mapping_info(self, annotation_table: AnnData):
-        regions = annotation_table.uns["mapping_info"]["regions"]
-        regions_key = annotation_table.uns["mapping_info"]["regions_key"]
-        instance_key = annotation_table.uns["mapping_info"]["instance_key"]
+        regions = annotation_table.uns["spatialdata_attrs"]["region"]
+        regions_key = annotation_table.uns["spatialdata_attrs"]["region_key"]
+        instance_key = annotation_table.uns["spatialdata_attrs"]["instance_key"]
         return regions, regions_key, instance_key
 
-    def _find_annotation_for_labels(self, labels: Labels, name: str, annotating_rows: AnnData, instance_key: str):
+    def _find_annotation_for_labels(self, labels: Union[SpatialImage, MultiscaleSpatialImage], element_path: str, annotating_rows:
+    AnnData, instance_key:
+    str):
         # TODO: use xarray apis
         x = np.array(labels.data)
         u = np.unique(x)
@@ -336,9 +368,9 @@ class Interactive:
 
         # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
         annotating_rows.uns[Key.uns.spatial] = {}
-        annotating_rows.uns[Key.uns.spatial][name] = {}
-        annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key] = {}
-        annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
+        annotating_rows.uns[Key.uns.spatial][element_path] = {}
+        annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key] = {}
+        annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
         list_of_cx = []
         list_of_cy = []
         list_of_v = []
@@ -369,12 +401,11 @@ class Interactive:
         annotating_rows.obsm["region_radius"] = np.array([10.0] * len(merged_centroids))  # arbitrary value
         return annotating_rows
 
-    def _find_annotation_for_points(
-        self, points: Points, name: str, annotating_rows: AnnData, instance_key: str
+    def _find_annotation_for_shapes(
+        self, points: AnnData, element_path: str, annotating_rows: AnnData, instance_key: str
     ) -> Optional[AnnData]:
         """Find the annotation for a points layer from the annotation table."""
-        assert instance_key in points.data.obs.columns
-        available_instances = points.data.obs[instance_key].tolist()
+        available_instances = points.obs.index.tolist()
         annotated_instances = annotating_rows.obs[instance_key].tolist()
         assert len(available_instances) == len(set(available_instances)), (
             "Instance keys must be unique. Found " "multiple regions instances with the " "same key."
@@ -384,33 +415,45 @@ class Interactive:
         )
         available_instances = set(available_instances)
         annotated_instances = set(annotated_instances)
-        assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in points."
+        # TODO: maybe add this check back
+        # assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in points."
         if len(annotated_instances) != len(available_instances):
             raise ValueError("TODO: support partial annotation")
 
         # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
         annotating_rows.uns[Key.uns.spatial] = {}
-        annotating_rows.uns[Key.uns.spatial][name] = {}
-        annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key] = {}
-        annotating_rows.uns[Key.uns.spatial][name][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
-        annotating_rows.obsm["spatial"] = points.data.obsm["spatial"]
+        annotating_rows.uns[Key.uns.spatial][element_path] = {}
+        annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key] = {}
+        annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
+        annotating_rows.obsm["spatial"] = points.obsm["spatial"]
         # workaround for the legacy code to support different sizes for different points
-        annotating_rows.obsm["region_radius"] = points.data.obsm["region_radius"]
+        annotating_rows.obsm["region_radius"] = points.obs["size"].to_numpy()
         return annotating_rows
 
     def _find_annotation_for_polygons(
-        self, polygons: Polygons, name: str, annotating_rows: AnnData, instance_key: str
+        self, polygons: GeoDataFrame, element_path: str, annotating_rows: AnnData, instance_key: str
     ) -> Optional[AnnData]:
         print("_find_annotation_for_polygons not implemented")
         return None
 
     def _add_layers_from_sdata(self, sdata: SpatialData):
-        ##
-        for prefix in ["images", "labels", "points", "polygons"]:
+        for prefix in ["images", "labels", "points", "polygons", "shapes"]:
             d = sdata.__getattribute__(prefix)
+            annotation_table = sdata.table
             for name, element in d.items():
-                self.add_spatial_element(element, annotation_table=sdata.table, name=f"/{prefix}/{name}")
-        ##
+                element_path = f"/{prefix}/{name}"
+                if prefix == 'images':
+                    self._add_image(element, element_path=element_path)
+                elif prefix == 'points':
+                    self._add_points(element, element_path=element_path)
+                elif prefix == 'labels':
+                    self._add_labels(element, annotation_table=annotation_table, element_path=element_path)
+                elif prefix == 'shapes':
+                    self._add_shapes(element, annotation_table=annotation_table, element_path=element_path)
+                elif prefix == 'polygons':
+                    self._add_polygons(element, annotation_table=annotation_table, element_path=element_path)
+                else:
+                    raise ValueError(f"Unsupported element type: {type(element)}")
 
     def screenshot(
         self,

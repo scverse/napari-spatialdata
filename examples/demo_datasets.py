@@ -3,12 +3,11 @@
 
 import spatialdata as sd
 import click
-from pathlib import Path
 from napari_spatialdata import Interactive
 import pathlib
 import os
 
-DATASETS = ["merfish", "nanostring_cosmx", "mibitof", "toy", "visium"]
+DATASETS = ["merfish", "nanostring_cosmx", "mibitof", "toy", "visium", "visium2", "xenium"]
 
 
 @click.command()
@@ -31,7 +30,8 @@ def view(dataset):
     if not os.path.isdir(path):
         raise FileNotFoundError(f"Dataset {dataset} not found in the file storage.")
 
-    sdata = sd.SpatialData.read(path, filter_table=True)
+    # sdata = sd.SpatialData.read(path, filter_table=True)
+    sdata = sd.SpatialData.read(path)
     print(sdata)
 
     interactive = Interactive(sdata=sdata)
