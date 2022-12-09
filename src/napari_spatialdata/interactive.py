@@ -87,7 +87,11 @@ class Interactive:
 
         # "dims" are the axes of the element in the source coordinate system (implicit coordinate system of the labels
         # or image)
-        src_axes = element.dims
+        if isinstance(element, SpatialImage):
+            src_axes = element.dims
+        else:
+            assert isinstance(element, MultiscaleSpatialImage)
+            src_axes = element['scale0'].ds.DAPI.dims
         assert list(src_axes) == [ax for ax in ["t", "c", "z", "y", "x"] if ax in src_axes]
         # "axes" are the axes of the element in the target coordinate system
         affine, des_axes = self._get_transform(element=element)
@@ -127,15 +131,32 @@ class Interactive:
                     new_raster = element.transpose(*new_order)
                 else:
                     new_raster = element
+                if element.shape[0] == 3:
+                    rgb = True
             else:
-                if element.shape[0] > 1:
-                    new_raster = [data.transpose(*new_order) for data in element.multiscales]
-                else:
-                    new_raster = element
-            if element.shape[0] == 3:
-                rgb = True
+                assert isinstance(element, MultiscaleSpatialImage)
+                variables = list(element['scale0'].ds.variables)
+                assert len(variables) == 1
+                var = variables[0]
+                new_raster = [element[k].ds[var] for k in element.keys()]
+                if element['scale0'].dims['c'] > 1:
+                    new_raster = [data.transpose(*new_order) for data in new_raster]
+                if element['scale0'].dims['c'] == 3:
+                    rgb = True
         else:
             new_raster = element
+        # this code is useless
+        # if isinstance(new_raster, SpatialImage):
+        #     if new_raster.dtype in [np.uint8, np.uint16, np.uint32, np.uint64]:
+        #         maximum = new_raster.max().compute()
+        #         if maximum > 255:
+        #             new_raster = new_raster.astype(float)
+        # else:
+        #     assert isinstance(new_raster, list)
+        #     if new_raster[0].dtype in [np.uint8, np.uint16, np.uint32, np.uint64]:
+        #         maximum = new_raster[-1].max().compute()
+        #         if maximum > 255:
+        #             new_raster = [raster.astype(float) for raster in new_raster]
         return new_raster, cropped_affine, rgb
 
     def _suffix_from_full_name(self, element_path: str):
@@ -265,6 +286,16 @@ class Interactive:
         metadata["coordinate_systems"] = [cs.name]
         metadata["sdata"] = self.sdata
         affine = self._get_affine_for_points_polygons(element=points)
+        # 3d not supported at the moment, let's remove the 3d coordinate
+        # TODO: support
+        axes = get_dims(points)
+        if 'z' in axes:
+            assert len(axes) == 3
+            spatial = spatial[:, :2]
+            # z is column 2 (input space xyz and row 0 (output space zyx)
+            # actually I was expecting the output to be still xyz, but this seem to work...
+            # TODO: CHECK!
+            affine = affine[1:, np.array([0, 1, 3], dtype=int)]
         self._viewer.add_points(
             spatial,
             name=self._suffix_from_full_name(element_path),
