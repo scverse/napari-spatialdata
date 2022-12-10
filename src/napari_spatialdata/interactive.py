@@ -327,7 +327,8 @@ class Interactive:
             coordinates,
             shape_type="polygon",
             name=self._suffix_from_full_name(element_path),
-            edge_width=20.0,
+            edge_width=0.5,  # TODO: choose this number based on the size of spatial elements in a smart way,
+            # or let the user choose it
             edge_color="green",
             face_color=np.array([0.0, 0, 0.0, 0.0]),
             metadata=metadata,
@@ -468,7 +469,7 @@ class Interactive:
         return None
 
     def _add_layers_from_sdata(self, sdata: SpatialData):
-        for prefix in ["images", "labels", "points", "polygons", "shapes"]:
+        for prefix in ["images", "labels", "shapes", "points", "polygons"]:
             d = sdata.__getattribute__(prefix)
             annotation_table = sdata.table
             for name, element in d.items():
@@ -483,6 +484,7 @@ class Interactive:
                     self._add_shapes(element, annotation_table=annotation_table, element_path=element_path)
                 elif prefix == 'polygons':
                     self._add_polygons(element, annotation_table=annotation_table, element_path=element_path)
+                    pass
                 else:
                     raise ValueError(f"Unsupported element type: {type(element)}")
 
