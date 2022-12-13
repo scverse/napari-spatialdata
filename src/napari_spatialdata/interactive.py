@@ -40,7 +40,8 @@ class Interactive:
         # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
         if with_widgets:
             self.show_widget()
-        napari.run()
+        if not headless:
+            napari.run()
 
     def show_widget(self):
         """Load the widget for interative features exploration."""
@@ -67,8 +68,9 @@ class Interactive:
         from spatialdata import Identity, Scale, Translation, Affine, Rotation, Sequence
 
         if isinstance(ct, Identity):
-            assert len(cs.axes_names) == element.ndim
-            affine = np.eye(len(cs.axes_names) + 1, element.ndim + 1)
+            ndim = len(get_dims(element))
+            assert len(cs.axes_names) == ndim
+            affine = np.eye(len(cs.axes_names) + 1, ndim + 1)
             # affine = np.hstack((affine, np.zeros((len(cs.axes), 1))))
             # affine = np.vstack((affine, np.zeros((1, element.ndim + 1))))
             # affine[-1, -1] = 1
@@ -91,7 +93,8 @@ class Interactive:
             src_axes = element.dims
         else:
             assert isinstance(element, MultiscaleSpatialImage)
-            src_axes = element['scale0'].ds.DAPI.dims
+            key = element['scale0'].ds.__iter__().__next__()
+            src_axes = element['scale0'].ds[key].dims
         assert list(src_axes) == [ax for ax in ["t", "c", "z", "y", "x"] if ax in src_axes]
         # "axes" are the axes of the element in the target coordinate system
         affine, des_axes = self._get_transform(element=element)
