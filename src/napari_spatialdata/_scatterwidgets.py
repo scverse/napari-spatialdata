@@ -63,7 +63,7 @@ class SelectFromCollection:
 
         # Ensure that we have separate colors for each object
         self.fc = collection.get_facecolors()
-        logger.debug("Facecolors: {}", self.fc)
+
         if len(self.fc) == 0:
             raise ValueError("Collection must have a facecolor")
         elif len(self.fc) == 1:
