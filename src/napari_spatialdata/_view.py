@@ -192,40 +192,62 @@ class QtAdataViewWidget(QWidget):
         assert len(selection) == 1
         layer = selection.__iter__().__next__()
         # key = f"{layer.name}_{self.model.layer.name}"
-        sdata = None
+        ##
+        sdatas = []
         for ll in self.viewer.layers:
             if ll.visible:
                 if "sdata" in ll.metadata:
                     sdata = ll.metadata["sdata"]
-        if sdata is None:
+                    sdatas.append(sdata)
+        sdata_ids = set([id(sdata) for sdata in sdatas])
+        if len(sdata_ids) == 0:
             raise RuntimeError(
                 "Cannot save polygons because no layer associated with a SpatialData object is " "currently visible."
             )
-        else:
-            ##
-            from spatialdata._core.elements import Polygons
-            from spatialdata import Affine
+        elif len(sdata_ids) > 1:
+            logger.warning('More than one SpatialData object is currently visible. Saving polygons for the first one.')
+        ##
 
-            # get current coordinate system
-            selected = self._coordinate_system_selector.selectedItems()
-            assert len(selected) == 1
-            cs_name = selected[0].text()
-            cs = sdata.coordinate_systems[cs_name]
-            key = f"{layer.name}_{cs_name}"
-            # coords = self.model.adata.uns[key]["meshes"]
-            coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
-            string_coords = [Polygons.tensor_to_string(c) for c in coords]
-            names = [f"poly_{i}" for i in range(len(coords))]
-            adata = AnnData(shape=(len(coords), 0), obs=pd.DataFrame({"name": names, "spatial": string_coords}))
-            logger.info(str(cs.to_dict()))
-            polygons = Polygons(adata, alignment_info={cs: Affine([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])})
-            zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
-            sdata.polygons[zarr_name] = polygons
-            if sdata.is_backed():
-                sdata._save_element("polygons", zarr_name, overwrite=True)
-            show_info(f"Polygons saved in the SpatialData object")
-            ##
-            # TODO: associate the current layer with the SpatialData object
+        sdata = sdatas[0]
+        ##
+        # wip
+        # from spatialdata._core.elements import Polygons
+        # from spatialdata import Affine
+        #
+        # # get current coordinate system
+        # selected = self._coordinate_system_selector.selectedItems()
+        # assert len(selected) == 1
+        # cs_name = selected[0].text()
+        # cs = sdata.coordinate_systems[cs_name]
+        # key = f"{layer.name}_{cs_name}"
+        # # coords = self.model.adata.uns[key]["meshes"]
+        # coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
+        # string_coords = [Polygons.tensor_to_string(c) for c in coords]
+        # names = [f"poly_{i}" for i in range(len(coords))]
+        # adata = AnnData(shape=(len(coords), 0), obs=pd.DataFrame({"name": names, "spatial": string_coords}))
+        # logger.info(str(cs.to_dict()))
+        # polygons = Polygons(adata, alignment_info={cs: Affine([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])})
+        # zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
+        # sdata.polygons[zarr_name] = polygons
+        # if sdata.is_backed():
+        #     sdata._save_element("polygons", zarr_name, overwrite=True)
+        # show_info(f"Polygons saved in the SpatialData object")
+        # ##
+        # # TODO: associate the current layer with the SpatialData object
+        # store = parse_url(out_path, mode="r+").store
+        # root = zarr.group(store)
+        # elem_group = root.require_group(element_type)
+        # inner_path = os.path.normpath(os.path.join(elem_group._store.path, elem_group.path, name))
+        # if os.path.isdir(inner_path) and delete_existing:
+        #     logger.info(f"Removing existing directory {inner_path}")
+        #     shutil.rmtree(inner_path)
+        # return elem_group
+        #
+        #
+        # parsed = PointsModel.parse(coords=xyz, annotations=annotations, transform=transform)
+        # group = _get_zarr_group(out_path, "polygons", name)
+        # write_points(points=parsed, group=group, name=name)
+
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
         shape_list = layer._data_view

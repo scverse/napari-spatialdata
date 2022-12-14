@@ -34,7 +34,7 @@ class Interactive:
     def __init__(self, sdata: SpatialData, with_widgets: bool = True, headless: bool = False):
         # os.environ['NAPARI_ASYNC'] = '1'
         # os.environ['NAPARI_OCTREE'] = '1'
-        self._viewer = napari.Viewer(show=not headless)
+        self._viewer = napari.Viewer()
         self.sdata = sdata
         self._add_layers_from_sdata(sdata=self.sdata)
         # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
@@ -555,6 +555,6 @@ class Interactive:
 if __name__ == "__main__":
     from spatialdata import SpatialData
 
-    # sdata = SpatialData.read("spatialdata-sandbox/merfish/data.zarr")
-    sdata = SpatialData.read("spatialdata-sandbox/visium/data.zarr")
+    # sdata = SpatialData.read("merfish/data.zarr")
+    sdata = SpatialData.read("visium/data.zarr")
     Interactive(sdata)
