@@ -86,13 +86,13 @@ def test_min_max_norm(vec: np.ndarray) -> None:
 def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
 
     from napari_spatialdata._model import ImageModel
-    from napari_spatialdata._widgets import MatplotlibWidget
+    from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
     viewer = make_napari_viewer()
     model = ImageModel()
 
     m = MatplotlibWidget(viewer, model)
-    m._onClick(np.ones(10), "X", np.ones(10), "Y", np.ones(10), "Color")
+    m._onClick(np.ones(10), np.ones(10), np.ones(10), "X", "Y", "Color")
 
     with caplog.at_level(logging.INFO):
-        assert "X-axis Data:" in caplog.records[0].message
+        assert "Plotting" in caplog.records[0].message

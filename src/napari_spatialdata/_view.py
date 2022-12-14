@@ -26,11 +26,10 @@ from napari_spatialdata._utils import (
 from napari_spatialdata._widgets import (
     CBarWidget,
     AListWidget,
-    AxisWidgets,
     ComponentWidget,
-    MatplotlibWidget,
     RangeSliderWidget,
 )
+from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
@@ -74,17 +73,29 @@ class QtAdataScatterWidget(QWidget):
         self.plot_button_widget.clicked.connect(
             lambda: self.matplotlib_widget._onClick(
                 self.x_widget.widget.data,
-                self.x_widget.widget.text,
                 self.y_widget.widget.data,
-                self.y_widget.widget.text,
                 self.color_widget.widget.data,
-                self.color_widget.widget.text,
+                self.x_widget.getFormattedLabel(),
+                self.y_widget.getFormattedLabel(),
+                self.color_widget.getFormattedLabel(),
             )
         )
 
-        self.layout().addWidget(self.plot_button_widget, 8, 0, 8, 0)
-
+        self.export_button_widget = QPushButton("Export")
+        self.export_button_widget.clicked.connect(self.export)
+        
+        self.layout().addWidget(self.plot_button_widget, 8, 0, 1, 2)
+        self.layout().addWidget(self.export_button_widget, 8, 2, 1, 2)
+        
         self.model.events.adata.connect(self._on_selection)
+
+    def export(self) -> None:
+        
+        if (self.matplotlib_widget.selector) is None or (self.matplotlib_widget.selector.exported_data is None):
+            raise ValueError("Data points haven't been selected from the matplotlib visualisation.")
+
+        logger.info("Exported selected coordinates to AnnData.")
+        self.matplotlib_widget.selector.export(self.model.adata)
 
     def _on_selection(self, event: Optional[Any] = None) -> None:
 
@@ -105,21 +116,6 @@ class QtAdataScatterWidget(QWidget):
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
         self.model.library_id = layer.metadata["library_id"]
-        self.model.scale = self.model.adata.uns[Key.uns.spatial][self.model.library_id][Key.uns.scalefactor_key][
-            self.model.scale_key
-        ]
-        self.model.coordinates = np.insert(
-            self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
-        )
-        if "points" in layer.metadata:
-            self.model.points_coordinates = layer.metadata["points"].X
-            self.model.points_var = layer.metadata["points"].obs["gene"]
-            self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
-        self.model.spot_diameter = (
-            np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
-            * self.model.scale
-        )
-        self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
 
     def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
         adata_layers = []
@@ -131,6 +127,16 @@ class QtAdataScatterWidget(QWidget):
                 "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
             )
         return adata_layers
+
+
+    def _update_obs_items(self, key: str) -> None:
+        self.obs_widget.addItems(key)
+        if key in self.layernames:
+            # update already present layer
+            layer = self.viewer.layers[key]
+            layer.face_color = _get_categorical(self.model.adata, key)
+            layer._update_thumbnail()
+            layer.refresh_colors()
 
     @property
     def viewer(self) -> napari.Viewer:
@@ -215,7 +221,7 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.var_points_widget)
 
         # scalebar
-        colorbar = CBarWidget()
+        colorbar = CBarWidget(model=self.model)
         self.slider = RangeSliderWidget(self.viewer, self.model, colorbar=colorbar)
         self._viewer.window.add_dock_widget(self.slider, area="left", name="slider")
         self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
@@ -257,6 +263,8 @@ class QtAdataViewWidget(QWidget):
             * self.model.scale
         )
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
+        if "colormap" in layer.metadata:
+            self.model.cmap = layer.metadata["colormap"]
 
     def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
         adata_layers = []
