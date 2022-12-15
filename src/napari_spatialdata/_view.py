@@ -83,14 +83,14 @@ class QtAdataScatterWidget(QWidget):
 
         self.export_button_widget = QPushButton("Export")
         self.export_button_widget.clicked.connect(self.export)
-        
+
         self.layout().addWidget(self.plot_button_widget, 8, 0, 1, 2)
         self.layout().addWidget(self.export_button_widget, 8, 2, 1, 2)
-        
+
         self.model.events.adata.connect(self._on_selection)
 
     def export(self) -> None:
-        
+
         if (self.matplotlib_widget.selector) is None or (self.matplotlib_widget.selector.exported_data is None):
             raise ValueError("Data points haven't been selected from the matplotlib visualisation.")
 
@@ -127,7 +127,6 @@ class QtAdataScatterWidget(QWidget):
                 "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
             )
         return adata_layers
-
 
     def _update_obs_items(self, key: str) -> None:
         self.obs_widget.addItems(key)

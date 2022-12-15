@@ -11,8 +11,8 @@ from matplotlib.widgets import LassoSelector
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
 import napari
-from napari.layers import Image, Layer, Labels, Points
 import pandas as pd
+import matplotlib as plt          
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA, _set_palette, _get_categorical
@@ -50,7 +50,7 @@ class SelectFromCollection:
 
     def __init__(self, viewer: Viewer, model: ImageModel, ax, collection, data, alpha_other=0.3):
         self.viewer = viewer
-        self.model = model 
+        self.model = model
         self.canvas = ax.figure.canvas
         self.collection = collection
         self.alpha_other = alpha_other
@@ -68,14 +68,14 @@ class SelectFromCollection:
             raise ValueError("Collection must have a facecolor")
         elif len(self.fc) == 1:
             self.fc = np.tile(self.fc, (self.Npts, 1))
-            
+
         self.selector = LassoSelector(ax, onselect=self.onselect)
-        
+
         self.ind = []
 
     def export(self, adata) -> None:
         adata.obs["0_LASSO_SELECTED"] = self.exported_data
-        
+
     def onselect(self, verts) -> None:
 
         path = Path(verts)
@@ -84,36 +84,20 @@ class SelectFromCollection:
         self.fc[:, -1] = self.alpha_other
         self.fc[self.ind, -1] = 1
 
-        # logger.debug("FINAL FC 1: {}", self.fc)
-        
-        # self.fc[(self.fc > 0.1)] = 1
-        # logger.debug("FINAL FC 2: {}", self.fc)
-        
         self.collection.set_facecolors(self.fc)
-        
+
         self.canvas.draw_idle()
-        
-        # self.axes.clear()
 
-        # logger.debug("Scatterplot colors: {}", self.data[2])
-        # logger.debug("Type of scatterplot colors: {}", type(self.data[2]))
-
-        # self.data[2][(self.data[2] > 0)] = 1
-        # self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
-        # self.axes.set_xlabel("Test label")
-
-        # print("SHAPE: ", self.data[2].shape)
-
-        self.selected_coordinates = self.xys[self.ind].data        
+        self.selected_coordinates = self.xys[self.ind].data
         self.exported_data = pd.Categorical(path.contains_points(self.xys))
-        
+
     def disconnect(self) -> None:
         self.selector.disconnect_events()
         self.poly.disconnect_events()
         self.fc[:, -1] = 1
         self.collection.set_facecolors(self.fc)
         self.canvas.draw_idle()
- 
+
 
 class ScatterListWidget(AListWidget):
     attrChanged = Signal()
@@ -225,6 +209,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self.colorbar = None
         self.selector = None
 
+
     def _onClick(
         self,
         x_data: Union[NDArrayA, pd.Series],
@@ -239,11 +224,17 @@ class MatplotlibWidget(NapariMPLWidget):
         self.palette = None
 
         if isinstance(color_data, dict):
+
             self.data = [x_data, y_data, color_data["vec"]]
             self.cat = color_data["cat"]
             self.palette = color_data["palette"]
+
         else:
-            self.data = [x_data, y_data, color_data]
+        
+            norm = plt.colors.Normalize(vmin=np.amin(color_data), vmax=np.amax(color_data))
+            cmap = plt.cm.viridis #TODO (rahulbshrestha): Replace this with colormap used in scatterplot
+            self.data = [x_data, y_data, cmap(norm(color_data))]
+
         self.x_label = x_label
         self.y_label = y_label
         self.color_label = color_label
@@ -276,16 +267,14 @@ class MatplotlibWidget(NapariMPLWidget):
         self.canvas.draw()
 
         self.selector = SelectFromCollection(self._viewer, self._model, self.axes, self.scatterplot, self.data)
-        
+
     def clear(self) -> None:
-        
+
         if self.colorbar:
             self.colorbar.remove()
             self.colorbar = None
-            
-        self.axes.clear()
 
-        
+        self.axes.clear()
 
 
 class AxisWidgets(QtWidgets.QWidget):
