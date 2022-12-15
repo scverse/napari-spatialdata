@@ -134,7 +134,7 @@ class QtAdataViewWidget(QWidget):
         # self.model.scale = self.model.adata.uns[Key.uns.spatial][self.model.library_id][Key.uns.scalefactor_key][
         #     self.model.scale_key
         # ]
-        self.model.scale = 1.
+        self.model.scale = 1.0
         self.model.coordinates = np.insert(
             self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
         )
@@ -151,7 +151,7 @@ class QtAdataViewWidget(QWidget):
             #     np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
             #     * self.model.scale
             # )
-            self.model.spot_diameter = 1.
+            self.model.spot_diameter = 1.0
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
 
     def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
@@ -205,49 +205,39 @@ class QtAdataViewWidget(QWidget):
                 "Cannot save polygons because no layer associated with a SpatialData object is " "currently visible."
             )
         elif len(sdata_ids) > 1:
-            logger.warning('More than one SpatialData object is currently visible. Saving polygons for the first one.')
+            logger.warning("More than one SpatialData object is currently visible. Saving polygons for the first one.")
         ##
 
         sdata = sdatas[0]
-        ##
-        # wip
-        # from spatialdata._core.elements import Polygons
-        # from spatialdata import Affine
-        #
-        # # get current coordinate system
-        # selected = self._coordinate_system_selector.selectedItems()
-        # assert len(selected) == 1
-        # cs_name = selected[0].text()
-        # cs = sdata.coordinate_systems[cs_name]
-        # key = f"{layer.name}_{cs_name}"
-        # # coords = self.model.adata.uns[key]["meshes"]
-        # coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
-        # string_coords = [Polygons.tensor_to_string(c) for c in coords]
-        # names = [f"poly_{i}" for i in range(len(coords))]
-        # adata = AnnData(shape=(len(coords), 0), obs=pd.DataFrame({"name": names, "spatial": string_coords}))
-        # logger.info(str(cs.to_dict()))
-        # polygons = Polygons(adata, alignment_info={cs: Affine([[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])})
-        # zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
-        # sdata.polygons[zarr_name] = polygons
-        # if sdata.is_backed():
-        #     sdata._save_element("polygons", zarr_name, overwrite=True)
-        # show_info(f"Polygons saved in the SpatialData object")
-        # ##
-        # # TODO: associate the current layer with the SpatialData object
-        # store = parse_url(out_path, mode="r+").store
-        # root = zarr.group(store)
-        # elem_group = root.require_group(element_type)
-        # inner_path = os.path.normpath(os.path.join(elem_group._store.path, elem_group.path, name))
-        # if os.path.isdir(inner_path) and delete_existing:
-        #     logger.info(f"Removing existing directory {inner_path}")
-        #     shutil.rmtree(inner_path)
-        # return elem_group
-        #
-        #
-        # parsed = PointsModel.parse(coords=xyz, annotations=annotations, transform=transform)
-        # group = _get_zarr_group(out_path, "polygons", name)
-        # write_points(points=parsed, group=group, name=name)
+        from spatialdata import Affine, PointsModel
+        from spatialdata._core.core_utils import get_default_coordinate_system
 
+        xy_cs = get_default_coordinate_system(("x", "y"))
+
+        # get current coordinate system
+        selected = self._coordinate_system_selector.selectedItems()
+        assert len(selected) == 1
+        cs_name = selected[0].text()
+        cs = sdata.coordinate_systems[cs_name]
+        key = f"{layer.name}_{cs_name}"
+        coords = layer.data
+        # TODO: deal with 3D case (build this matrix with MapAxis or similar) and deal with coords
+        if layer.ndim == 3:
+            coords = coords[:, 1:]
+        else:
+            assert layer.ndim == 2
+        assert coords.shape[1] == 2
+        # coords from napari are in the yx coordinate systems, we want to store them as xy
+        coords = np.fliplr(coords)
+        # coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
+        affine = Affine(
+            [[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
+            input_coordinate_system=xy_cs,
+            output_coordinate_system=cs,
+        )
+        zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
+        points = PointsModel.parse(coords=coords, transform=affine)
+        sdata.add_points(name=zarr_name, points=points, overwrite=False)
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
         shape_list = layer._data_view
