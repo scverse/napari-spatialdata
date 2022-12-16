@@ -6,6 +6,7 @@ from loguru import logger
 from anndata import AnnData
 from matplotlib import cm, colors, pyplot as pl, rcParams
 from matplotlib.axes import Axes
+from pandas.api.types import is_categorical_dtype
 from matplotlib.colors import to_hex, is_color_like
 import numpy as np
 import pandas as pd
@@ -242,7 +243,7 @@ def _validate_palette(adata: AnnData, key: str) -> None:
                     f"The following color value found in adata.uns['{key}_colors'] "
                     f"is not valid: '{color}'. Default colors will be used instead."
                 )
-                _set_default_colors_for_categorical_obs(adata, key)
+                _set_default_colors_for_categorical_obs(adata, adata.obs[key], key)
                 _palette = []
                 break
         _palette.append(color)
@@ -252,7 +253,10 @@ def _validate_palette(adata: AnnData, key: str) -> None:
 
 
 def _set_colors_for_categorical_obs(
-    adata: AnnData, value_to_plot: str, palette: Union[str, Sequence[str], Cycler]
+    adata: AnnData,
+    categories: Sequence[Union[str, int]],
+    value_to_plot: str,
+    palette: Union[str, Sequence[str], Cycler],
 ) -> None:
     """
     Set the adata.uns[value_to_plot + '_colors'] according to the given palette.
@@ -272,7 +276,7 @@ def _set_colors_for_categorical_obs(
     -------
     None
     """
-    categories = adata.obs[value_to_plot].cat.categories
+    # categories = adata.obs[value_to_plot].cat.categories
     # check is palette is a valid matplotlib colormap
     if isinstance(palette, str) and palette in pl.colormaps():
         # this creates a palette from a colormap. E.g. 'Accent, Dark2, tab20'
@@ -319,22 +323,24 @@ def _set_colors_for_categorical_obs(
     adata.uns[value_to_plot + "_colors"] = colors_list
 
 
-def _set_default_colors_for_categorical_obs(adata: AnnData, value_to_plot: str) -> None:
+def _set_default_colors_for_categorical_obs(
+    adata: AnnData, categories: Sequence[Union[str, int]], value_to_plot: str
+) -> None:
     """
     Set the adata.uns[value_to_plot + '_colors'] using default color palettes.
 
     Parameters
     ----------
     adata
-        AnnData object
-    value_to_plot
-        Name of a valid categorical observation
+        AnnData object.
+    categories
+        categories of the categorical observation.
 
     Returns
     -------
     None
     """
-    categories = adata.obs[value_to_plot].cat.categories
+    # categories = adata.obs[value_to_plot].cat.categories
     length = len(categories)
 
     # check if default matplotlib palette has enough colors
@@ -356,21 +362,25 @@ def _set_default_colors_for_categorical_obs(adata: AnnData, value_to_plot: str) 
                 "'grey' color will be used for all categories."
             )
 
-    _set_colors_for_categorical_obs(adata, value_to_plot, palette[:length])
+    _set_colors_for_categorical_obs(adata, categories, value_to_plot, palette[:length])
 
 
 def add_colors_for_categorical_sample_annotation(
-    adata: AnnData, key: str, palette: Optional[List[str]] = None, force_update_colors: bool = False
+    adata: AnnData, key: str, vec: pd.Series, palette: Optional[List[str]] = None, force_update_colors: bool = False
 ) -> None:
     """Add colors for categorical annotation."""
     color_key = f"{key}_colors"
-    colors_needed = len(adata.obs[key].cat.categories)
+    if not is_categorical_dtype(adata.obs[key]) and is_categorical_dtype(vec):
+        categories = vec.cat.categories
+    elif is_categorical_dtype(adata.obs[key]):
+        categories = adata.obs[key].cat.categories
+    colors_needed = len(categories)
     if palette and force_update_colors:
-        _set_colors_for_categorical_obs(adata, key, palette)
+        _set_colors_for_categorical_obs(adata, categories, key, palette)
     elif color_key in adata.uns and len(adata.uns[color_key]) <= colors_needed:
         _validate_palette(adata, key)
     else:
-        _set_default_colors_for_categorical_obs(adata, key)
+        _set_default_colors_for_categorical_obs(adata, categories, key)
 
 
 def _add_categorical_legend(

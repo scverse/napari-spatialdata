@@ -218,7 +218,7 @@ class AListWidget(ListWidget):
     @_get_points_properties.register(pd.Series)
     def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
         colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
-        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=colortypes)
+        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, colordict=colortypes)
         if layer is not None and isinstance(layer, Labels):
             return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
 

@@ -22,7 +22,7 @@ def test_get_categorical(adata_labels: AnnData):
 def test_set_palette(adata_labels: AnnData):
     assert np.array_equal(
         _get_categorical(adata_labels, key="categorical"),
-        _get_categorical(adata_labels, key="categorical", vec=_set_palette(adata_labels, key="categorical")),
+        _get_categorical(adata_labels, key="categorical", colordict=_set_palette(adata_labels, key="categorical")),
     )
 
 
@@ -30,11 +30,11 @@ def test_value_error(adata_labels: AnnData):
     col_dict = _set_palette(adata_labels, key="categorical")
     col_dict[1] = "non_existing_color"
     with pytest.raises(ValueError) as err:
-        _get_categorical(adata_labels, key="categorical", vec=col_dict)
+        _get_categorical(adata_labels, key="categorical", colordict=col_dict)
     assert "`non_existing_color` is not an acceptable color." in str(err.value)
     col_dict[27] = col_dict.pop(1)
     with pytest.raises(ValueError) as err:
-        _get_categorical(adata_labels, key="categorical", vec=col_dict)
+        _get_categorical(adata_labels, key="categorical", colordict=col_dict)
     assert "The key `27` in the given dictionary is not an existing category in anndata[`categorical`]." in str(
         err.value
     )

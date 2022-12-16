@@ -87,33 +87,37 @@ def _set_palette(
             raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
 
     add_colors_for_categorical_sample_annotation(
-        adata, key=key, force_update_colors=palette is not None, palette=palette
+        adata, key=key, vec=vec, force_update_colors=palette is not None, palette=palette
     )
-
-    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
+    #
+    return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
 
 
 def _get_categorical(
     adata: AnnData,
     key: str,
+    vec: Optional[pd.Series] = None,
     palette: Optional[str] = None,
-    vec: Union[pd.Series, dict[Any, Any], None] = None,
+    colordict: Union[pd.Series, dict[Any, Any], None] = None,
 ) -> NDArrayA:
-
-    if not isinstance(vec, dict):
-        col_dict = _set_palette(adata, key, palette, vec)
+    if vec is not None:
+        categorical = vec
     else:
-        col_dict = vec
-        for cat in vec:
-            if cat not in adata.obs[key].cat.categories:
+        categorical = adata.obs[key]
+    if not isinstance(colordict, dict):
+        col_dict = _set_palette(adata, key, palette, colordict)
+    else:
+        col_dict = colordict
+        for cat in colordict:
+            if cat not in categorical.cat.categories:
                 raise ValueError(
                     f"The key `{cat}` in the given dictionary is not an existing category in anndata[`{key}`]."
                 )
-            elif not is_color_like(vec[cat]):
-                raise ValueError(f"`{vec[cat]}` is not an acceptable color.")
+            elif not is_color_like(colordict[cat]):
+                raise ValueError(f"`{colordict[cat]}` is not an acceptable color.")
 
     logger.debug(f"KEY: {key}")
-    return np.array([col_dict[v] for v in adata.obs[key]])
+    return np.array([col_dict[v] for v in categorical])
 
 
 def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str, NDArrayA]:

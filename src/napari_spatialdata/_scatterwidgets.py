@@ -6,6 +6,7 @@ from qtpy import QtWidgets
 from loguru import logger
 from qtpy.QtCore import Signal
 from napari.viewer import Viewer
+from pandas.api.types import is_categorical_dtype
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
 import napari
@@ -50,13 +51,14 @@ class ScatterListWidget(AListWidget):
             self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = vec
-            elif vec.dtype == "category":
-                self.data = vec
-                colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=self.data)
+            elif is_categorical_dtype(vec):
+                colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=vec)
                 if self._color:
                     self.data = {
-                        "vec": _get_categorical(self.model.adata, key=item, palette=self.model.palette, vec=colortypes),
-                        "cat": self.data,
+                        "vec": _get_categorical(
+                            self.model.adata, key=item, vec=vec, palette=self.model.palette, colordict=colortypes
+                        ),
+                        "cat": vec,
                         "palette": colortypes,
                     }
             else:
