@@ -403,7 +403,7 @@ def _add_categorical_legend(
 
     if legend_loc == "right margin":
         for label in cats:
-            ax.scatter([], [], color=palette[label], label=label)
+            ax.scatter([], [], c=palette[label], label=label)
         ax.legend(
             frameon=False,
             loc="center left",
