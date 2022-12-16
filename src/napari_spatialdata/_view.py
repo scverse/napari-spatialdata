@@ -5,7 +5,14 @@ from anndata import AnnData
 from magicgui import magicgui
 from napari.layers import Layer, Labels
 from napari.viewer import Viewer
-from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QVBoxLayout
+from qtpy.QtWidgets import (
+    QLabel,
+    QWidget,
+    QComboBox,
+    QGridLayout,
+    QPushButton,
+    QVBoxLayout,
+)
 import numpy as np
 import napari
 import pandas as pd
@@ -19,12 +26,110 @@ from napari_spatialdata._utils import (
 from napari_spatialdata._widgets import (
     CBarWidget,
     AListWidget,
-    ObsmIndexWidget,
+    ComponentWidget,
     RangeSliderWidget,
 )
+from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._constants._pkg_constants import Key
 
-__all__ = ["QtAdataViewWidget"]
+__all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
+
+
+class QtAdataScatterWidget(QWidget):
+    """Adata viewer widget."""
+
+    def __init__(self, viewer: Viewer):
+        super().__init__()
+
+        self._viewer = viewer
+        self._model = ImageModel()
+
+        self._layer_selection_widget = magicgui(
+            self._select_layer,
+            layer={"choices": self._get_layer},
+            auto_call=True,
+            call_button=False,
+        )
+        self._layer_selection_widget()
+
+        self.setLayout(QGridLayout())
+        self.layout().addWidget(self._layer_selection_widget.native, 0, 0, 1, 3)
+
+        # Matplotlib
+
+        self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
+        self.layout().addWidget(self.matplotlib_widget, 1, 0, 1, 3)
+
+        self.x_widget = AxisWidgets(self.viewer, self.model, "X-axis")
+        self.layout().addWidget(self.x_widget, 2, 0, 6, 1)
+
+        self.y_widget = AxisWidgets(self.viewer, self.model, "Y-axis")
+        self.layout().addWidget(self.y_widget, 2, 1, 6, 1)
+
+        self.color_widget = AxisWidgets(self.viewer, self.model, "Color", True)
+        self.layout().addWidget(self.color_widget, 2, 2, 6, 1)
+
+        self.plot_button_widget = QPushButton("Plot")
+        self.plot_button_widget.clicked.connect(
+            lambda: self.matplotlib_widget._onClick(
+                self.x_widget.widget.data,
+                self.y_widget.widget.data,
+                self.color_widget.widget.data,
+                self.x_widget.getFormattedLabel(),
+                self.y_widget.getFormattedLabel(),
+                self.color_widget.getFormattedLabel(),
+            )
+        )
+
+        self.layout().addWidget(self.plot_button_widget, 8, 0, 8, 0)
+
+        self.model.events.adata.connect(self._on_selection)
+
+    def _on_selection(self, event: Optional[Any] = None) -> None:
+
+        self.x_widget.widget.clear()
+        self.y_widget.widget.clear()
+        self.color_widget.widget.clear()
+
+        self.x_widget.widget._onChange()
+        self.x_widget.component_widget._onChange()
+        self.y_widget.widget._onChange()
+        self.y_widget.component_widget._onChange()
+        self.color_widget.widget._onChange()
+        self.color_widget.component_widget._onChange()
+
+    def _select_layer(self, layer: Layer) -> None:
+        """Napari layers."""
+        self.model.layer = layer
+        # if layer is not None and "adata" in layer.metadata:
+        self.model.adata = layer.metadata["adata"]
+        self.model.library_id = layer.metadata["library_id"]
+
+    def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
+        adata_layers = []
+        for layer in self._viewer.layers:
+            if isinstance(layer.metadata.get("adata", None), AnnData):
+                adata_layers.append(layer)
+        if not len(adata_layers):
+            raise NotImplementedError(
+                "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
+            )
+        return adata_layers
+
+    @property
+    def viewer(self) -> napari.Viewer:
+        """:mod:`napari` viewer."""
+        return self._viewer
+
+    @property
+    def model(self) -> ImageModel:
+        """:mod:`napari` viewer."""
+        return self._model
+
+    @property
+    def layernames(self) -> FrozenSet[str]:
+        """Names of :attr:`napari.Viewer.layers`."""
+        return frozenset(layer.name for layer in self.viewer.layers)
 
 
 class QtAdataViewWidget(QWidget):
@@ -76,7 +181,7 @@ class QtAdataViewWidget(QWidget):
         obsm_label = QLabel("Obsm:")
         obsm_label.setToolTip("Keys in `adata.obsm` containing multidimensional cell information.")
         self.obsm_widget = AListWidget(self.viewer, self.model, attr="obsm", multiselect=False)
-        self.obsm_index_widget = ObsmIndexWidget(self.model)
+        self.obsm_index_widget = ComponentWidget(self.model, attr="obsm", max_visible=6)
         self.obsm_index_widget.setToolTip("Indices for current key in `adata.obsm`.")
         self.obsm_index_widget.currentTextChanged.connect(self.obsm_widget.setIndex)
         self.obsm_widget.itemClicked.connect(self.obsm_index_widget.addItems)
@@ -94,7 +199,7 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.var_points_widget)
 
         # scalebar
-        colorbar = CBarWidget()
+        colorbar = CBarWidget(model=self.model)
         self.slider = RangeSliderWidget(self.viewer, self.model, colorbar=colorbar)
         self._viewer.window.add_dock_widget(self.slider, area="left", name="slider")
         self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
@@ -136,6 +241,8 @@ class QtAdataViewWidget(QWidget):
             * self.model.scale
         )
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
+        if "colormap" in layer.metadata:
+            self.model.cmap = layer.metadata["colormap"]
 
     def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
         adata_layers = []

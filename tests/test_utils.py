@@ -1,9 +1,8 @@
-from typing import List
+from typing import Any, List
 import logging
 
 from anndata import AnnData
 import numpy as np
-import pandas as pd
 import pytest
 
 from napari_spatialdata._utils import (
@@ -23,7 +22,7 @@ def test_get_categorical(adata_labels: AnnData):
 def test_set_palette(adata_labels: AnnData):
     assert np.array_equal(
         _get_categorical(adata_labels, key="categorical"),
-        _get_categorical(adata_labels, key="categorical", vec=_set_palette(adata_labels, key="categorical")),
+        _get_categorical(adata_labels, key="categorical", colordict=_set_palette(adata_labels, key="categorical")),
     )
 
 
@@ -31,11 +30,11 @@ def test_value_error(adata_labels: AnnData):
     col_dict = _set_palette(adata_labels, key="categorical")
     col_dict[1] = "non_existing_color"
     with pytest.raises(ValueError) as err:
-        _get_categorical(adata_labels, key="categorical", vec=col_dict)
+        _get_categorical(adata_labels, key="categorical", colordict=col_dict)
     assert "`non_existing_color` is not an acceptable color." in str(err.value)
     col_dict[27] = col_dict.pop(1)
     with pytest.raises(ValueError) as err:
-        _get_categorical(adata_labels, key="categorical", vec=col_dict)
+        _get_categorical(adata_labels, key="categorical", colordict=col_dict)
     assert "The key `27` in the given dictionary is not an existing category in anndata[`categorical`]." in str(
         err.value
     )
@@ -84,11 +83,16 @@ def test_min_max_norm(vec: np.ndarray) -> None:
     assert (out.min(), out.max()) == (0, 1)
 
 
-def test_logger(caplog, adata_labels: AnnData):
+def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
 
-    vec = pd.Series(["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], dtype="category")
+    from napari_spatialdata._model import ImageModel
+    from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
-    _get_categorical(adata_labels, key="categorical", vec=vec)
+    viewer = make_napari_viewer()
+    model = ImageModel()
+
+    m = MatplotlibWidget(viewer, model)
+    m._onClick(np.ones(10), np.ones(10), np.ones(10), "X", "Y", "Color")
 
     with caplog.at_level(logging.INFO):
-        assert "Overwriting `adata.obs" in caplog.records[0].message
+        assert "Plotting" in caplog.records[0].message

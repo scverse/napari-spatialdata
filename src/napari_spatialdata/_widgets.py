@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
+from typing import Any, Union, Iterable, Optional, Sequence, TYPE_CHECKING
 from functools import singledispatchmethod
 
 from qtpy import QtCore, QtWidgets
@@ -28,7 +28,12 @@ from napari_spatialdata._utils import (
     _position_cluster_labels,
 )
 
-__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ObsmIndexWidget", "CBarWidget"]
+__all__ = [
+    "AListWidget",
+    "CBarWidget",
+    "RangeSliderWidget",
+    "ComponentWidget",
+]
 
 # label string: attribute name
 # TODO(giovp): remove since layer controls private?
@@ -99,14 +104,13 @@ class AListWidget(ListWidget):
             raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
 
-        self.viewer = viewer
-        self.model = model
+        self._viewer = viewer
+        self._model = model
 
         self._attr = attr
         self._getter = getattr(self.model, f"get_{attr}")
 
         self.layerChanged.connect(self._onChange)
-
         self._onChange()
 
     def _onChange(self) -> None:
@@ -214,7 +218,7 @@ class AListWidget(ListWidget):
     @_get_points_properties.register(pd.Series)
     def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
         colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
-        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=colortypes)
+        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, colordict=colortypes)
         if layer is not None and isinstance(layer, Labels):
             return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
 
@@ -231,15 +235,26 @@ class AListWidget(ListWidget):
             "metadata": None,
         }
 
+    @property
+    def viewer(self) -> napari.Viewer:
+        """:mod:`napari` viewer."""
+        return self._viewer
 
-class ObsmIndexWidget(QtWidgets.QComboBox):
-    def __init__(self, model: ImageModel, max_visible: int = 6, **kwargs: Any):
+    @property
+    def model(self) -> ImageModel:
+        """:mod:`napari` viewer."""
+        return self._model
+
+
+class ComponentWidget(QtWidgets.QComboBox):
+    def __init__(self, model: ImageModel, attr: str, max_visible: int = 4, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._model = model
         self.view().setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAsNeeded)
         self.setMaxVisibleItems(max_visible)
         self.setStyleSheet("combobox-popup: 0;")
+        self._attr = attr
 
     def addItems(self, texts: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
         if isinstance(texts, QtWidgets.QListWidgetItem):
@@ -259,6 +274,52 @@ class ObsmIndexWidget(QtWidgets.QComboBox):
         self.clear()
         super().addItems(tuple(texts))
 
+    def setToolTip(self, click: str) -> None:
+        if click == "obsm":
+            super().setToolTip("Indices for current key in `adata.obsm`. Choose by clicking on item from obsm list.")
+        elif click == "var":
+            super().setToolTip("Keys in `adata.layers`.")
+        else:
+            super().setToolTip("")
+        return
+
+    def setAttribute(self, field: Optional[str]) -> None:
+        if field == self.attr:
+            return
+        self.attr = field
+        self._onChange()
+
+    def _onChange(self) -> None:
+        if self.attr == "var":
+            self.clear()
+            super().addItems(self._getAllLayers())
+        else:
+            self.clear()
+
+    def _onClickChange(self, clicked: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
+        if self.attr == "obsm":
+            self.clear()
+            self.addItems(clicked)
+
+    def _getAllLayers(self) -> Sequence[Optional[str]]:
+        adata_layers = list(self._model.adata.layers.keys())
+        if len(adata_layers):
+            adata_layers.insert(0, "X")
+            return adata_layers
+        return ["X"]
+
+    @property
+    def attr(self) -> Optional[str]:
+        if TYPE_CHECKING:
+            assert isinstance(self._attr, str)
+        return self._attr
+
+    @attr.setter
+    def attr(self, field: Optional[str]) -> None:
+        if field not in ("var", "obs", "obsm"):
+            raise ValueError(f"{field} is not a valid adata field.")
+        self._attr = field
+
 
 class CBarWidget(QtWidgets.QWidget):
     FORMAT = "{0:0.2f}"
@@ -268,6 +329,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     def __init__(
         self,
+        model: ImageModel,
         cmap: str = "viridis",
         label: Optional[str] = None,
         width: Optional[int] = 250,
@@ -276,7 +338,7 @@ class CBarWidget(QtWidgets.QWidget):
     ):
         super().__init__(**kwargs)
 
-        self._cmap = cmap
+        self._model = model
 
         self._clim = (0.0, 1.0)
         self._oclim = self._clim
@@ -328,7 +390,7 @@ class CBarWidget(QtWidgets.QWidget):
         return Colormap(cm[np.linspace(minn, maxx, len(cm.colors))], interpolation="linear")
 
     def getCmap(self) -> str:
-        return self._cmap
+        return self.cmap
 
     def onCmapChanged(self, value: str) -> None:
         # this does not trigger update for some reason...
@@ -376,15 +438,15 @@ class CBarWidget(QtWidgets.QWidget):
 
     @property
     def cmap(self) -> str:
-        return self._cmap
+        return self._model.cmap  # type: ignore[no-any-return]
 
 
 class RangeSliderWidget(QRangeSlider):
     def __init__(self, viewer: Viewer, model: ImageModel, colorbar: CBarWidget, **kwargs: Any):
         super().__init__(**kwargs)
 
-        self.viewer = viewer
-        self.model = model
+        self._viewer = viewer
+        self._model = model
         self._colorbar = colorbar
         self._cmap = plt.get_cmap(self._colorbar.cmap)
         self.setValue((0, 100))
@@ -431,3 +493,13 @@ class RangeSliderWidget(QRangeSlider):
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
         return scaler.fit_transform(vec.reshape(-1, 1))
+
+    @property
+    def viewer(self) -> napari.Viewer:
+        """:mod:`napari` viewer."""
+        return self._viewer
+
+    @property
+    def model(self) -> ImageModel:
+        """:mod:`napari` viewer."""
+        return self._model

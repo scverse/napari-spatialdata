@@ -2,9 +2,14 @@ name: napari-spatialdata
 display_name: napari spatialdata
 contributions:
   commands:
+    - id: napari-spatialdata.QtAdataScatterWidget
+      python_name: napari_spatialdata._view:QtAdataScatterWidget
+      title: Visualize spatial omics data in napari
     - id: napari-spatialdata.QtAdataViewWidget
       python_name: napari_spatialdata._view:QtAdataViewWidget
       title: Visualize spatial omics data in napari
   widgets:
+    - command: napari-spatialdata.QtAdataScatterWidget
+      display_name: Scatter
     - command: napari-spatialdata.QtAdataViewWidget
       display_name: View

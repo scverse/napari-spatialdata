@@ -10,7 +10,6 @@ from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from pandas.api.types import infer_dtype, is_categorical_dtype
 from matplotlib.colors import to_rgb, is_color_like
-from scanpy.plotting._utils import add_colors_for_categorical_sample_annotation
 from pandas.core.dtypes.common import (
     is_bool_dtype,
     is_object_dtype,
@@ -21,6 +20,9 @@ from pandas.core.dtypes.common import (
 import numpy as np
 import pandas as pd
 
+from napari_spatialdata._categoricals_utils import (
+    add_colors_for_categorical_sample_annotation,
+)
 from napari_spatialdata._constants._pkg_constants import Key
 
 try:
@@ -83,38 +85,40 @@ def _set_palette(
     if vec is not None:
         if not is_categorical_dtype(vec):
             raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
-        if key in adata.obs:
-            logger.debug(f"Overwriting `adata.obs[{key!r}]`.")
-
-        adata.obs[key] = vec.values
 
     add_colors_for_categorical_sample_annotation(
-        adata, key=key, force_update_colors=palette is not None, palette=palette
+        adata, key=key, vec=vec, force_update_colors=palette is not None, palette=palette
     )
-
-    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
+    vec = vec if vec is not None else adata.obs[key]
+    #
+    return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
 
 
 def _get_categorical(
     adata: AnnData,
     key: str,
+    vec: Optional[pd.Series] = None,
     palette: Optional[str] = None,
-    vec: Union[pd.Series, dict[Any, Any], None] = None,
+    colordict: Union[pd.Series, dict[Any, Any], None] = None,
 ) -> NDArrayA:
-
-    if not isinstance(vec, dict):
-        col_dict = _set_palette(adata, key, palette, vec)
+    if vec is not None:
+        categorical = vec
     else:
-        col_dict = vec
-        for cat in vec:
-            if cat not in adata.obs[key].cat.categories:
+        categorical = adata.obs[key]
+    if not isinstance(colordict, dict):
+        col_dict = _set_palette(adata, key, palette, colordict)
+    else:
+        col_dict = colordict
+        for cat in colordict:
+            if cat not in categorical.cat.categories:
                 raise ValueError(
                     f"The key `{cat}` in the given dictionary is not an existing category in anndata[`{key}`]."
                 )
-            elif not is_color_like(vec[cat]):
-                raise ValueError(f"`{vec[cat]}` is not an acceptable color.")
+            elif not is_color_like(colordict[cat]):
+                raise ValueError(f"`{colordict[cat]}` is not an acceptable color.")
 
-    return np.array([col_dict[v] for v in adata.obs[key]])
+    logger.debug(f"KEY: {key}")
+    return np.array([col_dict[v] for v in categorical])
 
 
 def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str, NDArrayA]:
