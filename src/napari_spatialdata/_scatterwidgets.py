@@ -52,6 +52,7 @@ class ScatterListWidget(AListWidget):
             if isinstance(vec, np.ndarray):
                 self.data = vec
             elif is_categorical_dtype(vec):
+                self.data = vec
                 colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=vec)
                 if self._color:
                     self.data = {

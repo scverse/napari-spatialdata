@@ -89,6 +89,7 @@ def _set_palette(
     add_colors_for_categorical_sample_annotation(
         adata, key=key, vec=vec, force_update_colors=palette is not None, palette=palette
     )
+    vec = vec if vec is not None else adata.obs[key]
     #
     return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
 
