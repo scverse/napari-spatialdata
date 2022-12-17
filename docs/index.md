@@ -8,9 +8,7 @@
 
 api.md
 changelog.md
-template_usage.md
 contributing.md
+template_usage.md
 references.md
-
-notebooks/example
 ```

@@ -87,7 +87,11 @@ def _set_palette(
             raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
 
     add_colors_for_categorical_sample_annotation(
-        adata, key=key, vec=vec, force_update_colors=palette is not None, palette=palette
+        adata,
+        key=key,
+        vec=vec,
+        force_update_colors=palette is not None,
+        palette=palette,  # type: ignore[arg-type]
     )
     vec = vec if vec is not None else adata.obs[key]
     #
@@ -169,7 +173,7 @@ def _point_inside_triangles(triangles: NDArrayA) -> np.bool_:
 
 @njit(parallel=True)
 def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
-    out = np.empty(  # type: ignore[var-annotated]
+    out = np.empty(
         len(
             points,
         ),

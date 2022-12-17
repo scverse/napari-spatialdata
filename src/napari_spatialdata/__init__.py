@@ -1,5 +1,3 @@
-from napari_spatialdata._view import QtAdataViewWidget, QtAdataScatterWidget
-
 __version__ = "0.1.0"
 
 from importlib.metadata import version  # Python = 3.8
@@ -13,3 +11,8 @@ except ImportError:
     __full_version__ = __version__
 
 del version, parse
+
+from napari_spatialdata._view import (  # noqa: E402
+    QtAdataViewWidget,
+    QtAdataScatterWidget,
+)

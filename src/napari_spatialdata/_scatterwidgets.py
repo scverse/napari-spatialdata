@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
+from typing import Any, Dict, Union, Iterable, Optional, TYPE_CHECKING
 
 from qtpy import QtWidgets
 from loguru import logger
@@ -32,7 +32,7 @@ class ScatterListWidget(AListWidget):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
-        self._data = None
+        self._data: Optional[Union[NDArrayA, Dict[str, Any]]] = None
         self.itemClicked.connect(lambda item: self._onOneClick((item.text(),)))
 
     def _onChange(self) -> None:
@@ -116,11 +116,11 @@ class ScatterListWidget(AListWidget):
         self._chosen = chosen if chosen is not None else None
 
     @property
-    def data(self) -> Union[None, NDArrayA]:
+    def data(self) -> Optional[Union[NDArrayA, Dict[str, Any]]]:
         return self._data
 
     @data.setter
-    def data(self, data: NDArrayA) -> None:
+    def data(self, data: Union[NDArrayA, Dict[str, Any]]) -> None:
         self._data = data
 
 

@@ -16,8 +16,7 @@ sys.path.insert(0, str(HERE / "extensions"))
 
 
 # -- Project information -----------------------------------------------------
-
-info = metadata("cookiecutter-scverse-instance")
+info = metadata("napari-spatialdata")
 project_name = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
@@ -52,8 +51,9 @@ extensions = [
     "sphinx.ext.autosummary",
     "sphinx.ext.napoleon",
     "sphinxcontrib.bibtex",
-    "sphinx_autodoc_typehints",
     "sphinx.ext.mathjax",
+    "sphinx_autodoc_typehints",
+    "sphinx_qt_documentation",
     "IPython.sphinxext.ipython_console_highlighting",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]
@@ -116,10 +116,21 @@ html_theme_options = {
 pygments_style = "default"
 
 nitpick_ignore = [
+    ("py:class", "destroyed"),
+    ("py:class", "self"),
+    ("py:obj", "napari_spatialdata.QtAdataScatterWidget.setTabOrder"),
+    ("py:obj", "napari_spatialdata.QtAdataViewWidget.insertAction"),
+    ("py:obj", "napari_spatialdata.QtAdataViewWidget.scroll"),
+    ("py:obj", "napari_spatialdata.QtAdataViewWidget.setTabOrder"),
+    ("py:class", "napari_spatialdata._model.ImageModel"),
+    ("py:obj", "napari_spatialdata.QtAdataScatterWidget.scroll"),
+    ("py:obj", "napari_spatialdata.QtAdataScatterWidget.insertAction"),
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
-    #     ("py:class", "igraph.Graph"),
+    # ("py:class", "igraph.Graph"),
 ]
+
+qt_documentation = "PyQt5"
 
 
 def setup(app):

@@ -438,7 +438,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     @property
     def cmap(self) -> str:
-        return self._model.cmap  # type: ignore[no-any-return]
+        return self._model.cmap
 
 
 class RangeSliderWidget(QRangeSlider):
@@ -466,7 +466,7 @@ class RangeSliderWidget(QRangeSlider):
         if "data" not in layer.metadata:
             return None
         v = layer.metadata["data"]
-        clipped = np.clip(v, *np.percentile(v, percentile))  # type: ignore[misc]
+        clipped = np.clip(v, *np.percentile(v, percentile))
 
         if isinstance(layer, Points):
             layer.metadata = {**layer.metadata, "perc": percentile}
@@ -492,7 +492,7 @@ class RangeSliderWidget(QRangeSlider):
         minn = (minn - ominn) / delta
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
-        return scaler.fit_transform(vec.reshape(-1, 1))
+        return scaler.fit_transform(vec.reshape(-1, 1))  # type: ignore[no-any-return]
 
     @property
     def viewer(self) -> napari.Viewer:
