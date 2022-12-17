@@ -10,8 +10,8 @@ repos:
     rev: v0.991
     hooks:
       - id: mypy
-        additional_dependencies: [numpy==1.22.0]
-        exclude: src.napari_spatialdata._utils_from_scanpy.py
+        additional_dependencies: [numpy>=1.23]
+        exclude: docs
   - repo: https://github.com/psf/black
     rev: 22.12.0
     hooks:
