@@ -38,7 +38,7 @@ def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> 
     viewer = make_napari_viewer()
 
     # create our widget, passing in the viewer
-    with pytest.raises(NotImplementedError, match=r"`AnnData` not found."):
+    with pytest.raises(NotImplementedError, match=r":class:`anndata.AnnData` not found in any `layer.metadata`."):
         _ = widget(viewer)
 
 

@@ -98,3 +98,7 @@ docs/source/external_tutorials
 
 # files
 *.h5ad
+
+# docs
+/docs/generated/
+/docs/_build/
