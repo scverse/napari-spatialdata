@@ -117,15 +117,15 @@ html_theme_options = {
 pygments_style = "default"
 
 nitpick_ignore = [
-    ("py:class", "destroyed"),
-    ("py:class", "self"),
-    ("py:obj", "napari_spatialdata.QtAdataScatterWidget.setTabOrder"),
-    ("py:obj", "napari_spatialdata.QtAdataViewWidget.insertAction"),
-    ("py:obj", "napari_spatialdata.QtAdataViewWidget.scroll"),
-    ("py:obj", "napari_spatialdata.QtAdataViewWidget.setTabOrder"),
-    ("py:class", "napari_spatialdata._model.ImageModel"),
-    ("py:obj", "napari_spatialdata.QtAdataScatterWidget.scroll"),
-    ("py:obj", "napari_spatialdata.QtAdataScatterWidget.insertAction"),
+    # ("py:class", "destroyed"),
+    # ("py:class", "self"),
+    # ("py:obj", "napari_spatialdata.QtAdataScatterWidget.setTabOrder"),
+    # ("py:obj", "napari_spatialdata.QtAdataViewWidget.insertAction"),
+    # ("py:obj", "napari_spatialdata.QtAdataViewWidget.scroll"),
+    # ("py:obj", "napari_spatialdata.QtAdataViewWidget.setTabOrder"),
+    # ("py:class", "napari_spatialdata._model.ImageModel"),
+    # ("py:obj", "napari_spatialdata.QtAdataScatterWidget.scroll"),
+    # ("py:obj", "napari_spatialdata.QtAdataScatterWidget.insertAction"),
     # If building the documentation fails because of a missing link that is outside your control,
     # you can add an exception to this list.
     # ("py:class", "igraph.Graph"),
