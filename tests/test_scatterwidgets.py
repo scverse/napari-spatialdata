@@ -10,7 +10,7 @@ def prepare_test_data():
 
     x_data = np.random.random((100, 100))
     y_data = np.random.random((100, 100))
-    color_data = np.random.random((100, 100))
+    color_data = np.random.random(10000)
     x_label = "X-axis"
     y_label = "Y-axis"
     color_label = "Color Label"

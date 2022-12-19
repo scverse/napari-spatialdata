@@ -1,4 +1,4 @@
-from typing import Any, Tuple, Union, Optional
+from typing import Any, Tuple, Union, Optional, TYPE_CHECKING
 from dataclasses import field, dataclass
 
 from anndata import AnnData
@@ -225,7 +225,7 @@ class ImageModel:
 
     @property
     def coordinates(self) -> NDArrayA:  # noqa: D102
-        return self._coordinates
+        return self._coordinates  # type: ignore[return-value]
 
     @coordinates.setter
     def coordinates(self, coordinates: NDArrayA) -> None:
@@ -233,6 +233,8 @@ class ImageModel:
 
     @property
     def points_coordinates(self) -> NDArrayA:  # noqa: D102
+        if TYPE_CHECKING:
+            assert self._points_coordinates is not None
         return self._points_coordinates
 
     @points_coordinates.setter
@@ -256,19 +258,19 @@ class ImageModel:
         self._scale = scale
 
     @property
-    def spot_diameter(self) -> NDArrayA:  # noqa: D102
+    def spot_diameter(self) -> Union[NDArrayA, float]:  # noqa: D102
         return self._spot_diameter
 
     @spot_diameter.setter
-    def spot_diameter(self, spot_diameter: NDArrayA) -> None:
+    def spot_diameter(self, spot_diameter: Union[NDArrayA, float]) -> None:
         self._spot_diameter = spot_diameter
 
     @property
-    def point_diameter(self) -> NDArrayA:  # noqa: D102
+    def point_diameter(self) -> Union[NDArrayA, float]:  # noqa: D102
         return self._point_diameter
 
     @point_diameter.setter
-    def point_diameter(self, point_diameter: NDArrayA) -> None:
+    def point_diameter(self, point_diameter: Union[NDArrayA, float]) -> None:
         self._point_diameter = point_diameter
 
     @property

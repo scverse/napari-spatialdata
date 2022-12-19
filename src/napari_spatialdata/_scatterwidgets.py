@@ -1,18 +1,22 @@
 from __future__ import annotations
 
-from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Union, Iterable, Optional, TYPE_CHECKING
 
 from qtpy import QtWidgets
 from loguru import logger
+from anndata import AnnData
 from qtpy.QtCore import Signal
 from napari.viewer import Viewer
+from matplotlib.axes import Axes
 from matplotlib.path import Path
+from pandas.api.types import is_categorical_dtype
 from matplotlib.widgets import LassoSelector
+from matplotlib.collections import Collection
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
 import napari
 import pandas as pd
-import matplotlib as plt          
+import matplotlib as plt
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA, _set_palette, _get_categorical
@@ -48,7 +52,15 @@ class SelectFromCollection:
         alpha value of 1 and non-selected points to *alpha_other*.
     """
 
-    def __init__(self, viewer: Viewer, model: ImageModel, ax, collection, data, alpha_other=0.3):
+    def __init__(
+        self,
+        viewer: Viewer,
+        model: ImageModel,
+        ax: Axes,
+        collection: Collection,
+        data: List[NDArrayA],
+        alpha_other: float = 0.3,
+    ):
         self.viewer = viewer
         self.model = model
         self.canvas = ax.figure.canvas
@@ -71,12 +83,12 @@ class SelectFromCollection:
 
         self.selector = LassoSelector(ax, onselect=self.onselect)
 
-        self.ind = []
+        self.ind: Optional[NDArrayA] = None
 
-    def export(self, adata) -> None:
+    def export(self, adata: AnnData) -> None:
         adata.obs["0_LASSO_SELECTED"] = self.exported_data
 
-    def onselect(self, verts) -> None:
+    def onselect(self, verts: List[NDArrayA]) -> None:
 
         path = Path(verts)
         self.ind = np.nonzero(path.contains_points(self.xys))[0]
@@ -93,7 +105,6 @@ class SelectFromCollection:
 
     def disconnect(self) -> None:
         self.selector.disconnect_events()
-        self.poly.disconnect_events()
         self.fc[:, -1] = 1
         self.collection.set_facecolors(self.fc)
         self.canvas.draw_idle()
@@ -108,7 +119,7 @@ class ScatterListWidget(AListWidget):
         AListWidget.__init__(self, viewer, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
-        self._data = None
+        self._data: Optional[Union[NDArrayA, Dict[str, Any]]] = None
         self.itemClicked.connect(lambda item: self._onOneClick((item.text(),)))
 
     def _onChange(self) -> None:
@@ -127,13 +138,15 @@ class ScatterListWidget(AListWidget):
             self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = vec
-            elif vec.dtype == "category":
+            elif is_categorical_dtype(vec):
                 self.data = vec
-                colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=self.data)
+                colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=vec)
                 if self._color:
                     self.data = {
-                        "vec": _get_categorical(self.model.adata, key=item, palette=self.model.palette, vec=colortypes),
-                        "cat": self.data,
+                        "vec": _get_categorical(
+                            self.model.adata, key=item, vec=vec, palette=self.model.palette, colordict=colortypes
+                        ),
+                        "cat": vec,
                         "palette": colortypes,
                     }
             else:
@@ -190,11 +203,11 @@ class ScatterListWidget(AListWidget):
         self._chosen = chosen if chosen is not None else None
 
     @property
-    def data(self) -> Union[None, NDArrayA]:
+    def data(self) -> Optional[Union[NDArrayA, Dict[str, Any]]]:
         return self._data
 
     @data.setter
-    def data(self, data: NDArrayA) -> None:
+    def data(self, data: Union[NDArrayA, Dict[str, Any]]) -> None:
         self._data = data
 
 
@@ -208,7 +221,6 @@ class MatplotlibWidget(NapariMPLWidget):
         self.axes = self.canvas.figure.subplots()
         self.colorbar = None
         self.selector = None
-
 
     def _onClick(
         self,
@@ -230,9 +242,9 @@ class MatplotlibWidget(NapariMPLWidget):
             self.palette = color_data["palette"]
 
         else:
-        
+
             norm = plt.colors.Normalize(vmin=np.amin(color_data), vmax=np.amax(color_data))
-            cmap = plt.cm.viridis #TODO (rahulbshrestha): Replace this with colormap used in scatterplot
+            cmap = plt.cm.viridis  # TODO (rahulbshrestha): Replace this with colormap used in scatterplot
             self.data = [x_data, y_data, cmap(norm(color_data))]
 
         self.x_label = x_label
@@ -266,7 +278,9 @@ class MatplotlibWidget(NapariMPLWidget):
 
         self.canvas.draw()
 
-        self.selector = SelectFromCollection(self._viewer, self._model, self.axes, self.scatterplot, self.data)
+        self.selector = SelectFromCollection(
+            self._viewer, self._model, self.axes, self.scatterplot, self.data
+        )  # type:ignore[assignment]
 
     def clear(self) -> None:
 

@@ -74,7 +74,7 @@ class QtAdataScatterWidget(QWidget):
             lambda: self.matplotlib_widget._onClick(
                 self.x_widget.widget.data,
                 self.y_widget.widget.data,
-                self.color_widget.widget.data,
+                self.color_widget.widget.data,  # type:ignore[arg-type]
                 self.x_widget.getFormattedLabel(),
                 self.y_widget.getFormattedLabel(),
                 self.color_widget.getFormattedLabel(),
@@ -90,7 +90,7 @@ class QtAdataScatterWidget(QWidget):
         self.model.events.adata.connect(self._on_selection)
 
     def export(self) -> None:
-
+        """Export shapes."""
         if (self.matplotlib_widget.selector) is None or (self.matplotlib_widget.selector.exported_data is None):
             raise ValueError("Data points haven't been selected from the matplotlib visualisation.")
 
@@ -123,9 +123,7 @@ class QtAdataScatterWidget(QWidget):
             if isinstance(layer.metadata.get("adata", None), AnnData):
                 adata_layers.append(layer)
         if not len(adata_layers):
-            raise NotImplementedError(
-                "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
-            )
+            raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
         return adata_layers
 
     def _update_obs_items(self, key: str) -> None:
@@ -149,7 +147,7 @@ class QtAdataScatterWidget(QWidget):
 
     @property
     def layernames(self) -> FrozenSet[str]:
-        """Names of :attr:`napari.Viewer.layers`."""
+        """Names of :class:`napari.layers.Layer`."""
         return frozenset(layer.name for layer in self.viewer.layers)
 
 
@@ -271,9 +269,7 @@ class QtAdataViewWidget(QWidget):
             if isinstance(layer.metadata.get("adata", None), AnnData):
                 adata_layers.append(layer)
         if not len(adata_layers):
-            raise NotImplementedError(
-                "`AnnData` not found in any `layer.metadata`. This plugin requires `AnnData` in at least one layer."
-            )
+            raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
         return adata_layers
 
     def _get_adata_layer(self) -> Sequence[Optional[str]]:
@@ -283,7 +279,7 @@ class QtAdataViewWidget(QWidget):
         return [None]
 
     def export(self, _: napari.viewer.Viewer) -> None:
-        """Export shapes into :class:`AnnData` object."""
+        """Export shapes into :class:`anndata.AnnData` object."""
         for layer in self.viewer.layers:
             if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
                 continue
@@ -291,7 +287,7 @@ class QtAdataViewWidget(QWidget):
                 logger.warn(f"Shape layer `{layer.name}` has no visible shapes.")
                 continue
 
-            key = f"{layer.name}_{self.model.layer.name}"
+            key = f"{layer.name}_{self.model.layer.name}"  # type:ignore[union-attr]
 
             logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
             self._save_shapes(layer, key=key)
@@ -330,5 +326,5 @@ class QtAdataViewWidget(QWidget):
 
     @property
     def layernames(self) -> FrozenSet[str]:
-        """Names of :attr:`napari.Viewer.layers`."""
+        """Names of :class:`napari.layers.Layer`."""
         return frozenset(layer.name for layer in self.viewer.layers)

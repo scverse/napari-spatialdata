@@ -218,7 +218,7 @@ class AListWidget(ListWidget):
     @_get_points_properties.register(pd.Series)
     def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
         colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
-        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=colortypes)
+        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, colordict=colortypes)
         if layer is not None and isinstance(layer, Labels):
             return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
 
@@ -438,7 +438,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     @property
     def cmap(self) -> str:
-        return self._model.cmap  # type: ignore[no-any-return]
+        return self._model.cmap
 
 
 class RangeSliderWidget(QRangeSlider):
@@ -466,7 +466,7 @@ class RangeSliderWidget(QRangeSlider):
         if "data" not in layer.metadata:
             return None
         v = layer.metadata["data"]
-        clipped = np.clip(v, *np.percentile(v, percentile))  # type: ignore[misc]
+        clipped = np.clip(v, *np.percentile(v, percentile))
 
         if isinstance(layer, Points):
             layer.metadata = {**layer.metadata, "perc": percentile}
@@ -492,7 +492,7 @@ class RangeSliderWidget(QRangeSlider):
         minn = (minn - ominn) / delta
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
-        return scaler.fit_transform(vec.reshape(-1, 1))
+        return scaler.fit_transform(vec.reshape(-1, 1))  # type: ignore[no-any-return]
 
     @property
     def viewer(self) -> napari.Viewer:
