@@ -35,9 +35,8 @@ class Interactive:
         # os.environ['NAPARI_ASYNC'] = '1'
         # os.environ['NAPARI_OCTREE'] = '1'
         self._viewer = napari.Viewer()
-        self.sdata = sdata
-        self._add_layers_from_sdata(sdata=self.sdata)
         # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
+        self._add_layers_from_sdata(sdata=sdata)
         if with_widgets:
             self.show_widget()
         if not headless:
@@ -82,7 +81,9 @@ class Interactive:
         axes = cs.axes_names
         return affine, axes
 
-    def _get_affine_for_images_labels(self, element: Union[SpatialImage, MultiscaleSpatialImage]) -> Tuple[DataArray, np.ndarray, bool]:
+    def _get_affine_for_images_labels(
+        self, element: Union[SpatialImage, MultiscaleSpatialImage]
+    ) -> Tuple[DataArray, np.ndarray, bool]:
         # adjust affine transform
         # napari doesn't want channels in the affine transform, I guess also not time
         # this subset of the matrix is possible because ngff 0.4 assumes that the axes are ordered as [t, c, z, y, x]
@@ -93,8 +94,8 @@ class Interactive:
             src_axes = element.dims
         else:
             assert isinstance(element, MultiscaleSpatialImage)
-            key = element['scale0'].ds.__iter__().__next__()
-            src_axes = element['scale0'].ds[key].dims
+            key = element["scale0"].ds.__iter__().__next__()
+            src_axes = element["scale0"].ds[key].dims
         assert list(src_axes) == [ax for ax in ["t", "c", "z", "y", "x"] if ax in src_axes]
         # "axes" are the axes of the element in the target coordinate system
         affine, des_axes = self._get_transform(element=element)
@@ -138,13 +139,13 @@ class Interactive:
                     rgb = True
             else:
                 assert isinstance(element, MultiscaleSpatialImage)
-                variables = list(element['scale0'].ds.variables)
+                variables = list(element["scale0"].ds.variables)
                 assert len(variables) == 1
                 var = variables[0]
                 new_raster = [element[k].ds[var] for k in element.keys()]
-                if element['scale0'].dims['c'] > 1:
+                if element["scale0"].dims["c"] > 1:
                     new_raster = [data.transpose(*new_order) for data in new_raster]
-                if element['scale0'].dims['c'] == 3:
+                if element["scale0"].dims["c"] == 3:
                     rgb = True
         else:
             new_raster = element
@@ -165,19 +166,29 @@ class Interactive:
     def _suffix_from_full_name(self, element_path: str):
         return "/".join(element_path.split("/")[2:])
 
-    def _add_image(self, image: Union[SpatialImage, MultiscaleSpatialImage], element_path: str = None) -> None:
+    def _add_image(
+        self, sdata: SpatialData, image: Union[SpatialImage, MultiscaleSpatialImage], element_path: str = None
+    ) -> None:
         new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
         ct = get_transform(image)
         cs = ct.output_coordinate_system
-        metadata = {"coordinate_systems": [cs.name], "sdata": self.sdata}
+        metadata = {"coordinate_systems": [cs.name], "sdata": sdata}
         self._viewer.add_image(
-            new_image, rgb=rgb, name=self._suffix_from_full_name(element_path), affine=affine, visible=False,
-            metadata=metadata
+            new_image,
+            rgb=rgb,
+            name=self._suffix_from_full_name(element_path),
+            affine=affine,
+            visible=False,
+            metadata=metadata,
         )
 
-    def _add_labels(self, labels: Union[SpatialImage, MultiscaleSpatialImage], element_path: str = None, annotation_table: Optional[AnnData]
-    = None) -> \
-            None:
+    def _add_labels(
+        self,
+        sdata: SpatialData,
+        labels: Union[SpatialImage, MultiscaleSpatialImage],
+        element_path: str = None,
+        annotation_table: Optional[AnnData] = None,
+    ) -> None:
         annotation = self._find_annotation_for_regions(
             base_element=labels, element_path=element_path, annotation_table=annotation_table
         )
@@ -195,7 +206,7 @@ class Interactive:
         ct = get_transform(labels)
         cs = ct.output_coordinate_system
         metadata["coordinate_systems"] = [cs.name]
-        metadata["sdata"] = self.sdata
+        metadata["sdata"] = sdata
         new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
         self._viewer.add_labels(
             new_labels, name=self._suffix_from_full_name(element_path), metadata=metadata, affine=affine, visible=False
@@ -206,7 +217,7 @@ class Interactive:
         ndim = len(get_dims(element))
         # "src_axes" are the axes of the element in the source coordinate system (implicit coordinate system of the
         # labels
-        src_axes = ['x', 'y', 'z'][:ndim]
+        src_axes = ["x", "y", "z"][:ndim]
         assert tuple(src_axes) == get_dims(element)
 
         assert list(src_axes) == [ax for ax in ["x", "y", "z"] if ax in src_axes]
@@ -232,7 +243,9 @@ class Interactive:
             affine = affine[1:, :]
         return affine
 
-    def _add_shapes(self, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None) -> None:
+    def _add_shapes(
+        self, sdata: SpatialData, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None
+    ) -> None:
         spatial = shapes.obsm["spatial"]
         if "size" in shapes.obs:
             radii = shapes.obs["size"]
@@ -252,7 +265,7 @@ class Interactive:
         ct = get_transform(shapes)
         cs = ct.output_coordinate_system
         metadata["coordinate_systems"] = [cs.name]
-        metadata["sdata"] = self.sdata
+        metadata["sdata"] = sdata
         affine = self._get_affine_for_points_polygons(element=shapes)
         self._viewer.add_points(
             spatial,
@@ -266,14 +279,14 @@ class Interactive:
             visible=False,
         )
 
-    def _add_points(self, points: pa.Table, element_path: str) -> None:
+    def _add_points(self, sdata: SpatialData, points: pa.Table, element_path: str) -> None:
         dims = get_dims(points)
         spatial = points.select(dims).to_pandas().to_numpy()
         radii = 1
         annotations_columns = list(set(points.column_names).difference(dims))
         if len(annotations_columns) > 0:
             df = points.select(annotations_columns).to_pandas()
-            annotation = AnnData(shape=(len(points), 0), obs=df, obsm={'spatial': spatial})
+            annotation = AnnData(shape=(len(points), 0), obs=df, obsm={"spatial": spatial})
         else:
             annotation = None
         if annotation is not None:
@@ -287,21 +300,23 @@ class Interactive:
         ct = get_transform(points)
         cs = ct.output_coordinate_system
         metadata["coordinate_systems"] = [cs.name]
-        metadata["sdata"] = self.sdata
+        metadata["sdata"] = sdata
         affine = self._get_affine_for_points_polygons(element=points)
         # 3d not supported at the moment, let's remove the 3d coordinate
         # TODO: support
         axes = get_dims(points)
-        if 'z' in axes:
+        if "z" in axes:
             assert len(axes) == 3
             spatial = spatial[:, :2]
             # z is column 2 (input space xyz and row 0 (output space zyx)
             # actually I was expecting the output to be still xyz, but this seem to work...
             # TODO: CHECK!
             affine = affine[1:, np.array([0, 1, 3], dtype=int)]
+        ##
         self._viewer.add_points(
             spatial,
             name=self._suffix_from_full_name(element_path),
+            ndim = len(axes),
             edge_color="white",
             face_color="white",
             size=2 * radii,
@@ -310,8 +325,12 @@ class Interactive:
             affine=affine,
             visible=False,
         )
+        print('debug')
+        ##
 
-    def _add_polygons(self, polygons: GeoDataFrame, element_path: str, annotation_table: Optional[AnnData] = None) -> None:
+    def _add_polygons(
+        self, sdata: SpatialData, polygons: GeoDataFrame, element_path: str, annotation_table: Optional[AnnData] = None
+    ) -> None:
         coordinates = polygons.geometry.apply(lambda x: np.array(x.exterior.coords).tolist()).tolist()
         annotation = self._find_annotation_for_regions(
             base_element=polygons, annotation_table=annotation_table, element_path=element_path
@@ -324,7 +343,7 @@ class Interactive:
         ct = get_transform(polygons)
         cs = ct.output_coordinate_system
         metadata["coordinate_systems"] = [cs.name]
-        metadata["sdata"] = self.sdata
+        metadata["sdata"] = sdata
         affine = self._get_affine_for_points_polygons(element=polygons)
         self._viewer.add_shapes(
             coordinates,
@@ -341,8 +360,7 @@ class Interactive:
         ##
 
     def _find_annotation_for_regions(
-        self, base_element: SpatialElement, element_path: str, annotation_table: Optional[AnnData] =
-            None
+        self, base_element: SpatialElement, element_path: str, annotation_table: Optional[AnnData] = None
     ) -> Optional[AnnData]:
         if annotation_table is None:
             return None
@@ -362,18 +380,24 @@ class Interactive:
             else:
                 if isinstance(base_element, SpatialImage) or isinstance(base_element, MultiscaleSpatialImage):
                     return self._find_annotation_for_labels(
-                        labels=base_element, element_path=element_path, annotating_rows=annotating_rows,
-                        instance_key=instance_key
+                        labels=base_element,
+                        element_path=element_path,
+                        annotating_rows=annotating_rows,
+                        instance_key=instance_key,
                     )
                 elif isinstance(base_element, AnnData):
                     return self._find_annotation_for_shapes(
-                        points=base_element, element_path=element_path, annotating_rows=annotating_rows,
-                        instance_key=instance_key
+                        points=base_element,
+                        element_path=element_path,
+                        annotating_rows=annotating_rows,
+                        instance_key=instance_key,
                     )
                 elif isinstance(base_element, GeoDataFrame):
                     return self._find_annotation_for_polygons(
-                        polygons=base_element, element_path=element_path, annotating_rows=annotating_rows,
-                        instance_key=instance_key
+                        polygons=base_element,
+                        element_path=element_path,
+                        annotating_rows=annotating_rows,
+                        instance_key=instance_key,
                     )
                 else:
                     raise ValueError(f"Unsupported element type: {type(base_element)}")
@@ -387,9 +411,13 @@ class Interactive:
         instance_key = annotation_table.uns["spatialdata_attrs"]["instance_key"]
         return regions, regions_key, instance_key
 
-    def _find_annotation_for_labels(self, labels: Union[SpatialImage, MultiscaleSpatialImage], element_path: str, annotating_rows:
-    AnnData, instance_key:
-    str):
+    def _find_annotation_for_labels(
+        self,
+        labels: Union[SpatialImage, MultiscaleSpatialImage],
+        element_path: str,
+        annotating_rows: AnnData,
+        instance_key: str,
+    ):
         # TODO: use xarray apis
         x = np.array(labels.data)
         u = np.unique(x)
@@ -477,16 +505,22 @@ class Interactive:
             annotation_table = sdata.table
             for name, element in d.items():
                 element_path = f"/{prefix}/{name}"
-                if prefix == 'images':
-                    self._add_image(element, element_path=element_path)
-                elif prefix == 'points':
-                    self._add_points(element, element_path=element_path)
-                elif prefix == 'labels':
-                    self._add_labels(element, annotation_table=annotation_table, element_path=element_path)
-                elif prefix == 'shapes':
-                    self._add_shapes(element, annotation_table=annotation_table, element_path=element_path)
-                elif prefix == 'polygons':
-                    self._add_polygons(element, annotation_table=annotation_table, element_path=element_path)
+                if prefix == "images":
+                    self._add_image(sdata=sdata, image=element, element_path=element_path)
+                elif prefix == "points":
+                    self._add_points(sdata=sdata, points=element, element_path=element_path)
+                elif prefix == "labels":
+                    self._add_labels(
+                        sdata=sdata, labels=element, annotation_table=annotation_table, element_path=element_path
+                    )
+                elif prefix == "shapes":
+                    self._add_shapes(
+                        sdata=data, shapes=element, annotation_table=annotation_table, element_path=element_path
+                    )
+                elif prefix == "polygons":
+                    self._add_polygons(
+                        sdata=sdata, polygons=element, annotation_table=annotation_table, element_path=element_path
+                    )
                     pass
                 else:
                     raise ValueError(f"Unsupported element type: {type(element)}")

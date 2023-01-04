@@ -216,9 +216,16 @@ class QtAdataViewWidget(QWidget):
 
         # get current coordinate system
         selected = self._coordinate_system_selector.selectedItems()
-        assert len(selected) == 1
-        cs_name = selected[0].text()
-        cs = sdata.coordinate_systems[cs_name]
+        # temporary fix to this bug: the widget is not update when adding new layers (for example when showing multiple
+        # spatialdata objects with the same viewer)
+        if len(selected) == 0:
+            all_coordinate_systems = sdata.coordinate_systems
+            assert len(all_coordinate_systems) == 1
+            cs_name, cs = all_coordinate_systems.items().__iter__().__next__()
+        else:
+            assert len(selected) == 1
+            cs_name = selected[0].text()
+            cs = sdata.coordinate_systems[cs_name]
         key = f"{layer.name}_{cs_name}"
         coords = layer.data
         # TODO: deal with 3D case (build this matrix with MapAxis or similar) and deal with coords
@@ -238,6 +245,7 @@ class QtAdataViewWidget(QWidget):
         zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
         points = PointsModel.parse(coords=coords, transform=affine)
         sdata.add_points(name=zarr_name, points=points, overwrite=False)
+        show_info(f"Points saved in the SpatialData object")
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
         shape_list = layer._data_view
