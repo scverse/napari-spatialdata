@@ -16,7 +16,7 @@ def view(path):
         import spatialdata as sd
         from napari_spatialdata import Interactive
 
-        sdata = sd.SpatialData.read(path, filter_table=True)
+        sdata = sd.SpatialData.read(path)
         print(sdata)
 
         from napari_spatialdata import Interactive

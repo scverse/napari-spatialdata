@@ -515,7 +515,7 @@ class Interactive:
                     )
                 elif prefix == "shapes":
                     self._add_shapes(
-                        sdata=data, shapes=element, annotation_table=annotation_table, element_path=element_path
+                        sdata=sdata, shapes=element, annotation_table=annotation_table, element_path=element_path
                     )
                 elif prefix == "polygons":
                     self._add_polygons(
