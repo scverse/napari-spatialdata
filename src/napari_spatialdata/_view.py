@@ -126,15 +126,6 @@ class QtAdataScatterWidget(QWidget):
             raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
         return adata_layers
 
-    def _update_obs_items(self, key: str) -> None:
-        self.obs_widget.addItems(key)
-        if key in self.layernames:
-            # update already present layer
-            layer = self.viewer.layers[key]
-            layer.face_color = _get_categorical(self.model.adata, key)
-            layer._update_thumbnail()
-            layer.refresh_colors()
-
     @property
     def viewer(self) -> napari.Viewer:
         """:mod:`napari` viewer."""

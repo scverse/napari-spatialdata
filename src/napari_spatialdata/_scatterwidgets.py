@@ -90,8 +90,8 @@ class SelectFromCollection:
 
     def onselect(self, verts: List[NDArrayA]) -> None:
 
-        path = Path(verts)
-        self.ind = np.nonzero(path.contains_points(self.xys))[0]
+        self.path = Path(verts)
+        self.ind = np.nonzero(self.path.contains_points(self.xys))[0]
 
         self.fc[:, -1] = self.alpha_other
         self.fc[self.ind, -1] = 1
@@ -101,13 +101,8 @@ class SelectFromCollection:
         self.canvas.draw_idle()
 
         self.selected_coordinates = self.xys[self.ind].data
-        self.exported_data = pd.Categorical(path.contains_points(self.xys))
+        self.exported_data = pd.Categorical(self.path.contains_points(self.xys))
 
-    def disconnect(self) -> None:
-        self.selector.disconnect_events()
-        self.fc[:, -1] = 1
-        self.collection.set_facecolors(self.fc)
-        self.canvas.draw_idle()
 
 
 class ScatterListWidget(AListWidget):
