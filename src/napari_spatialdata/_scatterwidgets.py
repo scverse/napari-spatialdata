@@ -104,7 +104,6 @@ class SelectFromCollection:
         self.exported_data = pd.Categorical(self.path.contains_points(self.xys))
 
 
-
 class ScatterListWidget(AListWidget):
     attrChanged = Signal()
     _text = None
