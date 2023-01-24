@@ -241,7 +241,7 @@ def _validate_palette(adata: AnnData, key: str) -> None:
             else:
                 logger.warning(
                     f"The following color value found in adata.uns['{key}_colors'] "
-                    f"is not valid: '{color}'. Default colors will be used instead."
+                    f"is not valid: '{color!r}'. Default colors will be used instead."
                 )
                 _set_default_colors_for_categorical_obs(adata, adata.obs[key], key)
                 _palette = []
