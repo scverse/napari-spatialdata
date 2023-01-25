@@ -335,7 +335,6 @@ def _set_default_colors_for_categorical_obs(
         AnnData object
     value_to_plot
         Name of a valid categorical observation
-        AnnData object.
     categories
         categories of the categorical observation.
 
