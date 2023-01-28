@@ -102,8 +102,8 @@ class SelectFromCollection:
         self.path = Path(verts)
         self.ind = np.nonzero(self.path.contains_points(self.xys))[0]
 
-        self.fc[:, -1] = self.alpha_other
-        self.fc[self.ind, -1] = 1
+        self.fc[:, -1] = self.alpha_other  # Set alpha of unselected coordinates
+        self.fc[self.ind, -1] = 1  # Set alpha of selected coordinates
 
         self.collection.set_facecolors(self.fc)
 
