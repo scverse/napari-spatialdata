@@ -94,7 +94,6 @@ class QtAdataScatterWidget(QWidget):
         if (self.matplotlib_widget.selector) is None or (self.matplotlib_widget.selector.exported_data is None):
             raise ValueError("Data points haven't been selected from the matplotlib visualisation.")
 
-        logger.info("Exported selected coordinates to AnnData.")
         self.matplotlib_widget.selector.export(self.model.adata)
 
     def _on_selection(self, event: Optional[Any] = None) -> None:

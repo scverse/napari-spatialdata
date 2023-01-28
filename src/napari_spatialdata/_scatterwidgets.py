@@ -6,6 +6,7 @@ from qtpy import QtWidgets
 from loguru import logger
 from anndata import AnnData
 from qtpy.QtCore import Signal
+from napari.layers import Layer
 from napari.viewer import Viewer
 from matplotlib.axes import Axes
 from matplotlib.path import Path
@@ -31,6 +32,9 @@ __all__ = [
 
 class SelectFromCollection:
     """
+    This class was taken from:
+    https://matplotlib.org/stable/gallery/widgets/lasso_selector_demo_sgskip.html
+
     Select indices from a matplotlib collection using `LassoSelector`.
 
     Selected indices are saved in the `ind` attribute. This tool fades out the
@@ -43,11 +47,11 @@ class SelectFromCollection:
 
     Parameters
     ----------
-    ax : `~matplotlib.axes.Axes`
+    ax
         Axes to interact with.
-    collection : `matplotlib.collections.Collection` subclass
+    collection
         Collection you want to select from.
-    alpha_other : 0 <= float <= 1
+    alpha_other
         To highlight a selection, this tool sets all selected points to an
         alpha value of 1 and non-selected points to *alpha_other*.
     """
@@ -86,7 +90,12 @@ class SelectFromCollection:
         self.ind: Optional[NDArrayA] = None
 
     def export(self, adata: AnnData) -> None:
-        adata.obs["0_LASSO_SELECTED"] = self.exported_data
+
+        model_layer: Layer = self.model.layer
+        obs_name = model_layer.name + "_LASSO_SELECTED"
+
+        adata.obs[obs_name] = self.exported_data
+        logger.info("Exported selected coordinates to obs in AnnData as: {}", obs_name)  # noqa: P103
 
     def onselect(self, verts: List[NDArrayA]) -> None:
 
