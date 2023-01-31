@@ -14,7 +14,8 @@ from anndata import AnnData
 from spatial_image import SpatialImage
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
 from geopandas import GeoDataFrame
-from spatialdata import SpatialData, get_transform, SpatialElement, get_dims
+from spatialdata import SpatialData, SpatialElement, get_dims
+from datatree import DataTree
 
 import matplotlib.pyplot as plt
 
@@ -52,116 +53,53 @@ class Interactive:
 
     def _get_transform(self, element: SpatialElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
         affine: np.ndarray
-        # TODO: refactor when multiple coordinate transformations per element are supported
-        # if coordinate_system_name is None:
-        #     if len(element.coordinate_systems) > 1:
-        #         # TODO: An easy workaround is to add one layer per coordinate system, another better method is to
-        #         #  change the affine matrix when the coordinate system is changed.
-        #         raise ValueError("Only one coordinate system per element is supported at the moment.")
-        #     coordinate_system_name, cs = element.coordinate_systems.items().__iter__().__next__()
-        # else:
-        #     cs = element.coordinate_systems[coordinate_system_name]
-        # ct = element.transformations[coordinate_system_name]
-        ct = get_transform(element)
-        cs = ct.output_coordinate_system
-        from spatialdata import Identity, Scale, Translation, Affine, Rotation, Sequence
-
-        if isinstance(ct, Identity):
-            ndim = len(get_dims(element))
-            assert len(cs.axes_names) == ndim
-            affine = np.eye(len(cs.axes_names) + 1, ndim + 1)
-            # affine = np.hstack((affine, np.zeros((len(cs.axes), 1))))
-            # affine = np.vstack((affine, np.zeros((1, element.ndim + 1))))
-            # affine[-1, -1] = 1
-        elif any([isinstance(ct, tt) for tt in [Scale, Translation, Affine, Rotation, Sequence]]):
-            affine = ct.to_affine().affine
+        transformations = SpatialData.get_all_transformations(element)
+        if coordinate_system_name is None:
+            if len(transformations) > 1:
+                # TODO: An easy workaround is to add one layer per coordinate system, another better method is to
+                #  change the affine matrix when the coordinate system is changed.
+                raise ValueError("Only one coordinate system per element is supported at the moment.")
+            cs = transformations.keys().__iter__().__next__()
         else:
-            raise TypeError(f"Unsupported transform type: {type(ct)}")
-        # axes of the target coordinate space
-        axes = cs.axes_names
-        return affine, axes
+            cs = transformations[coordinate_system_name]
+        ct = transformations[cs]
+        affine = ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
+        return affine
 
     def _get_affine_for_images_labels(
         self, element: Union[SpatialImage, MultiscaleSpatialImage]
     ) -> Tuple[DataArray, np.ndarray, bool]:
-        # adjust affine transform
-        # napari doesn't want channels in the affine transform, I guess also not time
-        # this subset of the matrix is possible because ngff 0.4 assumes that the axes are ordered as [t, c, z, y, x]
+        axes = get_dims(element)
+        affine = self._get_transform(element=element)
 
-        # "dims" are the axes of the element in the source coordinate system (implicit coordinate system of the labels
-        # or image)
-        if isinstance(element, SpatialImage):
-            src_axes = element.dims
-        else:
-            assert isinstance(element, MultiscaleSpatialImage)
-            key = element["scale0"].ds.__iter__().__next__()
-            src_axes = element["scale0"].ds[key].dims
-        assert list(src_axes) == [ax for ax in ["t", "c", "z", "y", "x"] if ax in src_axes]
-        # "axes" are the axes of the element in the target coordinate system
-        affine, des_axes = self._get_transform(element=element)
-
-        # target_order_pre = [ax for ax in des_axes if ax in src_axes]
-        # target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in des_axes]
-        #
-        # from spatialdata import Affine
-
-        # fix_order_pre = Affine._get_affine_iniection_from_axes(src_axes, target_order_pre)
-        # fix_order_post = Affine._get_affine_iniection_from_axes(des_axes, target_order_post)
-        # affine = fix_order_post @ affine @ fix_order_pre
-
-        rows_to_keep = list(range(affine.shape[0]))
-        if "t" in des_axes:
-            rows_to_keep.remove(des_axes.index("t"))
-        if "c" in des_axes:
-            rows_to_keep.remove(des_axes.index("c"))
-        cols_to_keep = list(range(affine.shape[1]))
-        if "t" in src_axes:
-            cols_to_keep.remove(src_axes.index("t"))
-        if "c" in src_axes:
-            cols_to_keep.remove(src_axes.index("c"))
-        cropped_affine = affine[np.ix_(rows_to_keep, cols_to_keep)]
-
-        # adjust channel ordering
-        rgb = False
-        if "t" in src_axes:
-            # where do we put the time axis?
-            raise NotImplementedError("Time dimension not supported yet")
-        if "c" in src_axes:
-            assert "c" in src_axes
-            assert src_axes.index("c") == 0
-            new_order = [src_axes[i] for i in range(1, len(src_axes))] + ["c"]
+        if "c" in axes:
+            assert axes.index("c") == 0
             if isinstance(element, SpatialImage):
-                if element.shape[0] > 1:
-                    new_raster = element.transpose(*new_order)
-                else:
-                    new_raster = element
-                if element.shape[0] == 3:
-                    rgb = True
+                n_channels = element.shape[0]
+            elif isinstance(element, MultiscaleSpatialImage):
+                v = element["scale0"].values()
+                assert len(v) == 1
+                n_channels = v.__iter__().__next__().shape[0]
             else:
-                assert isinstance(element, MultiscaleSpatialImage)
-                variables = list(element["scale0"].ds.variables)
-                assert len(variables) == 1
-                var = variables[0]
-                new_raster = [element[k].ds[var] for k in element.keys()]
-                if element["scale0"].dims["c"] > 1:
-                    new_raster = [data.transpose(*new_order) for data in new_raster]
-                if element["scale0"].dims["c"] == 3:
-                    rgb = True
+                raise TypeError(f"Unsupported type: {type(element)}")
         else:
+            n_channels = 0
+
+        if n_channels in [3, 4]:
+            rgb = True
+            new_raster = element.transpose("y", "x", "c")
+        else:
+            rgb = False
             new_raster = element
-        # this code is useless
-        # if isinstance(new_raster, SpatialImage):
-        #     if new_raster.dtype in [np.uint8, np.uint16, np.uint32, np.uint64]:
-        #         maximum = new_raster.max().compute()
-        #         if maximum > 255:
-        #             new_raster = new_raster.astype(float)
-        # else:
-        #     assert isinstance(new_raster, list)
-        #     if new_raster[0].dtype in [np.uint8, np.uint16, np.uint32, np.uint64]:
-        #         maximum = new_raster[-1].max().compute()
-        #         if maximum > 255:
-        #             new_raster = [raster.astype(float) for raster in new_raster]
-        return new_raster, cropped_affine, rgb
+
+        # TODO: after we call .transpose() on a MultiscaleSpatialImage object we get a DataTree object. We should look at this better and either cast somehow back to MultiscaleSpatialImage or fix/report this
+        if isinstance(new_raster, MultiscaleSpatialImage) or isinstance(new_raster, DataTree):
+            variables = list(new_raster["scale0"].ds.variables)
+            assert len(variables) == 1
+            var = variables[0]
+            new_raster = [new_raster[k].ds[var] for k in new_raster.keys()]
+
+        return new_raster, affine, rgb
 
     def _suffix_from_full_name(self, element_path: str):
         return "/".join(element_path.split("/")[2:])
@@ -170,9 +108,8 @@ class Interactive:
         self, sdata: SpatialData, image: Union[SpatialImage, MultiscaleSpatialImage], element_path: str = None
     ) -> None:
         new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
-        ct = get_transform(image)
-        cs = ct.output_coordinate_system
-        metadata = {"coordinate_systems": [cs.name], "sdata": sdata}
+        coordinate_systems = list(SpatialData.get_all_transformations(image).keys())
+        metadata = {"coordinate_systems": coordinate_systems, "sdata": sdata}
         self._viewer.add_image(
             new_image,
             rgb=rgb,
@@ -203,45 +140,23 @@ class Interactive:
             }
         else:
             metadata = {}
-        ct = get_transform(labels)
-        cs = ct.output_coordinate_system
-        metadata["coordinate_systems"] = [cs.name]
+        coordinate_systems = list(SpatialData.get_all_transformations(labels).keys())
+        metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
         new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
         self._viewer.add_labels(
             new_labels, name=self._suffix_from_full_name(element_path), metadata=metadata, affine=affine, visible=False
         )
 
-    def _get_affine_for_points_polygons(self, element: Union[GeoDataFrame, pa.Table]) -> np.ndarray:
-        # the whole function assumes there is no time dimension
-        ndim = len(get_dims(element))
-        # "src_axes" are the axes of the element in the source coordinate system (implicit coordinate system of the
-        # labels
-        src_axes = ["x", "y", "z"][:ndim]
-        assert tuple(src_axes) == get_dims(element)
+    def _get_affine_for_points_polygons(self, element: Union[AnnData, GeoDataFrame, pa.Table]) -> np.ndarray:
+        from spatialdata._core.transformations import Affine, Sequence, MapAxis
 
-        assert list(src_axes) == [ax for ax in ["x", "y", "z"] if ax in src_axes]
-        # "axes" are the axes of the element in the target coordinate system
-        affine, des_axes = self._get_transform(element=element)
-
-        # target_order_pre = [ax for ax in des_axes if ax in src_axes]
-        # target_order_post = [ax for ax in ['t', 'c', 'z', 'y', 'x'] if ax in des_axes]
-        #
-        # from spatialdata import Affine
-        #
-        # fix_order_pre = Affine._get_affine_iniection_from_axes(src_axes, target_order_pre)
-        # fix_order_post = Affine._get_affine_iniection_from_axes(des_axes, target_order_post)
-        # affine = fix_order_post @ affine @ fix_order_pre
-
-        out_space_dim = affine.shape[0] - 1
-        in_space_dim = affine.shape[1] - 1
-        assert in_space_dim == ndim
-        if out_space_dim != ndim:
-            assert out_space_dim == ndim + 1
-            # remove the first row of the affine since it contains only channel information (it should be zero)
-            assert np.isclose(np.linalg.norm(affine[0, :]), 0)
-            affine = affine[1:, :]
-        return affine
+        affine = self._get_transform(element=element)
+        new_affine = Sequence(
+            [Affine(affine, input_axes=("y", "x"), output_axes=("y", "x")), MapAxis({"x": "y", "y": "x"})]
+        )
+        new_matrix = new_affine.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
+        return new_matrix
 
     def _add_shapes(
         self, sdata: SpatialData, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None
@@ -262,9 +177,8 @@ class Interactive:
             metadata = {"adata": annotation, "library_id": element_path}
         else:
             metadata = {}
-        ct = get_transform(shapes)
-        cs = ct.output_coordinate_system
-        metadata["coordinate_systems"] = [cs.name]
+        coordinate_systems = list(SpatialData.get_all_transformations(shapes).keys())
+        metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
         affine = self._get_affine_for_points_polygons(element=shapes)
         self._viewer.add_points(
@@ -297,9 +211,8 @@ class Interactive:
             metadata = {"adata": annotation, "library_id": element_path}
         else:
             metadata = {}
-        ct = get_transform(points)
-        cs = ct.output_coordinate_system
-        metadata["coordinate_systems"] = [cs.name]
+        coordinate_systems = list(SpatialData.get_all_transformations(points).keys())
+        metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
         affine = self._get_affine_for_points_polygons(element=points)
         # 3d not supported at the moment, let's remove the 3d coordinate
@@ -316,7 +229,7 @@ class Interactive:
         self._viewer.add_points(
             spatial,
             name=self._suffix_from_full_name(element_path),
-            ndim = len(axes),
+            ndim=len(axes),
             edge_color="white",
             face_color="white",
             size=2 * radii,
@@ -325,7 +238,7 @@ class Interactive:
             affine=affine,
             visible=False,
         )
-        print('debug')
+        print("debug")
         ##
 
     def _add_polygons(
@@ -340,11 +253,17 @@ class Interactive:
         else:
             metadata = {}
         ##
-        ct = get_transform(polygons)
-        cs = ct.output_coordinate_system
-        metadata["coordinate_systems"] = [cs.name]
+        coordinate_systems = list(SpatialData.get_all_transformations(polygons).keys())
+        metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
         affine = self._get_affine_for_points_polygons(element=polygons)
+        MAX_POLYGONS = 10000
+        if len(coordinates) > MAX_POLYGONS:
+            coordinates = coordinates[:MAX_POLYGONS]
+            logger.warning(
+                f"Too many polygons: {len(coordinates)}. Only the first {MAX_POLYGONS} will be shown.",
+                UserWarning,
+            )
         self._viewer.add_shapes(
             coordinates,
             shape_type="polygon",
