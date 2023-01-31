@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os.path
 from typing import Any, TYPE_CHECKING, Optional, Union, Tuple
 import napari
 from loguru import logger
@@ -19,7 +20,32 @@ from datatree import DataTree
 
 import matplotlib.pyplot as plt
 
-__all__ = ["Interactive"]
+__all__ = ["Interactive", "_get_transform"]
+
+
+def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
+    affine: np.ndarray
+    transformations = SpatialData.get_all_transformations(element)
+    if coordinate_system_name is None:
+        cs = transformations.keys().__iter__().__next__()
+    else:
+        cs = coordinate_system_name
+    ct = transformations[cs]
+    affine = ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
+
+    if isinstance(element, SpatialImage) or isinstance(element, MultiscaleSpatialImage):
+        return affine
+    elif isinstance(element, AnnData) or isinstance(element, pa.Table) or isinstance(element, GeoDataFrame):
+        from spatialdata._core.transformations import Affine, Sequence, MapAxis
+
+        new_affine = Sequence(
+            [Affine(affine, input_axes=("y", "x"), output_axes=("y", "x")), MapAxis({"x": "y", "y": "x"})]
+        )
+        new_matrix = new_affine.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
+
+        return new_matrix
+    else:
+        raise RuntimeError("Cannot get transform for {type(element)}")
 
 
 class Interactive:
@@ -51,26 +77,11 @@ class Interactive:
         _npe2.get_widget_contribution("napari-spatialdata")
         self._viewer.window.add_plugin_dock_widget("napari-spatialdata")
 
-    def _get_transform(self, element: SpatialElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
-        affine: np.ndarray
-        transformations = SpatialData.get_all_transformations(element)
-        if coordinate_system_name is None:
-            if len(transformations) > 1:
-                # TODO: An easy workaround is to add one layer per coordinate system, another better method is to
-                #  change the affine matrix when the coordinate system is changed.
-                raise ValueError("Only one coordinate system per element is supported at the moment.")
-            cs = transformations.keys().__iter__().__next__()
-        else:
-            cs = transformations[coordinate_system_name]
-        ct = transformations[cs]
-        affine = ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
-        return affine
-
     def _get_affine_for_images_labels(
         self, element: Union[SpatialImage, MultiscaleSpatialImage]
     ) -> Tuple[DataArray, np.ndarray, bool]:
         axes = get_dims(element)
-        affine = self._get_transform(element=element)
+        affine = _get_transform(element=element)
 
         if "c" in axes:
             assert axes.index("c") == 0
@@ -109,7 +120,7 @@ class Interactive:
     ) -> None:
         new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
         coordinate_systems = list(SpatialData.get_all_transformations(image).keys())
-        metadata = {"coordinate_systems": coordinate_systems, "sdata": sdata}
+        metadata = {"coordinate_systems": coordinate_systems, "sdata": sdata, 'element': image}
         self._viewer.add_image(
             new_image,
             rgb=rgb,
@@ -143,20 +154,11 @@ class Interactive:
         coordinate_systems = list(SpatialData.get_all_transformations(labels).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
+        metadata['element'] = labels
         new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
         self._viewer.add_labels(
             new_labels, name=self._suffix_from_full_name(element_path), metadata=metadata, affine=affine, visible=False
         )
-
-    def _get_affine_for_points_polygons(self, element: Union[AnnData, GeoDataFrame, pa.Table]) -> np.ndarray:
-        from spatialdata._core.transformations import Affine, Sequence, MapAxis
-
-        affine = self._get_transform(element=element)
-        new_affine = Sequence(
-            [Affine(affine, input_axes=("y", "x"), output_axes=("y", "x")), MapAxis({"x": "y", "y": "x"})]
-        )
-        new_matrix = new_affine.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
-        return new_matrix
 
     def _add_shapes(
         self, sdata: SpatialData, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None
@@ -180,7 +182,8 @@ class Interactive:
         coordinate_systems = list(SpatialData.get_all_transformations(shapes).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
-        affine = self._get_affine_for_points_polygons(element=shapes)
+        metadata['element'] = shapes
+        affine = _get_transform(element=shapes)
         self._viewer.add_points(
             spatial,
             name=self._suffix_from_full_name(element_path),
@@ -214,7 +217,8 @@ class Interactive:
         coordinate_systems = list(SpatialData.get_all_transformations(points).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
-        affine = self._get_affine_for_points_polygons(element=points)
+        metadata['element'] = points
+        affine = _get_transform(element=points)
         # 3d not supported at the moment, let's remove the 3d coordinate
         # TODO: support
         axes = get_dims(points)
@@ -256,7 +260,8 @@ class Interactive:
         coordinate_systems = list(SpatialData.get_all_transformations(polygons).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
-        affine = self._get_affine_for_points_polygons(element=polygons)
+        metadata['element'] = polygons
+        affine = _get_transform(element=polygons)
         MAX_POLYGONS = 10000
         if len(coordinates) > MAX_POLYGONS:
             coordinates = coordinates[:MAX_POLYGONS]
@@ -509,5 +514,5 @@ if __name__ == "__main__":
     from spatialdata import SpatialData
 
     # sdata = SpatialData.read("merfish/data.zarr")
-    sdata = SpatialData.read("visium/data.zarr")
+    sdata = SpatialData.read(os.path.expanduser("~/temp/merged.zarr"))
     Interactive(sdata)

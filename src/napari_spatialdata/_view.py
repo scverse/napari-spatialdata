@@ -209,10 +209,8 @@ class QtAdataViewWidget(QWidget):
         ##
 
         sdata = sdatas[0]
-        from spatialdata import Affine, PointsModel
-        from spatialdata._core.core_utils import get_default_coordinate_system
-
-        xy_cs = get_default_coordinate_system(("x", "y"))
+        from spatialdata._core.transformations import Identity
+        from spatialdata._core.models import ShapesModel
 
         # get current coordinate system
         selected = self._coordinate_system_selector.selectedItems()
@@ -221,13 +219,20 @@ class QtAdataViewWidget(QWidget):
         if len(selected) == 0:
             all_coordinate_systems = sdata.coordinate_systems
             assert len(all_coordinate_systems) == 1
-            cs_name, cs = all_coordinate_systems.items().__iter__().__next__()
+            cs = all_coordinate_systems.items()[0]
         else:
             assert len(selected) == 1
-            cs_name = selected[0].text()
-            cs = sdata.coordinate_systems[cs_name]
-        key = f"{layer.name}_{cs_name}"
+            cs = selected[0].text()
+            assert cs in sdata.coordinate_systems
+        key = f"{layer.name}"
         coords = layer.data
+        raw_sizes = layer._size
+        sizes = []
+        for i, row in enumerate(raw_sizes):
+            assert len(set(row)) == 1
+            size = row[0]
+            sizes.append(size)
+        sizes_array = np.array(sizes)
         # TODO: deal with 3D case (build this matrix with MapAxis or similar) and deal with coords
         if layer.ndim == 3:
             coords = coords[:, 1:]
@@ -237,15 +242,10 @@ class QtAdataViewWidget(QWidget):
         # coords from napari are in the yx coordinate systems, we want to store them as xy
         coords = np.fliplr(coords)
         # coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
-        affine = Affine(
-            [[0.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]],
-            input_coordinate_system=xy_cs,
-            output_coordinate_system=cs,
-        )
         zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
-        points = PointsModel.parse(coords=coords, transform=affine)
-        sdata.add_points(name=zarr_name, points=points, overwrite=False)
-        show_info(f"Points saved in the SpatialData object")
+        shapes = ShapesModel.parse(coords=coords, transformations={cs: Identity()}, shape_type='Circle', shape_size=sizes_array)
+        sdata.add_shapes(name=zarr_name, shapes=shapes)
+        show_info(f"Shapes saved in the SpatialData object")
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
         shape_list = layer._data_view

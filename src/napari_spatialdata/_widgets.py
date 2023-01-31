@@ -462,6 +462,11 @@ class CoordinateSystemSelector(ListWidget):
             if "coordinate_systems" in metadata:
                 coordinate_systems = metadata["coordinate_systems"]
                 if text in coordinate_systems:
+                    if len(coordinate_systems) > 1:
+                        from napari_spatialdata.interactive import _get_transform
+                        element = layer.metadata["element"]
+                        affine = _get_transform(element=element, coordinate_system_name=text)
+                        layer.affine = affine
                     if not layer.visible:
                         layer.visible = True
                         # layer.refresh()
