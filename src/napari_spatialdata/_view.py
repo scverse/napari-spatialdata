@@ -209,7 +209,7 @@ class QtAdataViewWidget(QWidget):
         ##
 
         sdata = sdatas[0]
-        from spatialdata._core.transformations import Identity
+        from spatialdata._core.transformations import Identity, Affine, Sequence, MapAxis
         from spatialdata._core.models import ShapesModel
 
         # get current coordinate system
@@ -240,11 +240,23 @@ class QtAdataViewWidget(QWidget):
             assert layer.ndim == 2
         assert coords.shape[1] == 2
         # coords from napari are in the yx coordinate systems, we want to store them as xy
-        coords = np.fliplr(coords)
+        # coords = np.fliplr(coords)
         # coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
+
+        # the coordinate data is the raw one, without an eventual affine transformation, this is done here. The mapAxis
+        # swaps the axes, that has been swapped before when creating the points layer
+        sequence = Sequence(
+            [
+                MapAxis({"x": "y", "y": "x"}),
+                Affine(layer.affine.affine_matrix, input_axes=("y", "x"), output_axes=("y", "x")),
+            ]
+        )
         zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
-        shapes = ShapesModel.parse(coords=coords, transformations={cs: Identity()}, shape_type='Circle', shape_size=sizes_array)
-        sdata.add_shapes(name=zarr_name, shapes=shapes)
+        shapes = ShapesModel.parse(
+            coords=coords, transformations={cs: sequence}, shape_type="Circle", shape_size=sizes_array
+        )
+        # sequence.transform(shapes).obsm['spatial']
+        sdata.add_shapes(name=zarr_name, shapes=shapes, overwrite=True)
         show_info(f"Shapes saved in the SpatialData object")
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:

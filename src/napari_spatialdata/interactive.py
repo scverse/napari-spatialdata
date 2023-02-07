@@ -38,8 +38,14 @@ def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str
     elif isinstance(element, AnnData) or isinstance(element, pa.Table) or isinstance(element, GeoDataFrame):
         from spatialdata._core.transformations import Affine, Sequence, MapAxis
 
+        # old code, I just noticed it was wrong by reading it... but things were being displayed correctly. Luck?
+        # new_affine = Sequence(
+        #     [Affine(affine, input_axes=("y", "x"), output_axes=("y", "x")), MapAxis({"x": "y", "y": "x"})]
+        # )
+        # this code flips the coordinates of the non-raster data (points, shapes and polygons), without having to
+        # actually flipping the data (which is slow), but just by concatenating a mapAxis
         new_affine = Sequence(
-            [Affine(affine, input_axes=("y", "x"), output_axes=("y", "x")), MapAxis({"x": "y", "y": "x"})]
+            [MapAxis({"x": "y", "y": "x"}), Affine(affine, input_axes=("y", "x"), output_axes=("y", "x"))]
         )
         new_matrix = new_affine.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
 
@@ -167,7 +173,7 @@ class Interactive:
         if "size" in shapes.obs:
             radii = shapes.obs["size"]
         else:
-            radii = 1
+            radii = 10
         annotation = self._find_annotation_for_regions(
             base_element=shapes, annotation_table=annotation_table, element_path=element_path
         )
