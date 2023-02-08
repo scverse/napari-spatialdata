@@ -413,14 +413,22 @@ class Interactive:
         if len(annotated_instances) != len(available_instances):
             raise ValueError("TODO: support partial annotation")
 
+        # this is to reorder the points to match the order of the annotation table
+        a = points.obs.index.to_numpy()
+        b = annotating_rows.obs[instance_key].to_numpy()
+        sorter = np.argsort(a)
+        mapper = sorter[np.searchsorted(a, b, sorter=sorter)]
+        assert np.all(a[mapper] == b)
+
+
         # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
         annotating_rows.uns[Key.uns.spatial] = {}
         annotating_rows.uns[Key.uns.spatial][element_path] = {}
         annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key] = {}
         annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
-        annotating_rows.obsm["spatial"] = points.obsm["spatial"]
+        annotating_rows.obsm["spatial"] = points.obsm["spatial"][mapper]
         # workaround for the legacy code to support different sizes for different points
-        annotating_rows.obsm["region_radius"] = points.obs["size"].to_numpy()
+        annotating_rows.obsm["region_radius"] = points.obs["size"].to_numpy()[mapper]
         return annotating_rows
 
     def _find_annotation_for_polygons(

@@ -37,6 +37,7 @@ class QtAdataViewWidget(QWidget):
 
         self._viewer = viewer
         self._model = ImageModel()
+        self._model.palette = 'tab20'
 
         self._layer_selection_widget = magicgui(
             self._select_layer,
@@ -239,21 +240,29 @@ class QtAdataViewWidget(QWidget):
         else:
             assert layer.ndim == 2
         assert coords.shape[1] == 2
+        # we apply the transformation that is used in the layer
+        assert len(coords.shape) == 2
+        assert coords.shape[-1] == 2
+        p = np.vstack([coords.T, np.ones(coords.shape[0])])
+        q = layer.affine.affine_matrix @ p
+        coords = q[:coords.shape[-1], :].T
+
         # coords from napari are in the yx coordinate systems, we want to store them as xy
-        # coords = np.fliplr(coords)
+        coords = np.fliplr(coords)
+
         # coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
 
         # the coordinate data is the raw one, without an eventual affine transformation, this is done here. The mapAxis
         # swaps the axes, that has been swapped before when creating the points layer
-        sequence = Sequence(
-            [
-                MapAxis({"x": "y", "y": "x"}),
-                Affine(layer.affine.affine_matrix, input_axes=("y", "x"), output_axes=("y", "x")),
-            ]
-        )
+        # sequence = Sequence(
+        #     [
+        #         MapAxis({"x": "y", "y": "x"}),
+        #         Affine(layer.affine.affine_matrix, input_axes=("y", "x"), output_axes=("y", "x")),
+        #     ]
+        # )
         zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
         shapes = ShapesModel.parse(
-            coords=coords, transformations={cs: sequence}, shape_type="Circle", shape_size=sizes_array
+            coords=coords, transformations={cs: Identity()}, shape_type="Circle", shape_size=sizes_array
         )
         # sequence.transform(shapes).obsm['spatial']
         sdata.add_shapes(name=zarr_name, shapes=shapes, overwrite=True)
