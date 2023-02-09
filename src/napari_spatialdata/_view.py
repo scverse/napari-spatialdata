@@ -61,12 +61,16 @@ class QtAdataViewWidget(QWidget):
         self.obs_widget = AListWidget(self.viewer, self.model, attr="obs")
         self.layout().addWidget(obs_label)
         self.layout().addWidget(self.obs_widget)
+        self._coordinate_system_selector.currentTextChanged.connect(self.obs_widget._coordinateSystemChanged)
+        self.obs_widget._current_coordinate_system = self._coordinate_system_selector._current_coordinate_system
 
         # gene
         var_label = QLabel("Genes:")
         var_label.setToolTip("Gene names from `adata.var_names` or `adata.raw.var_names`.")
         self.var_widget = AListWidget(self.viewer, self.model, attr="var")
         self.var_widget.setAdataLayer("X")
+        self._coordinate_system_selector.currentTextChanged.connect(self.var_widget._coordinateSystemChanged)
+        self.var_widget._current_coordinate_system = self._coordinate_system_selector._current_coordinate_system
 
         # layers
         adata_layer_label = QLabel("Layers:")
@@ -88,6 +92,8 @@ class QtAdataViewWidget(QWidget):
         self.obsm_index_widget.setToolTip("Indices for current key in `adata.obsm`.")
         self.obsm_index_widget.currentTextChanged.connect(self.obsm_widget.setIndex)
         self.obsm_widget.itemClicked.connect(self.obsm_index_widget.addItems)
+        self._coordinate_system_selector.currentTextChanged.connect(self.obsm_widget._coordinateSystemChanged)
+        self.obsm_widget._current_coordinate_system = self._coordinate_system_selector._current_coordinate_system
 
         self.layout().addWidget(obsm_label)
         self.layout().addWidget(self.obsm_widget)
@@ -97,6 +103,8 @@ class QtAdataViewWidget(QWidget):
         var_points = QLabel("Points:")
         var_points.setToolTip("Gene names from points.")
         self.var_points_widget = AListWidget(self.viewer, self.model, attr="points")
+        self._coordinate_system_selector.currentTextChanged.connect(self.var_points_widget._coordinateSystemChanged)
+        self.var_points_widget._current_coordinate_system = self._coordinate_system_selector._current_coordinate_system
 
         self.layout().addWidget(var_points)
         self.layout().addWidget(self.var_points_widget)

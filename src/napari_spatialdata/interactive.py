@@ -463,9 +463,10 @@ class Interactive:
             from scanpy.plotting._utils import _set_colors_for_categorical_obs
             # quick and dirty to set the colors for all the categorical dtype so that if we subset the table the
             # colors are consistent
-            for key in annotation_table.obs.keys():
-                if is_categorical_dtype(annotation_table.obs[key]):
-                    _set_colors_for_categorical_obs(annotation_table, key, palette='tab20')
+            if annotation_table is not None:
+                for key in annotation_table.obs.keys():
+                    if is_categorical_dtype(annotation_table.obs[key]):
+                        _set_colors_for_categorical_obs(annotation_table, key, palette='tab20')
 
             for name, element in d.items():
                 element_path = f"/{prefix}/{name}"

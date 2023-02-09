@@ -14,6 +14,7 @@ from napari.viewer import Viewer
 from vispy.scene.widgets import ColorBarWidget
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from sklearn.preprocessing import MinMaxScaler
+import scipy.sparse
 import numpy as np
 import napari
 import pandas as pd
@@ -94,6 +95,7 @@ class ListWidget(QtWidgets.QListWidget):
 
 class AListWidget(ListWidget):
     layerChanged = Signal()
+    _current_coordinate_system: Optional[str] = None
 
     def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
         if attr not in ImageModel.VALID_ATTRIBUTES:
@@ -110,6 +112,9 @@ class AListWidget(ListWidget):
 
         if self.model.adata is not None:
             self._onChange()
+
+    def _coordinateSystemChanged(self, new_coordinate_system: str):
+        self._current_coordinate_system = new_coordinate_system
 
     def _onChange(self) -> None:
         self.clear()
@@ -128,7 +133,14 @@ class AListWidget(ListWidget):
                             adata = layer.metadata["adata"]
                             # ugly, I'll fix it when doing the major refactoring
                             if item in adata.var_names:
-                                vec = adata[:, item].X.todense().ravel().A1
+                                matrix = adata[:, item].X
+                                if scipy.sparse.issparse(matrix):
+                                    vec = matrix.todense().ravel().A1
+                                else:
+                                    if isinstance(matrix, np.matrix):
+                                        vec = matrix.ravel().A1
+                                    else:
+                                        vec = matrix.ravel()
                             elif item in adata.obs:
                                 vec = adata.obs[item]
                             else:
@@ -158,8 +170,14 @@ class AListWidget(ListWidget):
             if adata is not None:
                 kwargs = {"adata": adata}
             properties = self._get_points_properties(vec, key=item, layer=layer, **kwargs)
+            if 'metadata' not in properties or properties['metadata'] is None:
+                properties['metadata'] = {}
+            # we create a layer saying that it is in the current coordinate system, in this way we can show/hide it when
+            # we select a coordinate system with the widget
+            assert self._current_coordinate_system is not None
+            properties['metadata']['coordinate_systems'] = [self._current_coordinate_system]
             if isinstance(layer, Points):
-                diameter = layer.metadata['element'].obs['size'].to_numpy()
+                diameter = layer.metadata["element"].obs["size"].to_numpy()
                 ##
                 self.viewer.add_points(
                     layer.data,
@@ -518,12 +536,14 @@ class CoordinateSystemSelector(ListWidget):
                     if cs not in self.coordinate_systems:
                         self.coordinate_systems.append(cs)
         self._create_ui()
+        self._current_coordinate_system = None
 
     def _create_ui(self) -> None:
         self.addItems(self.coordinate_systems)
         self.currentTextChanged.connect(self._onCoordinateSystemChange)
 
     def _onCoordinateSystemChange(self, text: str) -> None:
+        self._current_coordinate_system = text
         for layer in self.viewer.layers:
             metadata = layer.metadata
             if "coordinate_systems" in metadata:
