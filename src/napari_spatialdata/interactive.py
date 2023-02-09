@@ -4,7 +4,7 @@ import os.path
 from typing import Any, TYPE_CHECKING, Optional, Union, Tuple
 import napari
 from loguru import logger
-from napari_spatialdata._utils import save_fig, NDArrayA
+from napari_spatialdata._utils import save_fig, NDArrayA, _get_ellipses_from_circles
 import numpy as np
 from napari_spatialdata._constants._pkg_constants import Key
 from skimage.measure import regionprops
@@ -17,6 +17,7 @@ from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialI
 from geopandas import GeoDataFrame
 from spatialdata import SpatialData, SpatialElement, get_dims
 from datatree import DataTree
+from pandas.api.types import is_categorical_dtype
 
 import matplotlib.pyplot as plt
 
@@ -171,7 +172,7 @@ class Interactive:
     ) -> None:
         spatial = shapes.obsm["spatial"]
         if "size" in shapes.obs:
-            radii = shapes.obs["size"]
+            radii = shapes.obs["size"] / 2
         else:
             radii = 10
         annotation = self._find_annotation_for_regions(
@@ -190,17 +191,32 @@ class Interactive:
         metadata["sdata"] = sdata
         metadata['element'] = shapes
         affine = _get_transform(element=shapes)
-        self._viewer.add_points(
-            spatial,
+        # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
+        ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii.to_numpy())
+        self._viewer.add_shapes(
+            ellipses,
+            shape_type='ellipse',
             name=self._suffix_from_full_name(element_path),
             edge_color="white",
             face_color="white",
-            size=2 * radii,
             metadata=metadata,
             edge_width=0.0,
             affine=affine,
             visible=False,
         )
+
+        # TODO: when https://github.com/scverse/napari-spatialdata/issues/35 is fixed, use points when we detect cirlces, since points are faster
+        # self._viewer.add_points(
+        #     spatial,
+        #     name=self._suffix_from_full_name(element_path),
+        #     edge_color="white",
+        #     face_color="white",
+        #     size=2 * radii,
+        #     metadata=metadata,
+        #     edge_width=0.0,
+        #     affine=affine,
+        #     visible=False,
+        # )
 
     def _add_points(self, sdata: SpatialData, points: pa.Table, element_path: str) -> None:
         dims = get_dims(points)
@@ -309,21 +325,21 @@ class Interactive:
                 return None
             else:
                 if isinstance(base_element, SpatialImage) or isinstance(base_element, MultiscaleSpatialImage):
-                    return self._find_annotation_for_labels(
+                    table = self._find_annotation_for_labels(
                         labels=base_element,
                         element_path=element_path,
                         annotating_rows=annotating_rows,
                         instance_key=instance_key,
                     )
                 elif isinstance(base_element, AnnData):
-                    return self._find_annotation_for_shapes(
+                    table = self._find_annotation_for_shapes(
                         points=base_element,
                         element_path=element_path,
                         annotating_rows=annotating_rows,
                         instance_key=instance_key,
                     )
                 elif isinstance(base_element, GeoDataFrame):
-                    return self._find_annotation_for_polygons(
+                    table = self._find_annotation_for_polygons(
                         polygons=base_element,
                         element_path=element_path,
                         annotating_rows=annotating_rows,
@@ -331,6 +347,7 @@ class Interactive:
                     )
                 else:
                     raise ValueError(f"Unsupported element type: {type(base_element)}")
+                return table
 
         else:
             return None
@@ -414,11 +431,12 @@ class Interactive:
             raise ValueError("TODO: support partial annotation")
 
         # this is to reorder the points to match the order of the annotation table
-        a = points.obs.index.to_numpy()
-        b = annotating_rows.obs[instance_key].to_numpy()
+        a = annotating_rows.obs[instance_key].to_numpy()
+        b = points.obs.index.to_numpy()
         sorter = np.argsort(a)
         mapper = sorter[np.searchsorted(a, b, sorter=sorter)]
         assert np.all(a[mapper] == b)
+        annotating_rows = annotating_rows[mapper]
 
 
         # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
@@ -426,9 +444,9 @@ class Interactive:
         annotating_rows.uns[Key.uns.spatial][element_path] = {}
         annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key] = {}
         annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
-        annotating_rows.obsm["spatial"] = points.obsm["spatial"][mapper]
+        annotating_rows.obsm["spatial"] = points.obsm["spatial"]
         # workaround for the legacy code to support different sizes for different points
-        annotating_rows.obsm["region_radius"] = points.obs["size"].to_numpy()[mapper]
+        annotating_rows.obsm["region_radius"] = points.obs["size"].to_numpy() / 2
         return annotating_rows
 
     def _find_annotation_for_polygons(
@@ -441,6 +459,14 @@ class Interactive:
         for prefix in ["images", "labels", "shapes", "points", "polygons"]:
             d = sdata.__getattribute__(prefix)
             annotation_table = sdata.table
+
+            from scanpy.plotting._utils import _set_colors_for_categorical_obs
+            # quick and dirty to set the colors for all the categorical dtype so that if we subset the table the
+            # colors are consistent
+            for key in annotation_table.obs.keys():
+                if is_categorical_dtype(annotation_table.obs[key]):
+                    _set_colors_for_categorical_obs(annotation_table, key, palette='tab20')
+
             for name, element in d.items():
                 element_path = f"/{prefix}/{name}"
                 if prefix == "images":

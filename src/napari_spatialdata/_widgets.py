@@ -9,7 +9,7 @@ from vispy import scene
 from loguru import logger
 from superqt import QRangeSlider
 from qtpy.QtCore import Qt, Signal
-from napari.layers import Image, Layer, Labels, Points
+from napari.layers import Image, Layer, Labels, Points, Shapes
 from napari.viewer import Viewer
 from vispy.scene.widgets import ColorBarWidget
 from vispy.color.colormap import Colormap, MatplotlibColormap
@@ -24,7 +24,9 @@ from napari_spatialdata._utils import (
     NDArrayA,
     _min_max_norm,
     _get_categorical,
+    _set_palette,
     _position_cluster_labels,
+    _get_ellipses_from_circles,
 )
 
 __all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ObsmIndexWidget", "CBarWidget"]
@@ -114,50 +116,101 @@ class AListWidget(ListWidget):
         self.addItems(self.model.get_items(self._attr))
 
     def _onAction(self, items: Iterable[str]) -> None:
-        for item in sorted(set(items)):
-            try:
-                vec, name = self._getter(item, index=self.getIndex())
-            except Exception as e:  # noqa: B902
-                logger.error(e)
+        ##
+        for layer in self.viewer.layers:
+            vec = None
+            adata = None
+            if "sdata" in layer.metadata:
+                if layer.visible:
+                    for item in sorted(set(items)):
+                        name = f"{item}::{layer.name}"
+                        if "adata" in layer.metadata:
+                            adata = layer.metadata["adata"]
+                            # ugly, I'll fix it when doing the major refactoring
+                            if item in adata.var_names:
+                                vec = adata[:, item].X.todense().ravel().A1
+                            elif item in adata.obs:
+                                vec = adata.obs[item]
+                            else:
+                                raise NotImplementedError("need to refactor")
+            if vec is None:
                 continue
-            if vec.ndim == 2:
+            # try:
+            #     vec, name = self._getter(item, index=self.getIndex())
+            # except Exception as e:  # noqa: B902
+            #     logger.error(e)
+            #     continue
+            # if vec.ndim == 2:
+            #     raise RuntimeError('luca: when is this happening? Do we need this?')
+            #     self.viewer.add_points(
+            #         layer.data,
+            #         # vec,
+            #         name=name,
+            #         edge_color="white",
+            #         face_color="white",
+            #         edge_width=0.0,
+            #         size=self.model.point_diameter,
+            #         symbol=self.model.symbol,
+            #         affine=layer.affine,
+            #     )
+            # else:
+            kwargs = {}
+            if adata is not None:
+                kwargs = {"adata": adata}
+            properties = self._get_points_properties(vec, key=item, layer=layer, **kwargs)
+            if isinstance(layer, Points):
+                diameter = layer.metadata['element'].obs['size'].to_numpy()
+                ##
                 self.viewer.add_points(
-                    vec,
+                    layer.data,
+                    # self.model.coordinates,
                     name=name,
-                    edge_color="white",
-                    face_color="white",
+                    size=diameter,
+                    # size=self.model.spot_diameter,
+                    opacity=1,
+                    face_colormap=self.model.cmap,
+                    edge_colormap=self.model.cmap,
                     edge_width=0.0,
-                    size=self.model.point_diameter,
                     symbol=self.model.symbol,
+                    affine=layer.affine,
+                    **properties,
                 )
-            else:
-                properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                if isinstance(self.model.layer, Image) or isinstance(self.model.layer, Points):
-                    self.viewer.add_points(
-                        self.model.coordinates,
-                        name=name,
-                        size=self.model.spot_diameter,
-                        opacity=1,
-                        face_colormap=self.model.cmap,
-                        edge_colormap=self.model.cmap,
-                        edge_width=0.0,
-                        symbol=self.model.symbol,
-                        **properties,
-                    )
-                elif isinstance(self.model.layer, Labels):
-                    # TODO: fix this workaround; do we need to copy?
-                    self.viewer.add_labels(
-                        self.model.layer.data.copy()
-                        if not isinstance(self.model.layer.data, napari.layers._multiscale_data.MultiScaleData)
-                        else self.model.layer.data,
-                        name=name,
-                        **properties,
-                    )
-                else:
-                    raise ValueError("TODO")
-                # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
-                # TODO(giovp): make layer editable?
-                # self.viewer.layers[layer_name].editable = False
+                ##
+            elif isinstance(layer, Labels):
+                # TODO: fix this workaround; do we need to copy?
+                self.viewer.add_labels(
+                    layer.data.copy()
+                    if not isinstance(layer.data, napari.layers._multiscale_data.MultiScaleData)
+                    else layer.data,
+                    # self.model.layer.data.copy()
+                    # if not isinstance(self.model.layer.data, napari.layers._multiscale_data.MultiScaleData)
+                    # else self.model.layer.data,
+                    name=name,
+                    affine=layer.affine,
+                    **properties,
+                )
+            elif isinstance(layer, Shapes):
+                # 3d case not supproted for the moment
+                # coordinates_2d = self.model.coordinates[:, 1:]
+                # ellipses = _get_ellipses_from_circles(centroids=coordinates_2d, radii=self.model.spot_diameter / 2)
+                self._viewer.add_shapes(
+                    layer.data,
+                    # ellipses,
+                    shape_type="ellipse",
+                    name=name,
+                    opacity=1,
+                    face_colormap=self.model.cmap,
+                    edge_colormap=self.model.cmap,
+                    edge_width=0.0,
+                    affine=layer.affine,
+                    **properties,
+                )
+                pass
+            # else:
+            #     raise ValueError("TODO")
+            # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
+            # TODO(giovp): make layer editable?
+            # self.viewer.layers[layer_name].editable = False
 
     def setAdataLayer(self, layer: Optional[str]) -> None:
         if layer in ("default", "None", "X"):
@@ -204,6 +257,9 @@ class AListWidget(ListWidget):
             cmap = plt.get_cmap(self.model.cmap)
             norm_vec = _min_max_norm(vec)
             color_vec = cmap(norm_vec)
+            return NotImplementedError(
+                "need to refactor the model to use spatialdata. self.model.adata.obs... can be different than vec"
+            )
             return {
                 "color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, color_vec)},
                 "properties": {"value": vec},
@@ -217,18 +273,29 @@ class AListWidget(ListWidget):
         }
 
     @_get_points_properties.register(pd.Series)
-    def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
-        face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=vec)
+    def _(self, vec: pd.Series, key: str, layer: Layer, adata: AnnData) -> dict[str, Any]:
+        # face_color = _get_categorical(self.model.adata, key=key, palette=self.model.palette, vec=vec)
+        colortypes = _set_palette(adata, key=key, palette=self.model.palette, vec=vec)
+        face_color = _get_categorical(adata, key=key, palette=self.model.palette, vec=colortypes)
+        # face_color = _get_categorical(adata, key=key, palette=self.model.palette, vec=vec)
         if layer is not None and isinstance(layer, Labels):
+            return NotImplementedError(
+                "need to refactor the model to use spatialdata. self.model.adata can be different than the adata I pass"
+            )
             return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
 
-        cluster_labels = _position_cluster_labels(self.model.coordinates, vec, face_color)
+        # coordinates = self.model.coordinates
+        coordinates = adata.obsm["spatial"]
+        coordinates = np.hstack([np.zeros_like(coordinates[:, :1]), coordinates])
+        assert len(coordinates) == len(vec)
+        cluster_labels = _position_cluster_labels(coordinates, vec, face_color)
         return {
             # TODO(giovp): fix color
             "text": {
                 "string": "{clusters}",
                 "size": 24,
-                "color": "white",  # "color": cluster_labels["colors"], {"feature": "clusters", "colormap": "colors"},
+                # "color": "white",  # "color": cluster_labels["colors"], {"feature": "clusters", "colormap": "colors"},
+                "color": {"feature": "clusters", "colormap": colortypes},
                 "anchor": "center",
             },
             "face_color": face_color,
@@ -464,6 +531,7 @@ class CoordinateSystemSelector(ListWidget):
                 if text in coordinate_systems:
                     if len(coordinate_systems) > 1:
                         from napari_spatialdata.interactive import _get_transform
+
                         element = layer.metadata["element"]
                         affine = _get_transform(element=element, coordinate_system_name=text)
                         layer.affine = affine
