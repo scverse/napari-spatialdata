@@ -15,7 +15,6 @@ class SdataWidget(QListWidget):
         self.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
 
     def _onClick(self, text: str) -> None:
-
         key = text[text.find("_") + 1 :]  # Only take string after "_" e.g labels_3 becomes 3
 
         if "labels" in text:
@@ -26,7 +25,6 @@ class SdataWidget(QListWidget):
             raise NotImplementedError("Points is currently not supported due to performance issues!")
 
     def get_formatted_keys(self, string_to_append: str) -> List[str]:
-
         formatted_keys = []
         for key in sdata.labels.keys():  # Labels, points and images have the same keys
             formatted_keys.append(string_to_append + key)
@@ -34,7 +32,6 @@ class SdataWidget(QListWidget):
         return formatted_keys
 
     def addItems(self) -> None:
-
         labels_keys = self.get_formatted_keys("labels_")
         points_keys = self.get_formatted_keys("points_")
         images_keys = self.get_formatted_keys("images_")
@@ -62,7 +59,6 @@ class SdataWidget(QListWidget):
         )
 
     def _add_point(self, key: str) -> None:
-
         self._viewer.add_points(
             self._sdata.points[key],
             name=key,
