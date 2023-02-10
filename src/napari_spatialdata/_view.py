@@ -81,9 +81,20 @@ class QtAdataScatterWidget(QWidget):
             )
         )
 
-        self.layout().addWidget(self.plot_button_widget, 8, 0, 8, 0)
+        self.export_button_widget = QPushButton("Export")
+        self.export_button_widget.clicked.connect(self.export)
+
+        self.layout().addWidget(self.plot_button_widget, 8, 0, 1, 2)
+        self.layout().addWidget(self.export_button_widget, 8, 2, 1, 2)
 
         self.model.events.adata.connect(self._on_selection)
+
+    def export(self) -> None:
+        """Export shapes."""
+        if (self.matplotlib_widget.selector) is None or (self.matplotlib_widget.selector.exported_data is None):
+            raise ValueError("Data points haven't been selected from the matplotlib visualisation.")
+
+        self.matplotlib_widget.selector.export(self.model.adata)
 
     def _on_selection(self, event: Optional[Any] = None) -> None:
 

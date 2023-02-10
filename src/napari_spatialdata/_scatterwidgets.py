@@ -1,16 +1,23 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Union, Iterable, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Union, Iterable, Optional, TYPE_CHECKING
 
 from qtpy import QtWidgets
 from loguru import logger
+from anndata import AnnData
 from qtpy.QtCore import Signal
+from napari.layers import Layer
 from napari.viewer import Viewer
+from matplotlib.axes import Axes
+from matplotlib.path import Path
 from pandas.api.types import is_categorical_dtype
+from matplotlib.widgets import LassoSelector
+from matplotlib.collections import Collection
 from napari_matplotlib.base import NapariMPLWidget
 import numpy as np
 import napari
 import pandas as pd
+import matplotlib as plt
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import NDArrayA, _set_palette, _get_categorical
@@ -21,6 +28,89 @@ __all__ = [
     "MatplotlibWidget",
     "AxisWidgets",
 ]
+
+
+class SelectFromCollection:
+    """
+    This class was taken from:
+    https://matplotlib.org/stable/gallery/widgets/lasso_selector_demo_sgskip.html
+
+    Select indices from a matplotlib collection using `LassoSelector`.
+
+    Selected indices are saved in the `ind` attribute. This tool fades out the
+    points that are not part of the selection (i.e., reduces their alpha
+    values). If your collection has alpha < 1, this tool will permanently
+    alter the alpha values.
+
+    Note that this tool selects collection objects based on their *origins*
+    (i.e., `offsets`).
+
+    Parameters
+    ----------
+    ax
+        Axes to interact with.
+    collection
+        Collection you want to select from.
+    alpha_other
+        To highlight a selection, this tool sets all selected points to an
+        alpha value of 1 and non-selected points to *alpha_other*.
+    """
+
+    def __init__(
+        self,
+        viewer: Viewer,
+        model: ImageModel,
+        ax: Axes,
+        collection: Collection,
+        data: List[NDArrayA],
+        alpha_other: float = 0.3,
+    ):
+        self.viewer = viewer
+        self.model = model
+        self.canvas = ax.figure.canvas
+        self.collection = collection
+        self.alpha_other = alpha_other
+        self.exported_data = None
+        self.data = data
+        self.axes = ax
+
+        self.xys = collection.get_offsets()
+        self.Npts = len(self.xys)
+
+        # Ensure that we have separate colors for each object
+        self.fc = collection.get_facecolors()
+
+        if len(self.fc) == 0:
+            raise ValueError("Collection must have a facecolor")
+        elif len(self.fc) == 1:
+            self.fc = np.tile(self.fc, (self.Npts, 1))
+
+        self.selector = LassoSelector(ax, onselect=self.onselect)
+
+        self.ind: Optional[NDArrayA] = None
+
+    def export(self, adata: AnnData) -> None:
+
+        model_layer: Layer = self.model.layer
+        obs_name = model_layer.name + "_LASSO_SELECTED"
+
+        adata.obs[obs_name] = self.exported_data
+        logger.info("Exported selected coordinates to obs in AnnData as: {}", obs_name)  # noqa: P103
+
+    def onselect(self, verts: List[NDArrayA]) -> None:
+
+        self.path = Path(verts)
+        self.ind = np.nonzero(self.path.contains_points(self.xys))[0]
+
+        self.fc[:, -1] = self.alpha_other  # Set alpha of unselected coordinates
+        self.fc[self.ind, -1] = 1  # Set alpha of selected coordinates
+
+        self.collection.set_facecolors(self.fc)
+
+        self.canvas.draw_idle()
+
+        self.selected_coordinates = self.xys[self.ind].data
+        self.exported_data = pd.Categorical(self.path.contains_points(self.xys))
 
 
 class ScatterListWidget(AListWidget):
@@ -133,6 +223,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self._model = model
         self.axes = self.canvas.figure.subplots()
         self.colorbar = None
+        self.selector = None
 
     def _onClick(
         self,
@@ -148,11 +239,17 @@ class MatplotlibWidget(NapariMPLWidget):
         self.palette = None
 
         if isinstance(color_data, dict):
+
             self.data = [x_data, y_data, color_data["vec"]]
             self.cat = color_data["cat"]
             self.palette = color_data["palette"]
+
         else:
-            self.data = [x_data, y_data, color_data]
+
+            norm = plt.colors.Normalize(vmin=np.amin(color_data), vmax=np.amax(color_data))
+            cmap = plt.cm.viridis  # TODO (rahulbshrestha): Replace this with colormap used in scatterplot
+            self.data = [x_data, y_data, cmap(norm(color_data))]
+
         self.x_label = x_label
         self.y_label = y_label
         self.color_label = color_label
@@ -184,12 +281,17 @@ class MatplotlibWidget(NapariMPLWidget):
 
         self.canvas.draw()
 
-    def clear(self) -> None:
+        self.selector = SelectFromCollection(
+            self._viewer, self._model, self.axes, self.scatterplot, self.data
+        )  # type:ignore[assignment]
 
-        self.axes.clear()
+    def clear(self) -> None:
 
         if self.colorbar:
             self.colorbar.remove()
+            self.colorbar = None
+
+        self.axes.clear()
 
 
 class AxisWidgets(QtWidgets.QWidget):
