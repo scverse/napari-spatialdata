@@ -90,7 +90,6 @@ class SelectFromCollection:
         self.ind: Optional[NDArrayA] = None
 
     def export(self, adata: AnnData) -> None:
-
         model_layer: Layer = self.model.layer
         obs_name = model_layer.name + "_LASSO_SELECTED"
 
@@ -98,7 +97,6 @@ class SelectFromCollection:
         logger.info("Exported selected coordinates to obs in AnnData as: {}", obs_name)  # noqa: P103
 
     def onselect(self, verts: List[NDArrayA]) -> None:
-
         self.path = Path(verts)
         self.ind = np.nonzero(self.path.contains_points(self.xys))[0]
 
@@ -177,7 +175,6 @@ class ScatterListWidget(AListWidget):
         return self._attr
 
     def setComponent(self, text: Optional[Union[int, str]]) -> None:
-
         if self.getAttribute() == "var":
             if TYPE_CHECKING:
                 assert isinstance(text, str)
@@ -216,7 +213,6 @@ class ScatterListWidget(AListWidget):
 
 class MatplotlibWidget(NapariMPLWidget):
     def __init__(self, viewer: Viewer, model: ImageModel):
-
         super().__init__(viewer)
 
         self._viewer = viewer
@@ -234,18 +230,15 @@ class MatplotlibWidget(NapariMPLWidget):
         y_label: Optional[str],
         color_label: Optional[str],
     ) -> None:
-
         self.cat = None
         self.palette = None
 
         if isinstance(color_data, dict):
-
             self.data = [x_data, y_data, color_data["vec"]]
             self.cat = color_data["cat"]
             self.palette = color_data["palette"]
 
         else:
-
             norm = plt.colors.Normalize(vmin=np.amin(color_data), vmax=np.amax(color_data))
             cmap = plt.cm.viridis  # TODO (rahulbshrestha): Replace this with colormap used in scatterplot
             self.data = [x_data, y_data, cmap(norm(color_data))]
@@ -257,7 +250,6 @@ class MatplotlibWidget(NapariMPLWidget):
         self.plot()
 
     def plot(self) -> None:
-
         logger.info("Plotting coordinates.")
 
         self.clear()
@@ -286,7 +278,6 @@ class MatplotlibWidget(NapariMPLWidget):
         )  # type:ignore[assignment]
 
     def clear(self) -> None:
-
         if self.colorbar:
             self.colorbar.remove()
             self.colorbar = None
@@ -296,7 +287,6 @@ class MatplotlibWidget(NapariMPLWidget):
 
 class AxisWidgets(QtWidgets.QWidget):
     def __init__(self, viewer: Viewer, model: ImageModel, name: str, color: bool = False):
-
         super().__init__()
 
         self._viewer = viewer
@@ -333,7 +323,6 @@ class AxisWidgets(QtWidgets.QWidget):
         self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
 
     def getFormattedLabel(self) -> Optional[str]:
-
         return (
             str(self.widget.getAttribute()) + ": " + str(self.widget.chosen)
             if self.widget.text is None

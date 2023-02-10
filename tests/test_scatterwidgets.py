@@ -8,7 +8,6 @@ from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
 
 def prepare_test_data():
-
     x_data = np.random.random((100, 100))
     y_data = np.random.random((100, 100))
     color_data = np.random.random(10000)
@@ -19,7 +18,6 @@ def prepare_test_data():
 
 
 def test_matplotlib_widget(make_napari_viewer: Any):
-
     # Smoke test: adding a matplotlib widget
 
     viewer = make_napari_viewer()
@@ -30,7 +28,6 @@ def test_matplotlib_widget(make_napari_viewer: Any):
 
 
 def test_matplotlib_widget_plot(make_napari_viewer: Any):
-
     viewer = make_napari_viewer()
     x_data, y_data, color_data, x_label, y_label, color_label = prepare_test_data()
     mpl_widget = MatplotlibWidget(viewer, ImageModel)
@@ -46,7 +43,6 @@ def test_matplotlib_widget_plot(make_napari_viewer: Any):
 
 
 def test_interactivity_widget(make_napari_viewer: Any):
-
     viewer = make_napari_viewer()
     x_data, y_data, color_data, x_label, y_label, color_label = prepare_test_data()
     mpl_widget = MatplotlibWidget(viewer, ImageModel)

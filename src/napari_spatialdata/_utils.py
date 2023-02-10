@@ -82,7 +82,6 @@ def _get_palette(
     palette: Optional[str] = None,
     vec: Optional[pd.Series] = None,
 ) -> dict[Any, Any]:
-
     if key not in adata.obs:
         raise KeyError("Missing key!")  # TODO: Improve error message
 
@@ -154,7 +153,6 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str,
 
 
 def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
-
     if issparse(vec):
         if TYPE_CHECKING:
             assert isinstance(vec, spmatrix)

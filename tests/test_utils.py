@@ -15,7 +15,6 @@ from napari_spatialdata._utils import (
 
 
 def test_get_categorical(adata_labels: AnnData):
-
     assert _get_categorical(adata_labels, key="categorical").shape == (adata_labels.n_obs, 3)
 
 
@@ -76,7 +75,6 @@ def test_points_inside_triangles(adata_shapes: AnnData, tri_coord: List[List[int
 
 @pytest.mark.parametrize("vec", [np.array([0, 0, 2]), np.array([1, 1, 0])])
 def test_min_max_norm(vec: np.ndarray) -> None:
-
     out = _min_max_norm(vec)
 
     assert out.shape == vec.shape
@@ -84,7 +82,6 @@ def test_min_max_norm(vec: np.ndarray) -> None:
 
 
 def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
-
     from napari_spatialdata._model import ImageModel
     from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
