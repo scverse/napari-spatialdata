@@ -27,7 +27,6 @@ DPI = 40
 
 @pytest.fixture
 def adata_labels() -> AnnData:
-
     n_var = 50
 
     blobs, _ = _get_blobs_galaxy()
@@ -61,7 +60,6 @@ def adata_labels() -> AnnData:
 
 @pytest.fixture
 def adata_shapes() -> AnnData:
-
     n_obs_shapes = 100
     n_var = 50
     blobs, _ = _get_blobs_galaxy()
