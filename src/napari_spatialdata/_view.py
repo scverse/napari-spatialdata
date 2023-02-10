@@ -97,7 +97,6 @@ class QtAdataScatterWidget(QWidget):
         self.matplotlib_widget.selector.export(self.model.adata)
 
     def _on_selection(self, event: Optional[Any] = None) -> None:
-
         self.x_widget.widget.clear()
         self.y_widget.widget.clear()
         self.color_widget.widget.clear()
