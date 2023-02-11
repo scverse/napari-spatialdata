@@ -65,16 +65,51 @@ class Interactive:
     %(_interactive.parameters)s
     """
 
+    # smooth_lasso_start: bool
+    # smooth_lasso_last_time: int
+
     def __init__(self, sdata: SpatialData, with_widgets: bool = True, headless: bool = False):
         # os.environ['NAPARI_ASYNC'] = '1'
         # os.environ['NAPARI_OCTREE'] = '1'
         self._viewer = napari.Viewer()
+        # self._viewer.layerB
+        # layerButtons.newShapesButton
         # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
         self._add_layers_from_sdata(sdata=sdata)
         if with_widgets:
             self.show_widget()
         if not headless:
             napari.run()
+
+    # # thanks to Artem Shmatko, during the SpaceHack 2022 hackathon
+    # def init_smooth_lasso(self):
+    #     from skimage import data
+    #     import napari
+    #     import time
+    #
+    #     from napari.layers.shapes._shapes_mouse_bindings import add_path_polygon_creating, add_path_polygon
+    #     from napari.layers.shapes._shapes_constants import Mode
+    #
+    #     # viewer = napari.view_image(data.astronaut(), rgb=True)
+    #     # layer = viewer.add_shapes()
+    #
+    #     Interactive.smooth_lasso_start = False
+    #     Interactive.smooth_lasso_last_time = 0
+    #
+    # @layer.mouse_double_click_callbacks.append
+    # def callback_drag(layer, event):
+    #     if Interactive.smooth_lasso_start:
+    #         Interactive.smooth_lasso_last_time = time.time()
+    #         Interactive.smooth_lasso_start = False
+    #     else:
+    #         Interactive.smooth_lasso_start = True
+    #
+    # @layer.mouse_move_callbacks.append
+    # def callback_move(layer, event):  # (0,0) is the center of the upper left pixel
+    #     if Interactive.smooth_lasso_start and layer.mode == Mode.ADD_POLYGON:
+    #         if time.time() - Interactive.smooth_lasso_last_time > 0.2:
+    #             add_path_polygon(layer, event)
+    #             Interactive.smooth_lasso_last_time = time.time()
 
     def show_widget(self):
         """Load the widget for interative features exploration."""
@@ -127,7 +162,7 @@ class Interactive:
     ) -> None:
         new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
         coordinate_systems = list(SpatialData.get_all_transformations(image).keys())
-        metadata = {"coordinate_systems": coordinate_systems, "sdata": sdata, 'element': image}
+        metadata = {"coordinate_systems": coordinate_systems, "sdata": sdata, "element": image}
         self._viewer.add_image(
             new_image,
             rgb=rgb,
@@ -161,7 +196,7 @@ class Interactive:
         coordinate_systems = list(SpatialData.get_all_transformations(labels).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
-        metadata['element'] = labels
+        metadata["element"] = labels
         new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
         self._viewer.add_labels(
             new_labels, name=self._suffix_from_full_name(element_path), metadata=metadata, affine=affine, visible=False
@@ -189,34 +224,39 @@ class Interactive:
         coordinate_systems = list(SpatialData.get_all_transformations(shapes).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
-        metadata['element'] = shapes
+        metadata["element"] = shapes
         affine = _get_transform(element=shapes)
-        # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
-        ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii.to_numpy())
-        self._viewer.add_shapes(
-            ellipses,
-            shape_type='ellipse',
+        # if len(spatial) < 10000:
+        #     # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
+        #     ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii.to_numpy())
+        #     self._viewer.add_shapes(
+        #         ellipses,
+        #         shape_type="ellipse",
+        #         name=self._suffix_from_full_name(element_path),
+        #         edge_color="white",
+        #         face_color="white",
+        #         metadata=metadata,
+        #         edge_width=0.0,
+        #         affine=affine,
+        #         visible=False,
+        #     )
+        # else:
+        logger.warning(
+            f"We need to temporarily show points as ellipses because of a napari bug (wrong size when zooming), this affects performance. Too many shapes to show as ellipses, showing as points instead. (n={len(spatial)})"
+        )
+        # TODO: when https://github.com/scverse/napari-spatialdata/issues/35 is fixed, use points when we detect cirlces, since points are faster
+        self._viewer.add_points(
+            spatial,
             name=self._suffix_from_full_name(element_path),
             edge_color="white",
             face_color="white",
+            size=2 * radii,
             metadata=metadata,
             edge_width=0.0,
             affine=affine,
             visible=False,
+            # canvas_size_limits=(2, 100000)  # this doesn't seem to affect the problem with the point size
         )
-
-        # TODO: when https://github.com/scverse/napari-spatialdata/issues/35 is fixed, use points when we detect cirlces, since points are faster
-        # self._viewer.add_points(
-        #     spatial,
-        #     name=self._suffix_from_full_name(element_path),
-        #     edge_color="white",
-        #     face_color="white",
-        #     size=2 * radii,
-        #     metadata=metadata,
-        #     edge_width=0.0,
-        #     affine=affine,
-        #     visible=False,
-        # )
 
     def _add_points(self, sdata: SpatialData, points: pa.Table, element_path: str) -> None:
         dims = get_dims(points)
@@ -239,7 +279,7 @@ class Interactive:
         coordinate_systems = list(SpatialData.get_all_transformations(points).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
-        metadata['element'] = points
+        metadata["element"] = points
         affine = _get_transform(element=points)
         # 3d not supported at the moment, let's remove the 3d coordinate
         # TODO: support
@@ -282,7 +322,7 @@ class Interactive:
         coordinate_systems = list(SpatialData.get_all_transformations(polygons).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
-        metadata['element'] = polygons
+        metadata["element"] = polygons
         affine = _get_transform(element=polygons)
         MAX_POLYGONS = 10000
         if len(coordinates) > MAX_POLYGONS:
@@ -371,7 +411,9 @@ class Interactive:
         # backgrond = 0 in u
         # adjacent_labels = (len(u) - 1 if backgrond else len(u)) == np.max(u)
         available_u = annotating_rows.obs[instance_key]
-        u_not_annotated = np.setdiff1d(u, available_u)
+        u_not_annotated = set(np.setdiff1d(u, available_u).tolist())
+        if 0 in set(u_not_annotated):
+            u_not_annotated.remove(0)
         if len(u_not_annotated) > 0:
             logger.warning(f"{len(u_not_annotated)}/{len(u)} labels not annotated: {u_not_annotated}")
         annotating_rows = annotating_rows[annotating_rows.obs[instance_key].isin(u), :]
@@ -438,7 +480,6 @@ class Interactive:
         assert np.all(a[mapper] == b)
         annotating_rows = annotating_rows[mapper]
 
-
         # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
         annotating_rows.uns[Key.uns.spatial] = {}
         annotating_rows.uns[Key.uns.spatial][element_path] = {}
@@ -461,12 +502,13 @@ class Interactive:
             annotation_table = sdata.table
 
             from scanpy.plotting._utils import _set_colors_for_categorical_obs
+
             # quick and dirty to set the colors for all the categorical dtype so that if we subset the table the
             # colors are consistent
             if annotation_table is not None:
                 for key in annotation_table.obs.keys():
                     if is_categorical_dtype(annotation_table.obs[key]):
-                        _set_colors_for_categorical_obs(annotation_table, key, palette='tab20')
+                        _set_colors_for_categorical_obs(annotation_table, key, palette="tab20")
 
             for name, element in d.items():
                 element_path = f"/{prefix}/{name}"

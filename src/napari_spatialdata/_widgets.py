@@ -3,6 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
 from functools import singledispatchmethod
+from pandas.api.types import infer_dtype, is_categorical_dtype
 
 from qtpy import QtCore, QtWidgets
 from vispy import scene
@@ -14,6 +15,7 @@ from napari.viewer import Viewer
 from vispy.scene.widgets import ColorBarWidget
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from sklearn.preprocessing import MinMaxScaler
+from anndata import AnnData
 import scipy.sparse
 import numpy as np
 import napari
@@ -131,9 +133,10 @@ class AListWidget(ListWidget):
                         name = f"{item}::{layer.name}"
                         if "adata" in layer.metadata:
                             adata = layer.metadata["adata"]
+                            assert adata is not None
                             # ugly, I'll fix it when doing the major refactoring
                             if item in adata.var_names:
-                                matrix = adata[:, item].X
+                                matrix = adata[:, item].X.copy()
                                 if scipy.sparse.issparse(matrix):
                                     vec = matrix.todense().ravel().A1
                                 else:
@@ -142,8 +145,11 @@ class AListWidget(ListWidget):
                                     else:
                                         vec = matrix.ravel()
                             elif item in adata.obs:
-                                vec = adata.obs[item]
+                                vec = adata.obs[item].copy()
+                                if not is_categorical_dtype(vec):
+                                    vec = vec.to_numpy()
                             else:
+                                assert adata is not None
                                 raise NotImplementedError("need to refactor")
             if vec is None:
                 continue
@@ -196,6 +202,7 @@ class AListWidget(ListWidget):
                 ##
             elif isinstance(layer, Labels):
                 # TODO: fix this workaround; do we need to copy?
+                pass
                 self.viewer.add_labels(
                     layer.data.copy()
                     if not isinstance(layer.data, napari.layers._multiscale_data.MultiScaleData)
@@ -208,11 +215,11 @@ class AListWidget(ListWidget):
                     **properties,
                 )
             elif isinstance(layer, Shapes):
-                # 3d case not supproted for the moment
+                # 3d case not supported for the moment
                 # coordinates_2d = self.model.coordinates[:, 1:]
                 # ellipses = _get_ellipses_from_circles(centroids=coordinates_2d, radii=self.model.spot_diameter / 2)
                 self._viewer.add_shapes(
-                    layer.data,
+                    layer.data.copy(),
                     # ellipses,
                     shape_type="ellipse",
                     name=name,
@@ -269,17 +276,14 @@ class AListWidget(ListWidget):
         raise NotImplementedError(type(vec))
 
     @_get_points_properties.register(np.ndarray)
-    def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
+    def _(self, vec: NDArrayA, adata: AnnData, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
         if layer is not None and isinstance(layer, Labels):
             cmap = plt.get_cmap(self.model.cmap)
             norm_vec = _min_max_norm(vec)
             color_vec = cmap(norm_vec)
-            return NotImplementedError(
-                "need to refactor the model to use spatialdata. self.model.adata.obs... can be different than vec"
-            )
             return {
-                "color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, color_vec)},
+                "color": {k: v for k, v in zip(adata.obs[self.model.labels_key].values, color_vec)},
                 "properties": {"value": vec},
                 "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
             }
@@ -297,10 +301,7 @@ class AListWidget(ListWidget):
         face_color = _get_categorical(adata, key=key, palette=self.model.palette, vec=colortypes)
         # face_color = _get_categorical(adata, key=key, palette=self.model.palette, vec=vec)
         if layer is not None and isinstance(layer, Labels):
-            return NotImplementedError(
-                "need to refactor the model to use spatialdata. self.model.adata can be different than the adata I pass"
-            )
-            return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
+            return {"color": {k: v for k, v in zip(adata.obs[self.model.labels_key].values, face_color)}}
 
         # coordinates = self.model.coordinates
         coordinates = adata.obsm["spatial"]
@@ -517,11 +518,12 @@ class RangeSliderWidget(QRangeSlider):
         delta = omaxx - ominn + 1e-12
 
         minn, maxx = self._colorbar.getClim()
+        if minn == maxx:
+            return np.ones_like(vec) * minn
         minn = (minn - ominn) / delta
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
         return scaler.fit_transform(vec.reshape(-1, 1))
-
 
 class CoordinateSystemSelector(ListWidget):
     def __init__(self, viewer: Viewer, **kwargs: Any):
