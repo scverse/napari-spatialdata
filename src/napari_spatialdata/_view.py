@@ -6,6 +6,8 @@ from magicgui import magicgui
 from napari.layers import Layer, Labels
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QVBoxLayout
+from geopandas import GeoDataFrame
+from shapely.geometry import Polygon
 import numpy as np
 import napari
 import pandas as pd
@@ -184,23 +186,11 @@ class QtAdataViewWidget(QWidget):
 
     def export(self, _: napari.viewer.Viewer) -> None:
         """Export shapes into :class:`AnnData` object."""
-
-        # for layer in self.viewer.layers:
-        #     if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
-        #         continue
-        #     if not len(layer.data):
-        #         logger.warn(f"Shape layer `{layer.name}` has no visible shapes.")
-        #         continue
-        #
-        #     key = f"{layer.name}_{self.model.layer.name}"
-
-        # logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
-        # self._save_shapes(layer, key=key)
-        # self._update_obs_items(key)
         selection = self.viewer.layers.selection
-        assert len(selection) == 1
+        if len(selection) != 1:
+            show_info("Cannot save. Please select only one layer to export points or polygons.")
+            return
         layer = selection.__iter__().__next__()
-        # key = f"{layer.name}_{self.model.layer.name}"
         ##
         sdatas = []
         for ll in self.viewer.layers:
@@ -218,63 +208,71 @@ class QtAdataViewWidget(QWidget):
         ##
 
         sdata = sdatas[0]
-        from spatialdata._core.transformations import Identity, Affine, Sequence, MapAxis
-        from spatialdata._core.models import ShapesModel
+        from spatialdata._core.transformations import Identity
+        from spatialdata._core.models import ShapesModel, PolygonsModel
 
         # get current coordinate system
         selected = self._coordinate_system_selector.selectedItems()
-        # temporary fix to this bug: the widget is not update when adding new layers (for example when showing multiple
-        # spatialdata objects with the same viewer)
-        if len(selected) == 0:
-            all_coordinate_systems = sdata.coordinate_systems
-            assert len(all_coordinate_systems) == 1
-            cs = all_coordinate_systems.items()[0]
-        else:
-            assert len(selected) == 1
-            cs = selected[0].text()
-            assert cs in sdata.coordinate_systems
+
+        assert len(selected) >= 1
+        if len(selected) > 1:
+            logger.warning("More than one coordinate system selected. Using the first one to save the annotations.")
+        cs = selected[0].text()
+        assert cs in sdata.coordinate_systems
+
         key = f"{layer.name}"
-        coords = layer.data
-        raw_sizes = layer._size
-        sizes = []
-        for i, row in enumerate(raw_sizes):
-            assert len(set(row)) == 1
-            size = row[0]
-            sizes.append(size)
-        sizes_array = np.array(sizes)
-        # TODO: deal with 3D case (build this matrix with MapAxis or similar) and deal with coords
-        if layer.ndim == 3:
-            coords = coords[:, 1:]
-        else:
-            assert layer.ndim == 2
-        assert coords.shape[1] == 2
-        # we apply the transformation that is used in the layer
-        assert len(coords.shape) == 2
-        assert coords.shape[-1] == 2
-        p = np.vstack([coords.T, np.ones(coords.shape[0])])
-        q = layer.affine.affine_matrix @ p
-        coords = q[:coords.shape[-1], :].T
-
-        # coords from napari are in the yx coordinate systems, we want to store them as xy
-        coords = np.fliplr(coords)
-
-        # coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
-
-        # the coordinate data is the raw one, without an eventual affine transformation, this is done here. The mapAxis
-        # swaps the axes, that has been swapped before when creating the points layer
-        # sequence = Sequence(
-        #     [
-        #         MapAxis({"x": "y", "y": "x"}),
-        #         Affine(layer.affine.affine_matrix, input_axes=("y", "x"), output_axes=("y", "x")),
-        #     ]
-        # )
         zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
-        shapes = ShapesModel.parse(
-            coords=coords, transformations={cs: Identity()}, shape_type="Circle", shape_size=sizes_array
-        )
-        # sequence.transform(shapes).obsm['spatial']
-        sdata.add_shapes(name=zarr_name, shapes=shapes, overwrite=True)
-        show_info(f"Shapes saved in the SpatialData object")
+
+        # TODO: polygons is using data_to_world(), points is doing this manually by applying .affine; these two ways are equivalent but the first is quicker; use just it
+        if isinstance(layer, napari.layers.points.points.Points):
+            coords = layer.data
+            raw_sizes = layer._size
+            sizes = []
+            for i, row in enumerate(raw_sizes):
+                assert len(set(row)) == 1
+                size = row[0]
+                sizes.append(size)
+            sizes_array = np.array(sizes)
+            # we apply the transformation that is used in the layer
+            assert len(coords.shape) == 2
+            p = np.vstack([coords.T, np.ones(coords.shape[0])])
+            q = layer.affine.affine_matrix @ p
+            coords = q[:coords.shape[-1], :].T
+
+            # TODO: deal with the 3D case
+            if layer.ndim == 3:
+                coords = coords[:, 1:]
+            else:
+                assert layer.ndim == 2
+
+            # coords from napari are in the yx coordinate systems, we want to store them as xy
+            coords = np.fliplr(coords)
+            shapes = ShapesModel.parse(
+                coords=coords, transformations={cs: Identity()}, shape_type="Circle", shape_size=sizes_array
+            )
+            # sequence.transform(shapes).obsm['spatial']
+            sdata.add_shapes(name=zarr_name, shapes=shapes, overwrite=True)
+            show_info(f"Shapes saved in the SpatialData object")
+        elif isinstance(layer, napari.layers.shapes.shapes.Shapes):
+            coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
+            # TODO: deal with the 3D case (is there a 3D case?)
+            if layer.ndim == 3:
+                coords = [c[:, 1:] for c in coords]
+            else:
+                assert layer.ndim == 2
+            polygons = []
+            for polygon_coords in coords:
+                # coords from napari are in the yx coordinate systems, we want to store them as xy
+                polygon_coords = np.fliplr(polygon_coords)
+                polygon = Polygon(polygon_coords)
+                polygons.append(polygon)
+            gdf = GeoDataFrame({"geometry": polygons})
+            parsed = PolygonsModel.parse(gdf)
+            sdata.add_polygons(name=zarr_name, polygons=parsed, overwrite=True)
+            show_info(f"Polygons saved in the SpatialData object")
+        else:
+            show_info("You can only save a layer of type points or polygons.")
+
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
         shape_list = layer._data_view
