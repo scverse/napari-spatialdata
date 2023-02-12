@@ -39,23 +39,37 @@ class QtAdataViewWidget(QWidget):
 
         self._viewer = viewer
         self._model = ImageModel()
-        self._model.palette = 'tab20'
+        self._model.palette = "tab20"
 
-        self._layer_selection_widget = magicgui(
-            self._select_layer,
-            layer={"choices": self._get_layer},
-            auto_call=True,
-            call_button=False,
-        )
-        self._layer_selection_widget()
         self._coordinate_system_selector = CoordinateSystemSelector(self._viewer, multiselect=False)
         self._coordinate_system_selector.setCurrentRow(0)
 
+        # coordiante systyem
         self.setLayout(QVBoxLayout())
         cs_label = QLabel("Coordinate space:")
         self.layout().addWidget(cs_label)
         self.layout().addWidget(self._coordinate_system_selector)
-        self.layout().addWidget(self._layer_selection_widget.native)
+
+        # this is to select which layer to use (only layers with anndata tables are listed)
+        # below there is another layer selection widget to select which layer to use (within the adata table)
+        # self._layer_selection_widget = magicgui(
+        #     self._select_layer,
+        #     layer={"choices": self._get_layer},
+        #     auto_call=True,
+        #     call_button=False,
+        # )
+        # self._layer_selection_widget()
+        # self.layout().addWidget(self._layer_selection_widget.native)
+        self._layer_selection_widget = QComboBox()
+        layers = self._get_layer(None)
+        layer_names = [layer.name for layer in layers]
+        self._layer_selection_widget.addItems(layer_names)
+        self.layout().addWidget(self._layer_selection_widget)
+        self._viewer.layers.selection.events.changed.connect(self._layer_selection_changed)
+        self._layer_selection_widget.currentTextChanged.connect(self._select_layer)
+        self._layer_selection_widget.currentTextChanged.emit(self._layer_selection_widget.currentText())
+        self._viewer.layers.events.connect(self._update_visibility)
+        # self._viewer.layers.vis
 
         # obs
         obs_label = QLabel("Observations:")
@@ -75,6 +89,7 @@ class QtAdataViewWidget(QWidget):
         self.var_widget._current_coordinate_system = self._coordinate_system_selector._current_coordinate_system
 
         # layers
+        # luca: what is this for? we alredy have a layer selection above (which is the one to choose which adata table to use)
         adata_layer_label = QLabel("Layers:")
         adata_layer_label.setToolTip("Keys in `adata.layers` used when visualizing gene expression.")
         self.adata_layer_widget = QComboBox()
@@ -133,9 +148,65 @@ class QtAdataViewWidget(QWidget):
         self.obsm_widget._onChange()
         self.var_points_widget._onChange()
 
-    def _select_layer(self, layer: Layer) -> None:
+    def _update_visibility(self, event: Optional[Any] = None) -> None:
+        """
+        When the visibility of a layer changes, update the relevant widgets.
+        """
+        if event.type == "visible":
+            self._layer_selection_changed(None)
+
+    def _layer_selection_changed(self, event: Optional[Any]) -> None:
+        """
+        When the napari layer selection or visibily changes, update the combobox for selecting napari layer with anndata.
+        """
+        ##
+        all_layers_with_adata = []
+        all_layers_with_adata_visible = []
+        for layer in self.viewer.layers:
+            if "adata" in layer.metadata and layer.metadata["adata"] is not None:
+                all_layers_with_adata.append(layer.name)
+                if layer.visible:
+                    all_layers_with_adata_visible.append(layer.name)
+        ##
+        all_layers_selected = [a.name for a in self.viewer.layers.selection]
+        all_layers_with_adata_selected_and_visible = [
+            layer for layer in all_layers_selected if layer in all_layers_with_adata_visible
+        ]
+        ##
+        old_current_text = self._layer_selection_widget.currentText()
+        all_items = [self._layer_selection_widget.itemText(i) for i in range(self._layer_selection_widget.count())]
+        if set(all_items) != set(all_layers_with_adata):
+            # update the values of the combobox
+            self._layer_selection_widget.clear()
+            self._layer_selection_widget.addItems(all_layers_with_adata)
+            if old_current_text in all_layers_with_adata:
+                self._layer_selection_widget.blockSignals(True)
+                self._layer_selection_widget.setCurrentText(old_current_text)
+                self._layer_selection_widget.blockSignals(False)
+        ##
+        if (
+            old_current_text not in all_layers_with_adata_selected_and_visible
+            and len(all_layers_with_adata_selected_and_visible) > 0
+        ):
+            first_selected = all_layers_with_adata_selected_and_visible[0]
+            self._layer_selection_widget.setCurrentText(first_selected)
+        elif old_current_text not in all_layers_with_adata_visible and len(all_layers_with_adata_visible) > 0:
+            first_selected = all_layers_with_adata_visible[0]
+            self._layer_selection_widget.setCurrentText(first_selected)
+
+    def _get_layer_by_name(self, layer_name: str) -> Optional[Layer]:
+        """Get the layer by name."""
+        for layer in self.viewer.layers:
+            if layer.name == layer_name:
+                return layer
+        return None
+
+    def _select_layer(self, layer_name: str) -> None:
         """Napari layers."""
+        layer = self._get_layer_by_name(layer_name)
         if layer is None:
+            raise ValueError(f"Layer {layer_name} not found.")
+        if "adata" not in layer.metadata:
             return
         self.model.layer = layer
         # if layer is not None and "adata" in layer.metadata:
@@ -237,7 +308,7 @@ class QtAdataViewWidget(QWidget):
             assert len(coords.shape) == 2
             p = np.vstack([coords.T, np.ones(coords.shape[0])])
             q = layer.affine.affine_matrix @ p
-            coords = q[:coords.shape[-1], :].T
+            coords = q[: coords.shape[-1], :].T
 
             # TODO: deal with the 3D case
             if layer.ndim == 3:
@@ -272,7 +343,6 @@ class QtAdataViewWidget(QWidget):
             show_info(f"Polygons saved in the SpatialData object")
         else:
             show_info("You can only save a layer of type points or polygons.")
-
 
     def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
         shape_list = layer._data_view

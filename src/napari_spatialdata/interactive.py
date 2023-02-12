@@ -68,14 +68,17 @@ class Interactive:
     # smooth_lasso_start: bool
     # smooth_lasso_last_time: int
 
-    def __init__(self, sdata: SpatialData, with_widgets: bool = True, headless: bool = False):
+    def __init__(self, sdata: SpatialData | list[SpatialData], with_widgets: bool = True, headless: bool = False):
         # os.environ['NAPARI_ASYNC'] = '1'
         # os.environ['NAPARI_OCTREE'] = '1'
         self._viewer = napari.Viewer()
         # self._viewer.layerB
         # layerButtons.newShapesButton
         # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
-        self._add_layers_from_sdata(sdata=sdata)
+        if isinstance(sdata, SpatialData):
+            sdata = [sdata]
+        for s in sdata:
+            self._add_layers_from_sdata(sdata=s)
         if with_widgets:
             self.show_widget()
         if not headless:
@@ -226,37 +229,38 @@ class Interactive:
         metadata["sdata"] = sdata
         metadata["element"] = shapes
         affine = _get_transform(element=shapes)
-        # if len(spatial) < 10000:
-        #     # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
-        #     ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii.to_numpy())
-        #     self._viewer.add_shapes(
-        #         ellipses,
-        #         shape_type="ellipse",
-        #         name=self._suffix_from_full_name(element_path),
-        #         edge_color="white",
-        #         face_color="white",
-        #         metadata=metadata,
-        #         edge_width=0.0,
-        #         affine=affine,
-        #         visible=False,
-        #     )
-        # else:
-        logger.warning(
-            f"We need to temporarily show points as ellipses because of a napari bug (wrong size when zooming), this affects performance. Too many shapes to show as ellipses, showing as points instead. (n={len(spatial)})"
-        )
-        # TODO: when https://github.com/scverse/napari-spatialdata/issues/35 is fixed, use points when we detect cirlces, since points are faster
-        self._viewer.add_points(
-            spatial,
-            name=self._suffix_from_full_name(element_path),
-            edge_color="white",
-            face_color="white",
-            size=2 * radii,
-            metadata=metadata,
-            edge_width=0.0,
-            affine=affine,
-            visible=False,
-            # canvas_size_limits=(2, 100000)  # this doesn't seem to affect the problem with the point size
-        )
+        THRESHOLD = 10000
+        if len(spatial) < THRESHOLD:
+            # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
+            ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii.to_numpy())
+            self._viewer.add_shapes(
+                ellipses,
+                shape_type="ellipse",
+                name=self._suffix_from_full_name(element_path),
+                edge_color="white",
+                face_color="white",
+                metadata=metadata,
+                edge_width=0.0,
+                affine=affine,
+                visible=False,
+            )
+        else:
+            logger.warning(
+                f"Too many shapes {len(spatial)} > {THRESHOLD}, using points instead of ellipses. Size will stop being correct beyond a certain zoom level"
+            )
+            # TODO: when https://github.com/scverse/napari-spatialdata/issues/35 is fixed, use points when we detect cirlces, since points are faster
+            self._viewer.add_points(
+                spatial,
+                name=self._suffix_from_full_name(element_path),
+                edge_color="white",
+                face_color="white",
+                size=2 * radii,
+                metadata=metadata,
+                edge_width=0.0,
+                affine=affine,
+                visible=False,
+                # canvas_size_limits=(2, 100000)  # this doesn't seem to affect the problem with the point size
+            )
 
     def _add_points(self, sdata: SpatialData, points: pa.Table, element_path: str) -> None:
         dims = get_dims(points)
@@ -596,6 +600,7 @@ class Interactive:
 if __name__ == "__main__":
     from spatialdata import SpatialData
 
-    # sdata = SpatialData.read("merfish/data.zarr")
-    sdata = SpatialData.read(os.path.expanduser("~/temp/merged.zarr"))
-    Interactive(sdata)
+    sdata0 = SpatialData.read("../../spatialdata-sandbox/merfish/data.zarr")
+    sdata1 = SpatialData.read("../../spatialdata-sandbox/visium/data.zarr")
+    # sdata1 = SpatialData.read(os.path.expanduser("~/temp/merged.zarr"))
+    Interactive(sdata=[sdata0, sdata1])
