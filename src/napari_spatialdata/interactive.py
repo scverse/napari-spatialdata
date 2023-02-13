@@ -9,13 +9,14 @@ import numpy as np
 from napari_spatialdata._constants._pkg_constants import Key
 from skimage.measure import regionprops
 import pandas as pd
-import pyarrow as pa
+from dask.dataframe.core import DataFrame as DaskDataFrame
 from xarray import DataArray
 from anndata import AnnData
 from spatial_image import SpatialImage
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
 from geopandas import GeoDataFrame
 from spatialdata import SpatialData, SpatialElement, get_dims
+from spatialdata._core._spatialdata_ops import get_transformation
 from datatree import DataTree
 from pandas.api.types import is_categorical_dtype
 
@@ -26,7 +27,7 @@ __all__ = ["Interactive", "_get_transform"]
 
 def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
     affine: np.ndarray
-    transformations = SpatialData.get_all_transformations(element)
+    transformations = get_transformation(element, get_all=True)
     if coordinate_system_name is None:
         cs = transformations.keys().__iter__().__next__()
     else:
@@ -36,7 +37,7 @@ def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str
 
     if isinstance(element, SpatialImage) or isinstance(element, MultiscaleSpatialImage):
         return affine
-    elif isinstance(element, AnnData) or isinstance(element, pa.Table) or isinstance(element, GeoDataFrame):
+    elif isinstance(element, AnnData) or isinstance(element, DaskDataFrame) or isinstance(element, GeoDataFrame):
         from spatialdata._core.transformations import Affine, Sequence, MapAxis
 
         # old code, I just noticed it was wrong by reading it... but things were being displayed correctly. Luck?
@@ -65,16 +66,10 @@ class Interactive:
     %(_interactive.parameters)s
     """
 
-    # smooth_lasso_start: bool
-    # smooth_lasso_last_time: int
-
     def __init__(self, sdata: SpatialData | list[SpatialData], with_widgets: bool = True, headless: bool = False):
         # os.environ['NAPARI_ASYNC'] = '1'
         # os.environ['NAPARI_OCTREE'] = '1'
         self._viewer = napari.Viewer()
-        # self._viewer.layerB
-        # layerButtons.newShapesButton
-        # self._adata_view = QtAdataViewWidget(viewer=self._viewer)
         if isinstance(sdata, SpatialData):
             sdata = [sdata]
         for s in sdata:
@@ -83,36 +78,6 @@ class Interactive:
             self.show_widget()
         if not headless:
             napari.run()
-
-    # # thanks to Artem Shmatko, during the SpaceHack 2022 hackathon
-    # def init_smooth_lasso(self):
-    #     from skimage import data
-    #     import napari
-    #     import time
-    #
-    #     from napari.layers.shapes._shapes_mouse_bindings import add_path_polygon_creating, add_path_polygon
-    #     from napari.layers.shapes._shapes_constants import Mode
-    #
-    #     # viewer = napari.view_image(data.astronaut(), rgb=True)
-    #     # layer = viewer.add_shapes()
-    #
-    #     Interactive.smooth_lasso_start = False
-    #     Interactive.smooth_lasso_last_time = 0
-    #
-    # @layer.mouse_double_click_callbacks.append
-    # def callback_drag(layer, event):
-    #     if Interactive.smooth_lasso_start:
-    #         Interactive.smooth_lasso_last_time = time.time()
-    #         Interactive.smooth_lasso_start = False
-    #     else:
-    #         Interactive.smooth_lasso_start = True
-    #
-    # @layer.mouse_move_callbacks.append
-    # def callback_move(layer, event):  # (0,0) is the center of the upper left pixel
-    #     if Interactive.smooth_lasso_start and layer.mode == Mode.ADD_POLYGON:
-    #         if time.time() - Interactive.smooth_lasso_last_time > 0.2:
-    #             add_path_polygon(layer, event)
-    #             Interactive.smooth_lasso_last_time = time.time()
 
     def show_widget(self):
         """Load the widget for interative features exploration."""
@@ -164,7 +129,7 @@ class Interactive:
         self, sdata: SpatialData, image: Union[SpatialImage, MultiscaleSpatialImage], element_path: str = None
     ) -> None:
         new_image, affine, rgb = self._get_affine_for_images_labels(element=image)
-        coordinate_systems = list(SpatialData.get_all_transformations(image).keys())
+        coordinate_systems = list(get_transformation(image, get_all=True).keys())
         metadata = {"coordinate_systems": coordinate_systems, "sdata": sdata, "element": image}
         self._viewer.add_image(
             new_image,
@@ -196,7 +161,7 @@ class Interactive:
             }
         else:
             metadata = {}
-        coordinate_systems = list(SpatialData.get_all_transformations(labels).keys())
+        coordinate_systems = list(get_transformation(labels, get_all=True).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
         metadata["element"] = labels
@@ -224,7 +189,7 @@ class Interactive:
             metadata = {"adata": annotation, "library_id": element_path}
         else:
             metadata = {}
-        coordinate_systems = list(SpatialData.get_all_transformations(shapes).keys())
+        coordinate_systems = list(get_transformation(shapes, get_all=True).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
         metadata["element"] = shapes
@@ -262,14 +227,16 @@ class Interactive:
                 # canvas_size_limits=(2, 100000)  # this doesn't seem to affect the problem with the point size
             )
 
-    def _add_points(self, sdata: SpatialData, points: pa.Table, element_path: str) -> None:
+    def _add_points(self, sdata: SpatialData, points: DaskDataFrame, element_path: str) -> None:
         dims = get_dims(points)
-        spatial = points.select(dims).to_pandas().to_numpy()
+        spatial = points[list(dims)].compute().values
+        # np.sum(np.isnan(spatial)) / spatial.size
         radii = 1
-        annotations_columns = list(set(points.column_names).difference(dims))
+        annotations_columns = list(set(points.columns.to_list()).difference(dims))
         if len(annotations_columns) > 0:
-            df = points.select(annotations_columns).to_pandas()
+            df = points[annotations_columns].compute()
             annotation = AnnData(shape=(len(points), 0), obs=df, obsm={"spatial": spatial})
+            self._init_colors_for_obs(annotation)
         else:
             annotation = None
         if annotation is not None:
@@ -280,10 +247,21 @@ class Interactive:
             metadata = {"adata": annotation, "library_id": element_path}
         else:
             metadata = {}
-        coordinate_systems = list(SpatialData.get_all_transformations(points).keys())
+        coordinate_systems = list(get_transformation(points, get_all=True).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
         metadata["element"] = points
+
+        MAX_POINTS = 100000
+        if len(spatial) > MAX_POINTS:
+            logger.warning(f"Too many points {len(spatial)} > {MAX_POINTS}, subsampling to {MAX_POINTS}. Performance will be improved in a future PR")
+            choice = np.random.choice(len(spatial), MAX_POINTS, replace=False)
+            spatial = spatial[choice]
+            if annotation is not None:
+                annotation = annotation[choice]
+                metadata["adata"] = annotation
+
+
         affine = _get_transform(element=points)
         # 3d not supported at the moment, let's remove the 3d coordinate
         # TODO: support
@@ -300,7 +278,7 @@ class Interactive:
             spatial,
             name=self._suffix_from_full_name(element_path),
             ndim=len(axes),
-            edge_color="white",
+            # edge_color="white",
             face_color="white",
             size=2 * radii,
             metadata=metadata,
@@ -323,7 +301,7 @@ class Interactive:
         else:
             metadata = {}
         ##
-        coordinate_systems = list(SpatialData.get_all_transformations(polygons).keys())
+        coordinate_systems = list(get_transformation(polygons, get_all=True).keys())
         metadata["coordinate_systems"] = coordinate_systems
         metadata["sdata"] = sdata
         metadata["element"] = polygons
@@ -500,19 +478,21 @@ class Interactive:
         print("_find_annotation_for_polygons not implemented")
         return None
 
+    @staticmethod
+    def _init_colors_for_obs(adata: AnnData):
+        from scanpy.plotting._utils import _set_colors_for_categorical_obs
+        # quick and dirty to set the colors for all the categorical dtype so that if we subset the table the
+        # colors are consistent
+        if adata is not None:
+            for key in adata.obs.keys():
+                if is_categorical_dtype(adata.obs[key]):
+                    _set_colors_for_categorical_obs(adata, key, palette="tab20")
+
     def _add_layers_from_sdata(self, sdata: SpatialData):
         for prefix in ["images", "labels", "shapes", "points", "polygons"]:
             d = sdata.__getattribute__(prefix)
             annotation_table = sdata.table
-
-            from scanpy.plotting._utils import _set_colors_for_categorical_obs
-
-            # quick and dirty to set the colors for all the categorical dtype so that if we subset the table the
-            # colors are consistent
-            if annotation_table is not None:
-                for key in annotation_table.obs.keys():
-                    if is_categorical_dtype(annotation_table.obs[key]):
-                        _set_colors_for_categorical_obs(annotation_table, key, palette="tab20")
+            self._init_colors_for_obs(annotation_table)
 
             for name, element in d.items():
                 element_path = f"/{prefix}/{name}"

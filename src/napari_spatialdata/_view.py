@@ -61,7 +61,7 @@ class QtAdataViewWidget(QWidget):
         # self._layer_selection_widget()
         # self.layout().addWidget(self._layer_selection_widget.native)
         self._layer_selection_widget = QComboBox()
-        layers = self._get_layer(None)
+        layers = self._get_adata_layers()
         layer_names = [layer.name for layer in layers]
         self._layer_selection_widget.addItems(layer_names)
         self.layout().addWidget(self._layer_selection_widget)
@@ -205,7 +205,8 @@ class QtAdataViewWidget(QWidget):
         """Napari layers."""
         layer = self._get_layer_by_name(layer_name)
         if layer is None:
-            raise ValueError(f"Layer {layer_name} not found.")
+            # this happens when there is no layer with adata to show
+            return
         if "adata" not in layer.metadata:
             return
         self.model.layer = layer
@@ -236,7 +237,7 @@ class QtAdataViewWidget(QWidget):
             self.model.spot_diameter = 1.0
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
 
-    def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
+    def _get_adata_layers(self) -> Sequence[Optional[str]]:
         adata_layers = []
         for layer in self._viewer.layers:
             if isinstance(layer.metadata.get("adata", None), AnnData):

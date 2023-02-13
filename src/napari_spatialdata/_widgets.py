@@ -5,6 +5,7 @@ from typing import Any, Union, Iterable, Optional, TYPE_CHECKING
 from functools import singledispatchmethod
 from pandas.api.types import infer_dtype, is_categorical_dtype
 
+from dask.dataframe.core import DataFrame as DaskDataFrame
 from qtpy import QtCore, QtWidgets
 from vispy import scene
 from loguru import logger
@@ -148,9 +149,11 @@ class AListWidget(ListWidget):
                                 vec = adata.obs[item].copy()
                                 if not is_categorical_dtype(vec):
                                     vec = vec.to_numpy()
+                            elif item in adata.obsm:
+                                raise NotImplementedError("osbm not supported yet (easy fix)")
                             else:
                                 assert adata is not None
-                                raise NotImplementedError("need to refactor")
+                                # column not found in this layer, skip
             if vec is None:
                 continue
             # try:
@@ -183,7 +186,12 @@ class AListWidget(ListWidget):
             assert self._current_coordinate_system is not None
             properties['metadata']['coordinate_systems'] = [self._current_coordinate_system]
             if isinstance(layer, Points):
-                diameter = layer.metadata["element"].obs["size"].to_numpy()
+                if isinstance(layer.metadata['element'], AnnData):
+                    diameter = layer.metadata["element"].obs["size"].to_numpy()
+                elif isinstance(layer.metadata['element'], DaskDataFrame):
+                    diameter = layer.size
+                else:
+                    raise TypeError(f"Unsupported type {type(layer.metadata['element'])} for layer {layer.name}.")
                 ##
                 self.viewer.add_points(
                     layer.data,
