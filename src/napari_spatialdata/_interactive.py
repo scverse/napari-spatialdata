@@ -46,7 +46,6 @@ class SdataWidget(QListWidget):
                 "adata": self._sdata.table[
                     self._sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
-                "library_id": key,  # ???? TODO fix for view
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
             },
         )

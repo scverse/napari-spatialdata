@@ -113,7 +113,6 @@ class QtAdataScatterWidget(QWidget):
         self.model.layer = layer
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
-        self.model.library_id = layer.metadata["library_id"]
 
     def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
         adata_layers = []
@@ -233,10 +232,15 @@ class QtAdataViewWidget(QWidget):
         self.model.layer = layer
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
-        self.model.library_id = layer.metadata["library_id"]
-        self.model.scale = self.model.adata.uns[Key.uns.spatial][self.model.library_id][Key.uns.scalefactor_key][
-            self.model.scale_key
-        ]
+        try:
+            self.model.library_id = layer.metadata["library_id"]
+            self.model.scale = self.model.adata.uns[Key.uns.spatial][self.model.library_id][Key.uns.scalefactor_key][
+                self.model.scale_key
+            ]
+        except KeyError as e:
+            print("missing key: ", e)
+            self.model.scale = 1
+
         self.model.coordinates = np.insert(
             self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
         )
@@ -244,10 +248,14 @@ class QtAdataViewWidget(QWidget):
             self.model.points_coordinates = layer.metadata["points"].X
             self.model.points_var = layer.metadata["points"].obs["gene"]
             self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
-        self.model.spot_diameter = (
-            np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
-            * self.model.scale
-        )
+        try:
+            self.model.spot_diameter = (
+                np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
+                * self.model.scale
+            )
+        except KeyError as e:
+            print("missing key: ", e)
+            self.model.spot_diameter = np.array([0.0] + [10.0] * 2)
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]
