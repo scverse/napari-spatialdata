@@ -76,10 +76,13 @@ class Interactive:
             self._sdata_widget, name="Select spatialdata segment", area="left"
         )
         # TODO add to window
+
+    def run(self) -> None:
         napari.run()
 
 
 if __name__ == "__main__":  # TODO: create example instead of this
     sdata = SpatialData.read("../cosmx.zarr")
     sdata.table.uns["spatialdata_attrs"]["region"] = 0
-    Interactive(sdata)
+    i = Interactive(sdata)
+    i.run()
