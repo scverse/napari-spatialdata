@@ -2,17 +2,31 @@ from typing import List
 
 from spatialdata import SpatialData
 from napari.viewer import Viewer
-from qtpy.QtWidgets import QListWidget
+from qtpy.QtWidgets import QLabel, QWidget, QListWidget, QVBoxLayout
 import napari
 
 
-class SdataWidget(QListWidget):
+class SdataWidget(QWidget):
     def __init__(self, viewer: Viewer, sdata: SpatialData):
         super().__init__()
         self._sdata = sdata
         self._viewer = viewer
-        self.addItems()
-        self.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
+        self._points = QListWidget()
+        self._labels = QListWidget()
+        self._images = QListWidget()
+        self.setLayout(QVBoxLayout())
+        self.layout().addWidget(QLabel("Labels:"))
+        self.layout().addWidget(self._labels)
+        self.layout().addWidget(QLabel("Images:"))
+        self.layout().addWidget(self._images)
+        self.layout().addWidget(QLabel("Points:"))
+        self.layout().addWidget(self._points)
+        self._labels.addItems(self.get_formatted_keys("labels_"))
+        self._images.addItems(self.get_formatted_keys("images_"))
+        self._points.addItems(self.get_formatted_keys("points_"))
+        self._labels.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
+        self._images.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
+        self._points.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
 
     def _onClick(self, text: str) -> None:
         key = text[text.find("_") + 1 :]  # Only take string after "_" e.g labels_3 becomes 3
@@ -30,13 +44,6 @@ class SdataWidget(QListWidget):
             formatted_keys.append(string_to_append + key)
 
         return formatted_keys
-
-    def addItems(self) -> None:
-        labels_keys = self.get_formatted_keys("labels_")
-        points_keys = self.get_formatted_keys("points_")
-        images_keys = self.get_formatted_keys("images_")
-
-        super().addItems(labels_keys + points_keys + images_keys)
 
     def _add_label(self, key: str) -> None:
         self._viewer.add_labels(
