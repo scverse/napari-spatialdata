@@ -23,7 +23,7 @@ viewer.add_image(
     img1,
     rgb=True,
     name="image1",
-    metadata={"adata": adata1, "library_id": "point8"},  # adata in image layers will plot points
+    metadata={"adata": adata1},  # adata in image layers will plot points
     scale=(1, 1),
 )
 viewer.add_labels(
@@ -31,7 +31,6 @@ viewer.add_labels(
     name="label1",
     metadata={
         "adata": adata1,
-        "library_id": "point8",
         "labels_key": "cell_id",
         "colormap": "inferno",
     },  # adata in labels layer will color segments
@@ -39,7 +38,7 @@ viewer.add_labels(
 viewer.add_labels(
     label2,
     name="label2",
-    metadata={"adata": adata2, "library_id": "point16", "labels_key": "cell_id"},
+    metadata={"adata": adata2, "labels_key": "cell_id"},
 )
 
 viewer.scale_bar.visible = True

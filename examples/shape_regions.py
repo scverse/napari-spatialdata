@@ -10,7 +10,7 @@ viewer.add_image(
     rgb=True,
     name="image1",
     colormap="inferno",
-    metadata={"adata": adata, "library_id": "V1_Adult_Mouse_Brain"},
+    metadata={"adata": adata},
     scale=(1, 1),
 )
 
