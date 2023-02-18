@@ -25,7 +25,7 @@ def test_creating_widget_with_data(
         image,
         rgb=True,
         name="image",
-        metadata={"adata": adata_shapes, "library_id": "shapes"},
+        metadata={"adata": adata_shapes},
     )
 
     # create our widget, passing in the viewer
@@ -55,14 +55,13 @@ def test_model(
     viewer.add_labels(
         labels,
         name="labels",
-        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "labels_key": "cell_id"},
     )
 
     widget = widget(viewer)
     layer = viewer.layers.selection.active
     widget._layer_selection_widget(layer)
     assert isinstance(widget.model, ImageModel)
-    assert widget.model.library_id == "labels"
     assert widget.model.adata is adata_labels
     assert widget.model.coordinates.shape[0] == adata_labels.shape[0]
     assert widget.model.coordinates.ndim == 2
@@ -89,7 +88,7 @@ def test_change_layer(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "labels_key": "cell_id"},
     )
 
     widget = widget(viewer)
@@ -97,7 +96,6 @@ def test_change_layer(
     widget._layer_selection_widget(layer)
     assert isinstance(widget.model, ImageModel)
     assert isinstance(widget.model.layer, Labels)
-    assert widget.model.library_id == "labels"
 
     # select observations
     widget.obs_widget._onAction(items=[obs_item])
@@ -116,7 +114,7 @@ def test_change_layer(
         image,
         rgb=True,
         name=layer_name,
-        metadata={"adata": adata_shapes, "library_id": "shapes"},
+        metadata={"adata": adata_shapes},
     )
 
     layer = viewer.layers.selection.active
@@ -124,7 +122,6 @@ def test_change_layer(
 
     assert isinstance(widget.model, ImageModel)
     assert isinstance(widget.model.layer, Image)
-    assert widget.model.library_id == "shapes"
 
     # select observations
     widget.obs_widget._onAction(items=[obs_item])
@@ -160,7 +157,7 @@ def test_scatterlistwidget(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "labels_key": "cell_id"},
     )
 
     widget = widget(viewer)
@@ -199,7 +196,7 @@ def test_categorical_and_error(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "labels_key": "cell_id"},
     )
 
     widget = widget(viewer)
@@ -236,7 +233,7 @@ def test_component_widget(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "library_id": "labels", "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "labels_key": "cell_id"},
     )
 
     widget = widget(viewer)
