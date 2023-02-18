@@ -61,7 +61,12 @@ class SdataWidget(QWidget):
         self._viewer.add_image(
             self._sdata.images[key],
             name=key,
-            # TODO: add metadata
+            metadata={
+                "adata": self._sdata.table[
+                    self._sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+                ],
+                "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
+            },
         )
 
     def _add_point(self, key: str) -> None:
