@@ -293,7 +293,7 @@ class QtAdataViewWidget(QWidget):
         assert cs in sdata.coordinate_systems
 
         key = f"{layer.name}"
-        zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "")
+        zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "").replace(":", "_")
 
         # TODO: polygons is using data_to_world(), points is doing this manually by applying .affine; these two ways are equivalent but the first is quicker; use just it
         if isinstance(layer, napari.layers.points.points.Points):
