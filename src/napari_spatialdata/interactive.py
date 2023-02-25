@@ -17,8 +17,10 @@ from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialI
 from geopandas import GeoDataFrame
 from spatialdata import SpatialData, SpatialElement, get_dims
 from spatialdata._core._spatialdata_ops import get_transformation
+from spatialdata._core.models import get_schema, Image3DModel, Labels3DModel
 from datatree import DataTree
 from pandas.api.types import is_categorical_dtype
+from shapely import Polygon, MultiPolygon, Point
 
 import matplotlib.pyplot as plt
 
@@ -115,10 +117,13 @@ class Interactive:
 
         # TODO: after we call .transpose() on a MultiscaleSpatialImage object we get a DataTree object. We should look at this better and either cast somehow back to MultiscaleSpatialImage or fix/report this
         if isinstance(new_raster, MultiscaleSpatialImage) or isinstance(new_raster, DataTree):
-            variables = list(new_raster["scale0"].ds.variables)
-            assert len(variables) == 1
-            var = variables[0]
-            new_raster = [new_raster[k].ds[var] for k in new_raster.keys()]
+            list_of_xdata = []
+            for k in new_raster.keys():
+                v = new_raster[k].values()
+                assert len(v) == 1
+                xdata = v.__iter__().__next__()
+                list_of_xdata.append(xdata)
+            new_raster = list_of_xdata
 
         return new_raster, affine, rgb
 
@@ -173,9 +178,27 @@ class Interactive:
     def _add_shapes(
         self, sdata: SpatialData, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None
     ) -> None:
-        spatial = shapes.obsm["spatial"]
-        if "size" in shapes.obs:
-            radii = shapes.obs["size"] / 2
+        shape = shapes.geometry.iloc[0]
+        if isinstance(shape, Polygon):
+            self._add_polygons(sdata=sdata, polygons=shapes, element_path=element_path, annotation_table=annotation_table)
+        elif isinstance(shape, MultiPolygon):
+            logger.warning("MultiPolygons are currently not supported. Ignoring.")
+        elif isinstance(shape, Point):
+            self._add_circles(sdata=sdata, shapes=shapes, element_path=element_path, annotation_table=annotation_table)
+        else:
+            raise TypeError(f"Unsupported shape type: {type(shape)}")
+
+    def _add_circles(
+        self, sdata: SpatialData, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None
+    ) -> None:
+        dims = get_dims(shapes)
+        if 'z' in dims:
+            logger.warning("Circles are currently only supported in 2D. Ignoring z dimension.")
+        x = shapes.geometry.x.to_numpy()
+        y = shapes.geometry.y.to_numpy()
+        spatial = np.stack([x, y], axis=1)
+        if "radius" in shapes.columns:
+            radii = shapes.radius.to_numpy()
         else:
             radii = 10
         annotation = self._find_annotation_for_regions(
@@ -197,7 +220,7 @@ class Interactive:
         THRESHOLD = 10000
         if len(spatial) < THRESHOLD:
             # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
-            ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii.to_numpy())
+            ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii)
             self._viewer.add_shapes(
                 ellipses,
                 shape_type="ellipse",
@@ -254,13 +277,14 @@ class Interactive:
 
         MAX_POINTS = 100000
         if len(spatial) > MAX_POINTS:
-            logger.warning(f"Too many points {len(spatial)} > {MAX_POINTS}, subsampling to {MAX_POINTS}. Performance will be improved in a future PR")
+            logger.warning(
+                f"Too many points {len(spatial)} > {MAX_POINTS}, subsampling to {MAX_POINTS}. Performance will be improved in a future PR"
+            )
             choice = np.random.choice(len(spatial), MAX_POINTS, replace=False)
             spatial = spatial[choice]
             if annotation is not None:
                 annotation = annotation[choice]
                 metadata["adata"] = annotation
-
 
         affine = _get_transform(element=points)
         # 3d not supported at the moment, let's remove the 3d coordinate
@@ -481,6 +505,7 @@ class Interactive:
     @staticmethod
     def _init_colors_for_obs(adata: AnnData):
         from scanpy.plotting._utils import _set_colors_for_categorical_obs
+
         # quick and dirty to set the colors for all the categorical dtype so that if we subset the table the
         # colors are consistent
         if adata is not None:
@@ -489,7 +514,7 @@ class Interactive:
                     _set_colors_for_categorical_obs(adata, key, palette="tab20")
 
     def _add_layers_from_sdata(self, sdata: SpatialData):
-        for prefix in ["images", "labels", "shapes", "points", "polygons"]:
+        for prefix in ["images", "labels", "shapes", "points"]:
             d = sdata.__getattribute__(prefix)
             annotation_table = sdata.table
             self._init_colors_for_obs(annotation_table)
@@ -497,22 +522,23 @@ class Interactive:
             for name, element in d.items():
                 element_path = f"/{prefix}/{name}"
                 if prefix == "images":
-                    self._add_image(sdata=sdata, image=element, element_path=element_path)
+                    if get_schema(element) == Image3DModel:
+                        logger.warning("3D images are not supported yet. Skipping.")
+                    else:
+                        self._add_image(sdata=sdata, image=element, element_path=element_path)
                 elif prefix == "points":
                     self._add_points(sdata=sdata, points=element, element_path=element_path)
                 elif prefix == "labels":
-                    self._add_labels(
-                        sdata=sdata, labels=element, annotation_table=annotation_table, element_path=element_path
-                    )
+                    if get_schema(element) == Labels3DModel:
+                        logger.warning("3D labels are not supported yet. Skipping.")
+                    else:
+                        self._add_labels(
+                            sdata=sdata, labels=element, annotation_table=annotation_table, element_path=element_path
+                        )
                 elif prefix == "shapes":
                     self._add_shapes(
                         sdata=sdata, shapes=element, annotation_table=annotation_table, element_path=element_path
                     )
-                elif prefix == "polygons":
-                    self._add_polygons(
-                        sdata=sdata, polygons=element, annotation_table=annotation_table, element_path=element_path
-                    )
-                    pass
                 else:
                     raise ValueError(f"Unsupported element type: {type(element)}")
 
