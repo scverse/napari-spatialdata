@@ -222,7 +222,6 @@ class Interactive:
             # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
             ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii)
             self._viewer.add_shapes(
-                ellipses,
                 shape_type="ellipse",
                 name=self._suffix_from_full_name(element_path),
                 edge_color="white",
@@ -286,22 +285,18 @@ class Interactive:
                 annotation = annotation[choice]
                 metadata["adata"] = annotation
 
-        affine = _get_transform(element=points)
         # 3d not supported at the moment, let's remove the 3d coordinate
         # TODO: support
+        # affine is always 2d
+        affine = _get_transform(element=points)
         axes = get_dims(points)
         if "z" in axes:
             assert len(axes) == 3
             spatial = spatial[:, :2]
-            # z is column 2 (input space xyz and row 0 (output space zyx)
-            # actually I was expecting the output to be still xyz, but this seem to work...
-            # TODO: CHECK!
-            affine = affine[1:, np.array([0, 1, 3], dtype=int)]
-        ##
         self._viewer.add_points(
             spatial,
             name=self._suffix_from_full_name(element_path),
-            ndim=len(axes),
+            ndim=2,  # len(axes),
             # edge_color="white",
             face_color="white",
             size=2 * radii,
@@ -377,20 +372,26 @@ class Interactive:
                         annotating_rows=annotating_rows,
                         instance_key=instance_key,
                     )
-                elif isinstance(base_element, AnnData):
-                    table = self._find_annotation_for_shapes(
-                        points=base_element,
-                        element_path=element_path,
-                        annotating_rows=annotating_rows,
-                        instance_key=instance_key,
-                    )
                 elif isinstance(base_element, GeoDataFrame):
-                    table = self._find_annotation_for_polygons(
-                        polygons=base_element,
-                        element_path=element_path,
-                        annotating_rows=annotating_rows,
-                        instance_key=instance_key,
-                    )
+                    shape = base_element.geometry.iloc[0]
+                    if isinstance(shape, Polygon):
+                        table = self._find_annotation_for_polygons(
+                            polygons=base_element,
+                            element_path=element_path,
+                            annotating_rows=annotating_rows,
+                            instance_key=instance_key,
+                        )
+                    elif isinstance(shape, MultiPolygon):
+                        logger.warning("MultiPolygons are currently not supported. Ignoring.")
+                    elif isinstance(shape, Point):
+                        table = self._find_annotation_for_circles(
+                            circles=base_element,
+                            element_path=element_path,
+                            annotating_rows=annotating_rows,
+                            instance_key=instance_key,
+                        )
+                    else:
+                        raise TypeError(f"Unsupported shape type: {type(shape)}")
                 else:
                     raise ValueError(f"Unsupported element type: {type(base_element)}")
                 return table
@@ -459,11 +460,11 @@ class Interactive:
         annotating_rows.obsm["region_radius"] = np.array([10.0] * len(merged_centroids))  # arbitrary value
         return annotating_rows
 
-    def _find_annotation_for_shapes(
-        self, points: AnnData, element_path: str, annotating_rows: AnnData, instance_key: str
+    def _find_annotation_for_circles(
+        self, circles: GeoDataFrame, element_path: str, annotating_rows: AnnData, instance_key: str
     ) -> Optional[AnnData]:
-        """Find the annotation for a points layer from the annotation table."""
-        available_instances = points.obs.index.tolist()
+        """Find the annotation for a circles layer from the annotation table."""
+        available_instances = circles.index.tolist()
         annotated_instances = annotating_rows.obs[instance_key].tolist()
         assert len(available_instances) == len(set(available_instances)), (
             "Instance keys must be unique. Found " "multiple regions instances with the " "same key."
@@ -474,26 +475,32 @@ class Interactive:
         available_instances = set(available_instances)
         annotated_instances = set(annotated_instances)
         # TODO: maybe add this check back
-        # assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in points."
+        # assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in circles."
         if len(annotated_instances) != len(available_instances):
             raise ValueError("TODO: support partial annotation")
 
-        # this is to reorder the points to match the order of the annotation table
+        # this is to reorder the circles to match the order of the annotation table
         a = annotating_rows.obs[instance_key].to_numpy()
-        b = points.obs.index.to_numpy()
+        b = circles.index.to_numpy()
         sorter = np.argsort(a)
         mapper = sorter[np.searchsorted(a, b, sorter=sorter)]
         assert np.all(a[mapper] == b)
         annotating_rows = annotating_rows[mapper]
 
+        dims = get_dims(circles)
+        assert dims == ("x", "y") or dims == ("x", "y", "z")
+        columns = [circles.geometry.x, circles.geometry.y]
+        if 'z' in dims:
+            columns.append(circles.geometry.z)
+        spatial = np.column_stack(columns)
         # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
         annotating_rows.uns[Key.uns.spatial] = {}
         annotating_rows.uns[Key.uns.spatial][element_path] = {}
         annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key] = {}
         annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
-        annotating_rows.obsm["spatial"] = points.obsm["spatial"]
-        # workaround for the legacy code to support different sizes for different points
-        annotating_rows.obsm["region_radius"] = points.obs["size"].to_numpy() / 2
+        annotating_rows.obsm["spatial"] = spatial
+        # workaround for the legacy code to support different sizes for different circles
+        annotating_rows.obsm["region_radius"] = circles["radius"].to_numpy()
         return annotating_rows
 
     def _find_annotation_for_polygons(

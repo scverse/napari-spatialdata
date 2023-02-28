@@ -22,6 +22,7 @@ import numpy as np
 import napari
 import pandas as pd
 import matplotlib.pyplot as plt
+from geopandas import GeoDataFrame
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import (
@@ -186,8 +187,8 @@ class AListWidget(ListWidget):
             assert self._current_coordinate_system is not None
             properties['metadata']['coordinate_systems'] = [self._current_coordinate_system]
             if isinstance(layer, Points):
-                if isinstance(layer.metadata['element'], AnnData):
-                    diameter = layer.metadata["element"].obs["size"].to_numpy()
+                if isinstance(layer.metadata['element'], GeoDataFrame):
+                    diameter = layer.metadata["element"]["radius"].to_numpy() * 2
                 elif isinstance(layer.metadata['element'], DaskDataFrame):
                     diameter = layer.size
                 else:

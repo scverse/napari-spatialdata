@@ -7,7 +7,7 @@ from napari_spatialdata import Interactive
 import pathlib
 import os
 
-DATASETS = ["merfish", "cosmx_io", "mibitof", "toy", "visium", "visium_io", "xenium_io"]
+DATASETS = ["cosmx_io", "mcmicro_io", "merfish", "mibitof", "steinbock_io", "toy", "visium", "visium_io", "xenium_io"]
 
 
 @click.command()
