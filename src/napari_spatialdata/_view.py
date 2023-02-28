@@ -304,7 +304,7 @@ class QtAdataViewWidget(QWidget):
                 assert len(set(row)) == 1
                 size = row[0]
                 sizes.append(size)
-            sizes_array = np.array(sizes)
+            sizes_array = np.array(sizes) / 2
             # we apply the transformation that is used in the layer
             assert len(coords.shape) == 2
             p = np.vstack([coords.T, np.ones(coords.shape[0])])
@@ -320,7 +320,7 @@ class QtAdataViewWidget(QWidget):
             # coords from napari are in the yx coordinate systems, we want to store them as xy
             coords = np.fliplr(coords)
             shapes = ShapesModel.parse(
-                coords, geometry=0, transformations={cs: Identity()}, shape_type="Circle", shape_size=sizes_array
+                coords, geometry=0, transformations={cs: Identity()}, radius=sizes_array
             )
             # sequence.transform(shapes).obsm['spatial']
             sdata.add_shapes(name=zarr_name, shapes=shapes, overwrite=True)
@@ -340,7 +340,7 @@ class QtAdataViewWidget(QWidget):
                 polygons.append(polygon)
             gdf = GeoDataFrame({"geometry": polygons})
             parsed = ShapesModel.parse(gdf)
-            sdata.add_polygons(name=zarr_name, polygons=parsed, overwrite=True)
+            sdata.add_shapes(name=zarr_name, shapes=parsed, overwrite=True)
             show_info(f"Polygons saved in the SpatialData object")
         else:
             show_info("You can only save a layer of type points or polygons.")
