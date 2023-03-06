@@ -127,9 +127,6 @@ class Interactive:
 
         return new_raster, affine, rgb
 
-    def _suffix_from_full_name(self, element_path: str):
-        return "/".join(element_path.split("/")[2:])
-
     def _add_image(
         self, sdata: SpatialData, image: Union[SpatialImage, MultiscaleSpatialImage], element_path: str = None
     ) -> None:
@@ -139,7 +136,7 @@ class Interactive:
         self._viewer.add_image(
             new_image,
             rgb=rgb,
-            name=self._suffix_from_full_name(element_path),
+            name=element_path,
             affine=affine,
             visible=False,
             metadata=metadata,
@@ -172,7 +169,7 @@ class Interactive:
         metadata["element"] = labels
         new_labels, affine, rgb = self._get_affine_for_images_labels(element=labels)
         self._viewer.add_labels(
-            new_labels, name=self._suffix_from_full_name(element_path), metadata=metadata, affine=affine, visible=False
+            new_labels, name=element_path, metadata=metadata, affine=affine, visible=False
         )
 
     def _add_shapes(
@@ -222,8 +219,9 @@ class Interactive:
             # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
             ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii)
             self._viewer.add_shapes(
+                ellipses,
                 shape_type="ellipse",
-                name=self._suffix_from_full_name(element_path),
+                name=element_path,
                 edge_color="white",
                 face_color="white",
                 metadata=metadata,
@@ -238,7 +236,7 @@ class Interactive:
             # TODO: when https://github.com/scverse/napari-spatialdata/issues/35 is fixed, use points when we detect cirlces, since points are faster
             self._viewer.add_points(
                 spatial,
-                name=self._suffix_from_full_name(element_path),
+                name=element_path,
                 edge_color="white",
                 face_color="white",
                 size=2 * radii,
@@ -295,7 +293,7 @@ class Interactive:
             spatial = spatial[:, :2]
         self._viewer.add_points(
             spatial,
-            name=self._suffix_from_full_name(element_path),
+            name=element_path,
             ndim=2,  # len(axes),
             # edge_color="white",
             face_color="white",
@@ -335,7 +333,7 @@ class Interactive:
         self._viewer.add_shapes(
             coordinates,
             shape_type="polygon",
-            name=self._suffix_from_full_name(element_path),
+            name=element_path,
             edge_width=0.5,  # TODO: choose this number based on the size of spatial elements in a smart way,
             # or let the user choose it
             edge_color="green",
@@ -355,12 +353,7 @@ class Interactive:
         regions, regions_key, instance_key = self._get_mapping_info(annotation_table)
         if element_path in regions:
             assert regions is not None
-            if isinstance(regions, list):
-                annotating_rows = annotation_table[annotation_table.obs[regions_key] == element_path, :]
-            else:
-                assert isinstance(regions, str)
-                assert regions_key is None
-                annotating_rows = annotation_table
+            annotating_rows = annotation_table[annotation_table.obs[regions_key] == element_path, :]
             if len(annotating_rows) == 0:
                 logger.warning(f"Layer {element_path} expected to be annotated but no annotation found")
                 return None
@@ -527,7 +520,7 @@ class Interactive:
             self._init_colors_for_obs(annotation_table)
 
             for name, element in d.items():
-                element_path = f"/{prefix}/{name}"
+                element_path = name
                 if prefix == "images":
                     if get_schema(element) == Image3DModel:
                         logger.warning("3D images are not supported yet. Skipping.")
