@@ -121,9 +121,16 @@ class AListWidget(ListWidget):
         for item in sorted(set(items)):
             try:
                 vec, name = self._getter(item, index=self.getIndex())
+
             except Exception as e:  # noqa: B902
                 logger.error(e)
                 continue
+
+            for layer in self.viewer.layers:
+                if self.model.layer.name in layer.name:
+                    logger.debug("Deleting layer: {layername}", layername=layer.name)
+                    self.viewer.layers.remove(layer.name)
+
             if vec.ndim == 2:
                 self.viewer.add_points(
                     vec,
@@ -146,12 +153,14 @@ class AListWidget(ListWidget):
                         symbol=self.model.symbol,
                         **properties,
                     )
+
                 elif isinstance(self.model.layer, Labels):
                     self.viewer.add_labels(
                         self.model.layer.data.copy(),
                         name=name,
                         **properties,
                     )
+
                 else:
                     raise ValueError("TODO")
                 # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done

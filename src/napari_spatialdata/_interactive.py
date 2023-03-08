@@ -48,7 +48,7 @@ class SdataWidget(QWidget):
     def _add_label(self, key: str) -> None:
         self._viewer.add_labels(
             self._sdata.labels[key],
-            name=key,
+            name="labels_" + key,
             metadata={
                 "adata": self._sdata.table[
                     self._sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
@@ -60,7 +60,7 @@ class SdataWidget(QWidget):
     def _add_image(self, key: str) -> None:
         self._viewer.add_image(
             self._sdata.images[key],
-            name=key,
+            name="images_" + key,
             metadata={
                 "adata": self._sdata.table[
                     self._sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
