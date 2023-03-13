@@ -7,7 +7,7 @@ default_stages:
 minimum_pre_commit_version: 2.9.3
 repos:
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.0.0
+    rev: v1.1.1
     hooks:
       - id: mypy
         additional_dependencies: [numpy>=1.23]
@@ -40,7 +40,7 @@ repos:
             flake8-string-format,
           ]
   - repo: https://github.com/pre-commit/mirrors-prettier
-    rev: v3.0.0-alpha.4
+    rev: v3.0.0-alpha.6
     hooks:
       - id: prettier
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -67,7 +67,7 @@ repos:
       - id: check-toml
       - id: requirements-txt-fixer
   - repo: https://github.com/PyCQA/autoflake
-    rev: v2.0.1
+    rev: v2.0.2
     hooks:
       - id: autoflake
         args:
