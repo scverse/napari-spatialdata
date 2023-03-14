@@ -173,13 +173,26 @@ class Interactive:
         )
 
     def _add_shapes(
-        self, sdata: SpatialData, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None
+        self, sdata: SpatialData, shapes: GeoDataFrame, element_path: str, annotation_table: Optional[AnnData] = None
     ) -> None:
         shape = shapes.geometry.iloc[0]
         if isinstance(shape, Polygon):
             self._add_polygons(sdata=sdata, polygons=shapes, element_path=element_path, annotation_table=annotation_table)
         elif isinstance(shape, MultiPolygon):
-            logger.warning("MultiPolygons are currently not supported. Ignoring.")
+            ##
+            new_polygons = []
+            for shape in shapes.geometry:
+                if not isinstance(shape, MultiPolygon):
+                    raise TypeError(f"Mixed types are not supported, see https://github.com/scverse/spatialdata/issues/188. Type: {type(shape)}")
+                # TODO: here we are considering only the first polygon of the multipolygon, we need to addess this
+                # if len(shape.geoms) != 1:
+                #     raise NotImplementedError(f"MultiPolygons with more zero, or more than one polygon are not supported. Number of polygons: {len(shape.geoms)}")
+                polygon = shape.geoms[0]
+                new_polygons.append(polygon)
+            new_shapes = GeoDataFrame(shapes.drop("geometry", axis=1), geometry=new_polygons)
+            new_shapes.attrs['transform'] = shapes.attrs['transform']
+            self._add_polygons(sdata=sdata, polygons=new_shapes, element_path=element_path, annotation_table=annotation_table)
+            ##
         elif isinstance(shape, Point):
             self._add_circles(sdata=sdata, shapes=shapes, element_path=element_path, annotation_table=annotation_table)
         else:
@@ -323,7 +336,7 @@ class Interactive:
         metadata["sdata"] = sdata
         metadata["element"] = polygons
         affine = _get_transform(element=polygons)
-        MAX_POLYGONS = 10000
+        MAX_POLYGONS = 100
         if len(coordinates) > MAX_POLYGONS:
             coordinates = coordinates[:MAX_POLYGONS]
             logger.warning(
@@ -367,17 +380,8 @@ class Interactive:
                     )
                 elif isinstance(base_element, GeoDataFrame):
                     shape = base_element.geometry.iloc[0]
-                    if isinstance(shape, Polygon):
-                        table = self._find_annotation_for_polygons(
-                            polygons=base_element,
-                            element_path=element_path,
-                            annotating_rows=annotating_rows,
-                            instance_key=instance_key,
-                        )
-                    elif isinstance(shape, MultiPolygon):
-                        logger.warning("MultiPolygons are currently not supported. Ignoring.")
-                    elif isinstance(shape, Point):
-                        table = self._find_annotation_for_circles(
+                    if isinstance(shape, Polygon) or isinstance(shape, MultiPolygon) or isinstance(shape, Point):
+                        table = self._find_annotation_for_shapes(
                             circles=base_element,
                             element_path=element_path,
                             annotating_rows=annotating_rows,
@@ -453,7 +457,7 @@ class Interactive:
         annotating_rows.obsm["region_radius"] = np.array([10.0] * len(merged_centroids))  # arbitrary value
         return annotating_rows
 
-    def _find_annotation_for_circles(
+    def _find_annotation_for_shapes(
         self, circles: GeoDataFrame, element_path: str, annotating_rows: AnnData, instance_key: str
     ) -> Optional[AnnData]:
         """Find the annotation for a circles layer from the annotation table."""
@@ -462,9 +466,8 @@ class Interactive:
         assert len(available_instances) == len(set(available_instances)), (
             "Instance keys must be unique. Found " "multiple regions instances with the " "same key."
         )
-        assert len(annotated_instances) == len(set(annotated_instances)), (
-            "Instance keys must be unique. Found " "multiple regions instances annotations with the same key."
-        )
+        if len(annotated_instances) != len(set(annotated_instances)):
+            raise ValueError("Instance keys must be unique. Found multiple regions instances with the same key.")
         available_instances = set(available_instances)
         annotated_instances = set(annotated_instances)
         # TODO: maybe add this check back
@@ -606,7 +609,9 @@ class Interactive:
 if __name__ == "__main__":
     from spatialdata import SpatialData
 
-    sdata0 = SpatialData.read("../../spatialdata-sandbox/merfish/data.zarr")
-    sdata1 = SpatialData.read("../../spatialdata-sandbox/visium/data.zarr")
+    sdata = SpatialData.read("/Users/macbook/Downloads/xe_rep1_subset_napari_vis_fixed.zarr")
+    Interactive(sdata=sdata)
+    # sdata0 = SpatialData.read("../../spatialdata-sandbox/merfish/data.zarr")
+    # sdata1 = SpatialData.read("../../spatialdata-sandbox/visium/data.zarr")
     # sdata1 = SpatialData.read(os.path.expanduser("~/temp/merged.zarr"))
-    Interactive(sdata=[sdata0, sdata1])
+    # Interactive(sdata=[sdata0, sdata1])
