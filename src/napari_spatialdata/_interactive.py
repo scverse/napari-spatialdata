@@ -1,9 +1,10 @@
 from typing import List
 
-from spatialdata import SpatialData
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QWidget, QListWidget, QVBoxLayout
 import napari
+
+from spatialdata._core._spatialdata import SpatialData
 
 
 class SdataWidget(QWidget):
@@ -84,16 +85,15 @@ class Interactive:
         self._sdata = sdata
         self._sdata_widget = SdataWidget(self._viewer, sdata)
         self._list_widget = self._viewer.window.add_dock_widget(
-            self._sdata_widget, name="Select spatialdata segment", area="left"
+            self._sdata_widget, name="SpatialData", area="left", menu=self._viewer.window.window_menu
         )
-        # TODO add to window
 
     def run(self) -> None:
         napari.run()
 
 
 if __name__ == "__main__":  # TODO: create example instead of this
-    sdata = SpatialData.read("../cosmx.zarr")
+    sdata = SpatialData.read("../data/cosmx/data.zarr")
     sdata.table.uns["spatialdata_attrs"]["region"] = 0
     i = Interactive(sdata)
     i.run()
