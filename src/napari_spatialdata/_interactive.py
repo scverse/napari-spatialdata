@@ -2,9 +2,8 @@ from typing import List
 
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QWidget, QListWidget, QVBoxLayout
-import napari
-
 from spatialdata._core._spatialdata import SpatialData
+import napari
 
 
 class SdataWidget(QWidget):
