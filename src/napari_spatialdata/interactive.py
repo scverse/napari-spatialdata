@@ -1,7 +1,6 @@
 from __future__ import annotations
 
-import os.path
-from typing import Any, TYPE_CHECKING, Optional, Union, Tuple
+from typing import Any, Optional, Union, Tuple
 import napari
 from loguru import logger
 from napari_spatialdata._utils import save_fig, NDArrayA, _get_ellipses_from_circles
@@ -15,9 +14,9 @@ from anndata import AnnData
 from spatial_image import SpatialImage
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
 from geopandas import GeoDataFrame
-from spatialdata import SpatialData, SpatialElement, get_dims
-from spatialdata._core._spatialdata_ops import get_transformation
-from spatialdata._core.models import get_schema, Image3DModel, Labels3DModel
+from spatialdata import SpatialData, get_axis_names
+from spatialdata.transformations import get_transformation
+from spatialdata.models import get_model, Image3DModel, Labels3DModel, SpatialElement
 from datatree import DataTree
 from pandas.api.types import is_categorical_dtype
 from shapely import Polygon, MultiPolygon, Point
@@ -40,7 +39,7 @@ def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str
     if isinstance(element, SpatialImage) or isinstance(element, MultiscaleSpatialImage):
         return affine
     elif isinstance(element, AnnData) or isinstance(element, DaskDataFrame) or isinstance(element, GeoDataFrame):
-        from spatialdata._core.transformations import Affine, Sequence, MapAxis
+        from spatialdata.transformations import Affine, Sequence, MapAxis
 
         # old code, I just noticed it was wrong by reading it... but things were being displayed correctly. Luck?
         # new_affine = Sequence(
@@ -92,7 +91,7 @@ class Interactive:
     def _get_affine_for_images_labels(
         self, element: Union[SpatialImage, MultiscaleSpatialImage]
     ) -> Tuple[DataArray, np.ndarray, bool]:
-        axes = get_dims(element)
+        axes = get_axis_names(element)
         affine = _get_transform(element=element)
 
         if "c" in axes:
@@ -201,7 +200,7 @@ class Interactive:
     def _add_circles(
         self, sdata: SpatialData, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None
     ) -> None:
-        dims = get_dims(shapes)
+        dims = get_axis_names(shapes)
         if 'z' in dims:
             logger.warning("Circles are currently only supported in 2D. Ignoring z dimension.")
         x = shapes.geometry.x.to_numpy()
@@ -261,7 +260,7 @@ class Interactive:
             )
 
     def _add_points(self, sdata: SpatialData, points: DaskDataFrame, element_path: str) -> None:
-        dims = get_dims(points)
+        dims = get_axis_names(points)
         spatial = points[list(dims)].compute().values
         # np.sum(np.isnan(spatial)) / spatial.size
         radii = 1
@@ -300,7 +299,7 @@ class Interactive:
         # TODO: support
         # affine is always 2d
         affine = _get_transform(element=points)
-        axes = get_dims(points)
+        axes = get_axis_names(points)
         if "z" in axes:
             assert len(axes) == 3
             spatial = spatial[:, :2]
@@ -483,7 +482,7 @@ class Interactive:
         assert np.all(a[mapper] == b)
         annotating_rows = annotating_rows[mapper]
 
-        dims = get_dims(circles)
+        dims = get_axis_names(circles)
         assert dims == ("x", "y") or dims == ("x", "y", "z")
         columns = [circles.geometry.x, circles.geometry.y]
         if 'z' in dims:
@@ -525,14 +524,14 @@ class Interactive:
             for name, element in d.items():
                 element_path = name
                 if prefix == "images":
-                    if get_schema(element) == Image3DModel:
+                    if get_model(element) == Image3DModel:
                         logger.warning("3D images are not supported yet. Skipping.")
                     else:
                         self._add_image(sdata=sdata, image=element, element_path=element_path)
                 elif prefix == "points":
                     self._add_points(sdata=sdata, points=element, element_path=element_path)
                 elif prefix == "labels":
-                    if get_schema(element) == Labels3DModel:
+                    if get_model(element) == Labels3DModel:
                         logger.warning("3D labels are not supported yet. Skipping.")
                     else:
                         self._add_labels(
