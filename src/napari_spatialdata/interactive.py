@@ -14,9 +14,9 @@ from anndata import AnnData
 from spatial_image import SpatialImage
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
 from geopandas import GeoDataFrame
-from spatialdata import SpatialData
+from spatialdata import SpatialData, get_axis_names
 from spatialdata.transformations import get_transformation
-from spatialdata.models import get_model, Image3DModel, Labels3DModel, SpatialElement, get_axis_names
+from spatialdata.models import get_model, Image3DModel, Labels3DModel, SpatialElement
 from datatree import DataTree
 from pandas.api.types import is_categorical_dtype
 from shapely import Polygon, MultiPolygon, Point

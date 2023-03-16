@@ -323,7 +323,6 @@ class QtAdataViewWidget(QWidget):
             shapes = ShapesModel.parse(
                 coords, geometry=0, transformations={cs: Identity()}, radius=sizes_array
             )
-            # sequence.transform(shapes).obsm['spatial']
             sdata.add_shapes(name=zarr_name, shapes=shapes, overwrite=True)
             show_info(f"Shapes saved in the SpatialData object")
         elif isinstance(layer, napari.layers.shapes.shapes.Shapes):
