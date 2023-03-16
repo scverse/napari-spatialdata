@@ -1,8 +1,7 @@
-from typing import Any, Optional, Sequence, FrozenSet, Dict
+from typing import Any, Optional, Sequence, FrozenSet
 
 from loguru import logger
 from anndata import AnnData
-from magicgui import magicgui
 from napari.layers import Layer, Labels
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QWidget, QComboBox, QVBoxLayout
@@ -29,6 +28,8 @@ from napari_spatialdata._constants._pkg_constants import Key
 from napari.utils.notifications import show_info
 
 __all__ = ["QtAdataViewWidget"]
+
+import spatialdata.models
 
 
 class QtAdataViewWidget(QWidget):
@@ -222,7 +223,7 @@ class QtAdataViewWidget(QWidget):
             self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
         )
         if "points" in layer.metadata:
-            self.model.points_coordinates = layer.metadata["points"].X
+            self.model.points_coordinates = layer.metadata['points'].X
             self.model.points_var = layer.metadata["points"].obs["gene"]
             self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
         # workaround to support different sizes for different point, for layers coming from SpatialData
@@ -280,8 +281,8 @@ class QtAdataViewWidget(QWidget):
         ##
 
         sdata = sdatas[0]
-        from spatialdata._core.transformations import Identity
-        from spatialdata._core.models import ShapesModel
+        from spatialdata.transformations.transformations import Identity
+        from spatialdata.models import ShapesModel
 
         # get current coordinate system
         selected = self._coordinate_system_selector.selectedItems()
