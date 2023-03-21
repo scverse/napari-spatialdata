@@ -1,9 +1,34 @@
-from typing import List
+from typing import Union, Iterable
 
 from napari.viewer import Viewer
-from qtpy.QtWidgets import QLabel, QWidget, QListWidget, QVBoxLayout
-from spatialdata._core._spatialdata import SpatialData
+from qtpy.QtWidgets import QLabel, QWidget, QListWidget, QVBoxLayout, QListWidgetItem
 import napari
+
+from spatialdata import SpatialData
+
+
+class ElementWidget(QListWidget):
+    def __init__(self, sdata: SpatialData):
+        super().__init__()
+        self._sdata = sdata
+
+    def _onClickChange(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+        self.clear()
+
+        element_names = []
+        for _, element_name, _ in sdata.filter_by_coordinate_system(selected_coordinate_system)._gen_elements():
+            element_names.append(element_name)
+
+        self.addItems(element_names)
+
+
+class CoordinateSystemWidget(QListWidget):
+    def __init__(self, sdata: SpatialData):
+        super().__init__()
+
+        self._sdata = sdata
+
+        self.addItems(self._sdata.coordinate_systems)
 
 
 class SdataWidget(QWidget):
@@ -11,39 +36,27 @@ class SdataWidget(QWidget):
         super().__init__()
         self._sdata = sdata
         self._viewer = viewer
-        self._points = QListWidget()
-        self._labels = QListWidget()
-        self._images = QListWidget()
+
         self.setLayout(QVBoxLayout())
-        self.layout().addWidget(QLabel("Labels:"))
-        self.layout().addWidget(self._labels)
-        self.layout().addWidget(QLabel("Images:"))
-        self.layout().addWidget(self._images)
-        self.layout().addWidget(QLabel("Points:"))
-        self.layout().addWidget(self._points)
-        self._labels.addItems(self.get_formatted_keys("labels_"))
-        self._images.addItems(self.get_formatted_keys("images_"))
-        self._points.addItems(self.get_formatted_keys("points_"))
-        self._labels.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
-        self._images.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
-        self._points.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
+
+        self.coordinate_system_widget = CoordinateSystemWidget(self._sdata)
+        self.elements_widget = ElementWidget(self._sdata)
+
+        self.layout().addWidget(QLabel("Coordinate System:"))
+        self.layout().addWidget(self.coordinate_system_widget)
+        self.layout().addWidget(QLabel("Elements:"))
+        self.layout().addWidget(self.elements_widget)
+
+        self.elements_widget.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
+        self.coordinate_system_widget.itemClicked.connect(lambda item: self.elements_widget._onClickChange(item.text()))
 
     def _onClick(self, text: str) -> None:
-        key = text[text.find("_") + 1 :]  # Only take string after "_" e.g labels_3 becomes 3
-
         if "labels" in text:
-            self._add_label(key)
-        elif "images" in text:
-            self._add_image(key)
+            self._add_label(text)
+        elif "image" in text:
+            self._add_image(text)
         elif "points" in text:
             raise NotImplementedError("Points is currently not supported due to performance issues!")
-
-    def get_formatted_keys(self, string_to_append: str) -> List[str]:
-        formatted_keys = []
-        for key in sdata.labels.keys():  # Labels, points and images have the same keys
-            formatted_keys.append(string_to_append + key)
-
-        return formatted_keys
 
     def _add_label(self, key: str) -> None:
         self._viewer.add_labels(
