@@ -1,15 +1,15 @@
-from typing import Any, Tuple, Union, Optional, TYPE_CHECKING
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
 
-from anndata import AnnData
-from napari.layers import Layer
-from napari.utils.events import Event, EmitterGroup
 import numpy as np
 import pandas as pd
+from anndata import AnnData
+from napari.layers import Layer
+from napari.utils.events import EmitterGroup, Event
 
-from napari_spatialdata._utils import NDArrayA, _ensure_dense_vector
 from napari_spatialdata._constants._constants import Symbol
 from napari_spatialdata._constants._pkg_constants import Key
+from napari_spatialdata._utils import NDArrayA, _ensure_dense_vector
 
 __all__ = ["ImageModel"]
 
@@ -64,8 +64,7 @@ class ImageModel:
         if attr == "points":
             if self.points_var is not None:
                 return tuple(map(str, self.points_var.unique()))
-            else:
-                return tuple(["No points found."])  # noqa: C409
+            return tuple(["No points found."])  # noqa: C409
         return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector

@@ -1,19 +1,18 @@
 from abc import ABC, ABCMeta
-from typing import Any, Dict, Tuple, Callable, Optional
-from pathlib import Path
 from functools import wraps
+from pathlib import Path
+from typing import Any, Callable, Dict, Optional, Tuple
 
-from scipy import ndimage as ndi
-from loguru import logger
-from anndata import AnnData
-from skimage import data
-from matplotlib.testing.compare import compare_images
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-import matplotlib.pyplot as plt
-
+from anndata import AnnData
+from loguru import logger
+from matplotlib.testing.compare import compare_images
 from napari_spatialdata._utils import NDArrayA
+from scipy import ndimage as ndi
+from skimage import data
 
 HERE: Path = Path(__file__).parent
 
@@ -54,8 +53,7 @@ def adata_labels() -> AnnData:
         }
     }
     obsm_labels = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_labels, 2))}
-    adata_labels = generate_adata(n_var, obs_labels, obsm_labels, uns_labels)
-    return adata_labels
+    return generate_adata(n_var, obs_labels, obsm_labels, uns_labels)
 
 
 @pytest.fixture
@@ -84,15 +82,13 @@ def adata_shapes() -> AnnData:
         }
     }
     obsm_shapes = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_shapes, 2))}
-    adata_shapes = AnnData(
+    return AnnData(
         rng.normal(size=(n_obs_shapes, n_var)),
         dtype=np.float64,
         obs=obs_shapes,
         obsm=obsm_shapes,
         uns=uns_shapes,
     )
-
-    return adata_shapes
 
 
 @pytest.fixture
@@ -115,14 +111,13 @@ def _get_blobs_galaxy() -> Tuple[NDArrayA, NDArrayA]:
 
 def generate_adata(n_var: int, obs: pd.DataFrame, obsm: Dict[Any, Any], uns: Dict[Any, Any]) -> AnnData:
     rng = np.random.default_rng(SEED)
-    adata = AnnData(
+    return AnnData(
         rng.normal(size=(obs.shape[0], n_var)),
         obs=obs,
         obsm=obsm,
         uns=uns,
         dtype=np.float64,
     )
-    return adata
 
 
 class PlotTesterMeta(ABCMeta):

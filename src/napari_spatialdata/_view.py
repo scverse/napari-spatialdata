@@ -1,35 +1,36 @@
-from typing import Any, Optional, Sequence, FrozenSet
+from typing import Any, FrozenSet, Optional, Sequence
 
-from loguru import logger
+import napari
+import numpy as np
+import pandas as pd
 from anndata import AnnData
-from napari.layers import Labels
+from loguru import logger
+from magicgui import magicgui
+from napari.layers import Labels, Layer, Labels
 from napari.viewer import Viewer
 from qtpy.QtWidgets import (
-    QLabel,
-    QWidget,
     QComboBox,
     QGridLayout,
+    QLabel,
     QPushButton,
     QVBoxLayout,
+    QWidget,
 )
-import numpy as np
-import napari
-import pandas as pd
 
+from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata._model import ImageModel
+from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._utils import (
     NDArrayA,
     _get_categorical,
     _points_inside_triangles,
 )
 from napari_spatialdata._widgets import (
-    CBarWidget,
     AListWidget,
+    CBarWidget,
     ComponentWidget,
     RangeSliderWidget,
 )
-from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
-from napari_spatialdata._constants._pkg_constants import Key
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 

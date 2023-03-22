@@ -1,16 +1,15 @@
-from typing import Any, List
 import logging
+from typing import Any, List
 
-from anndata import AnnData
 import numpy as np
 import pytest
-
+from anndata import AnnData
 from napari_spatialdata._utils import (
-    _set_palette,
-    _min_max_norm,
     _get_categorical,
+    _min_max_norm,
     _points_inside_triangles,
     _position_cluster_labels,
+    _set_palette,
 )
 
 
