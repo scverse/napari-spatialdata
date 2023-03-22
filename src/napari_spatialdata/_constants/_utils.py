@@ -1,7 +1,7 @@
 from abc import ABC, ABCMeta
 from enum import Enum, EnumMeta
-from typing import Any, Dict, Type, Tuple, Callable
 from functools import wraps
+from typing import Any, Callable, Dict, Tuple, Type
 
 
 def _pretty_raise_enum(cls: Type["ModeEnum"], fun: Callable[..., Any]) -> Callable[..., Any]:
@@ -16,7 +16,7 @@ def _pretty_raise_enum(cls: Type["ModeEnum"], fun: Callable[..., Any]) -> Callab
 
     if not issubclass(cls, ErrorFormatterABC):
         raise TypeError(f"Class `{cls}` must be subtype of `ErrorFormatterABC`.")
-    elif not len(cls.__members__):
+    elif not len(cls.__members__):  # noqa: RET506
         # empty enum, for class hierarchy
         return fun
 
@@ -55,7 +55,7 @@ class ABCEnumMeta(EnumMeta, ABCMeta):
 
     def __new__(cls, clsname: str, bases: Tuple[EnumMeta, ...], namespace: Dict[str, Any]) -> "ABCEnumMeta":
         res: ABCEnumMeta = super().__new__(cls, clsname, bases, namespace)  # type: ignore[arg-type]
-        res.__new__ = _pretty_raise_enum(res, res.__new__)  # type: ignore[assignment,arg-type]
+        res.__new__ = _pretty_raise_enum(res, res.__new__)  # type: ignore[method-assign,arg-type]
         return res
 
 

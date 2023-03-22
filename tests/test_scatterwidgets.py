@@ -2,7 +2,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
@@ -22,7 +21,7 @@ def test_matplotlib_widget(make_napari_viewer: Any):
 
     viewer = make_napari_viewer()
     viewer.add_image(np.random.random((100, 100)))
-    viewer.add_labels(np.random.randint(0, 5, (100, 100)))
+    viewer.add_labels(np.random.randint(0, 5, (100, 100)))  # noqa: NPY002
 
     MatplotlibWidget(viewer, ImageModel)
 

@@ -1,5 +1,5 @@
-import napari
 import anndata as ad
+import napari
 
 adata = ad.read("./adata_nanostring_points.h5ad")
 

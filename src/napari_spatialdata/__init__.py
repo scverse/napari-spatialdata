@@ -1,6 +1,6 @@
 __version__ = "0.1.0"
 
-from importlib.metadata import version  # Python = 3.8
+from importlib.metadata import version  # Python = 3.9
 
 from packaging.version import parse
 
@@ -13,6 +13,6 @@ except ImportError:
 del version, parse
 
 from napari_spatialdata._view import (  # noqa: E402
-    QtAdataViewWidget,
     QtAdataScatterWidget,
+    QtAdataViewWidget,
 )

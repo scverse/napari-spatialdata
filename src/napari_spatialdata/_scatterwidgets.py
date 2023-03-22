@@ -1,28 +1,28 @@
 from __future__ import annotations
 
-from typing import Any, Dict, List, Union, Iterable, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
-from qtpy import QtWidgets
-from loguru import logger
+import matplotlib as plt
+import napari
+import numpy as np
+import pandas as pd
 from anndata import AnnData
-from qtpy.QtCore import Signal
+from loguru import logger
+from matplotlib.axes import Axes
+from matplotlib.collections import Collection
+from matplotlib.path import Path
+from matplotlib.widgets import LassoSelector
 from napari.layers import Layer
 from napari.viewer import Viewer
-from matplotlib.axes import Axes
-from matplotlib.path import Path
-from pandas.api.types import is_categorical_dtype
-from matplotlib.widgets import LassoSelector
-from matplotlib.collections import Collection
 from napari_matplotlib.base import NapariMPLWidget
-import numpy as np
-import napari
-import pandas as pd
-import matplotlib as plt
+from pandas.api.types import is_categorical_dtype
+from qtpy import QtWidgets
+from qtpy.QtCore import Signal
 
-from napari_spatialdata._model import ImageModel
-from napari_spatialdata._utils import NDArrayA, _set_palette, _get_categorical
-from napari_spatialdata._widgets import AListWidget, ComponentWidget
 from napari_spatialdata._categoricals_utils import _add_categorical_legend
+from napari_spatialdata._model import ImageModel
+from napari_spatialdata._utils import NDArrayA, _get_categorical, _set_palette
+from napari_spatialdata._widgets import AListWidget, ComponentWidget
 
 __all__ = [
     "MatplotlibWidget",
@@ -82,7 +82,7 @@ class SelectFromCollection:
 
         if len(self.fc) == 0:
             raise ValueError("Collection must have a facecolor")
-        elif len(self.fc) == 1:
+        elif len(self.fc) == 1:  # noqa: RET506
             self.fc = np.tile(self.fc, (self.Npts, 1))
 
         self.selector = LassoSelector(ax, onselect=self.onselect)
@@ -133,7 +133,7 @@ class ScatterListWidget(AListWidget):
         for item in sorted(set(items)):
             try:
                 vec, _ = self._getter(item, index=self.getIndex())
-            except Exception as e:  # noqa: B902
+            except Exception as e:  # noqa: BLE001
                 logger.error(e)
                 continue
             self.chosen = item
@@ -182,7 +182,7 @@ class ScatterListWidget(AListWidget):
             super().setAdataLayer(text)
         elif self.getAttribute() == "obsm":
             if TYPE_CHECKING:
-                assert isinstance(text, int) or isinstance(text, str)
+                assert isinstance(text, (int, str))
             self.text = text  # type: ignore[assignment]
             super().setIndex(text)
 

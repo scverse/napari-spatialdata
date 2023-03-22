@@ -1,31 +1,31 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Union, Iterable, Optional, Sequence, TYPE_CHECKING
 from functools import singledispatchmethod
+from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union
 
-from qtpy import QtCore, QtWidgets
-from vispy import scene
-from loguru import logger
-from superqt import QRangeSlider
-from qtpy.QtCore import Qt, Signal
-from napari.layers import Image, Layer, Labels, Points
-from napari.viewer import Viewer
-from vispy.scene.widgets import ColorBarWidget
-from vispy.color.colormap import Colormap, MatplotlibColormap
-from sklearn.preprocessing import MinMaxScaler
-import numpy as np
-import napari
-import pandas as pd
 import matplotlib.pyplot as plt
+import napari
+import numpy as np
+import pandas as pd
+from loguru import logger
+from napari.layers import Image, Labels, Layer, Points
+from napari.viewer import Viewer
+from qtpy import QtCore, QtWidgets
+from qtpy.QtCore import Qt, Signal
+from sklearn.preprocessing import MinMaxScaler
+from superqt import QRangeSlider
+from vispy import scene
+from vispy.color.colormap import Colormap, MatplotlibColormap
+from vispy.scene.widgets import ColorBarWidget
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._utils import (
     NDArrayA,
-    _set_palette,
-    _min_max_norm,
     _get_categorical,
+    _min_max_norm,
     _position_cluster_labels,
+    _set_palette,
 )
 
 __all__ = [
@@ -121,7 +121,7 @@ class AListWidget(ListWidget):
         for item in sorted(set(items)):
             try:
                 vec, name = self._getter(item, index=self.getIndex())
-            except Exception as e:  # noqa: B902
+            except Exception as e:  # noqa: BLE001
                 logger.error(e)
                 continue
             if vec.ndim == 2:
@@ -466,7 +466,7 @@ class RangeSliderWidget(QRangeSlider):
         layer = self.viewer.layers.selection.active
         # TODO(michalk8): use constants
         if "data" not in layer.metadata:
-            return None
+            return None  # noqa: RET501
         v = layer.metadata["data"]
         clipped = np.clip(v, *np.percentile(v, percentile))
 
