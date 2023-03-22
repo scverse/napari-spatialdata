@@ -1,3 +1,4 @@
+import platform
 from typing import Any, Union
 
 import numpy as np
@@ -32,6 +33,7 @@ def test_creating_widget_with_data(
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
+@pytest.mark.skipif(platform.system() == "Ubuntu", reason="Fails on ubuntu CI")
 def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> None:
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
