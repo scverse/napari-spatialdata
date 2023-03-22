@@ -1,9 +1,9 @@
-from typing import Union, Iterable
+from typing import Iterable, Union
 
-from spatialdata import SpatialData
-from napari.viewer import Viewer
-from qtpy.QtWidgets import QLabel, QWidget, QListWidget, QVBoxLayout, QListWidgetItem
 import napari
+from napari.viewer import Viewer
+from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
+from spatialdata import SpatialData
 
 
 class ElementWidget(QListWidget):

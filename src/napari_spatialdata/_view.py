@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
-from magicgui import magicgui
-from napari.layers import Labels, Layer, Labels
+from napari.layers import Labels
 from napari.viewer import Viewer
 from qtpy.QtWidgets import (
     QComboBox,
