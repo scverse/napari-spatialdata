@@ -1,9 +1,10 @@
 from typing import Union, Iterable
 
-from spatialdata import SpatialData
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QWidget, QListWidget, QVBoxLayout, QListWidgetItem
 import napari
+
+from spatialdata import SpatialData
 
 
 class ElementWidget(QListWidget):
@@ -15,7 +16,7 @@ class ElementWidget(QListWidget):
         self.clear()
 
         element_names = []
-        for _, element_name, _ in sdata.filter_by_coordinate_system(selected_coordinate_system)._gen_elements():
+        for _, element_name, _ in self._sdata.filter_by_coordinate_system(selected_coordinate_system)._gen_elements():
             element_names.append(element_name)
 
         self.addItems(element_names)
@@ -63,7 +64,7 @@ class SdataWidget(QWidget):
             name=key,
             metadata={
                 "adata": self._sdata.table[
-                    self._sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
             },
@@ -75,7 +76,7 @@ class SdataWidget(QWidget):
             name=key,
             metadata={
                 "adata": self._sdata.table[
-                    self._sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
             },
@@ -101,10 +102,3 @@ class Interactive:
 
     def run(self) -> None:
         napari.run()
-
-
-if __name__ == "__main__":  # TODO: create example instead of this
-    sdata = SpatialData.read("../data/cosmx/data.zarr")
-    sdata.table.uns["spatialdata_attrs"]["region"] = 0
-    i = Interactive(sdata)
-    i.run()
