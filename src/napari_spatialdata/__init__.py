@@ -13,6 +13,6 @@ except ImportError:
 del version, parse
 
 from napari_spatialdata._view import (  # noqa: E402
-    QtAdataViewWidget,
     QtAdataScatterWidget,
+    QtAdataViewWidget,
 )

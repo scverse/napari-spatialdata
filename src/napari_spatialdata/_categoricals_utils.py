@@ -1,15 +1,16 @@
-from typing import Any, Dict, List, Union, Optional, Sequence
 import collections.abc as cabc
+from typing import Any, Dict, List, Optional, Sequence, Union
 
-from cycler import Cycler, cycler
-from loguru import logger
-from anndata import AnnData
-from matplotlib import cm, colors, pyplot as pl, rcParams
-from matplotlib.axes import Axes
-from pandas.api.types import is_categorical_dtype
-from matplotlib.colors import to_hex, is_color_like
 import numpy as np
 import pandas as pd
+from anndata import AnnData
+from cycler import Cycler, cycler
+from loguru import logger
+from matplotlib import cm, colors, rcParams
+from matplotlib import pyplot as pl
+from matplotlib.axes import Axes
+from matplotlib.colors import is_color_like, to_hex
+from pandas.api.types import is_categorical_dtype
 
 # Colorblindness adjusted vega_10
 # See https://github.com/scverse/scanpy/issues/387

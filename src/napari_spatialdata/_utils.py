@@ -1,24 +1,24 @@
 from __future__ import annotations
 
-from typing import Any, Tuple, Union, Callable, Optional, Sequence, TYPE_CHECKING
 from functools import wraps
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Tuple, Union
 
-from numba import njit, prange
-from loguru import logger
-from anndata import AnnData
-from scipy.sparse import issparse, spmatrix
-from scipy.spatial import KDTree
-from pandas.api.types import infer_dtype, is_categorical_dtype
-from matplotlib.colors import to_rgb, is_color_like
-from pandas.core.dtypes.common import (
-    is_bool_dtype,
-    is_object_dtype,
-    is_string_dtype,
-    is_integer_dtype,
-    is_numeric_dtype,
-)
 import numpy as np
 import pandas as pd
+from anndata import AnnData
+from loguru import logger
+from matplotlib.colors import is_color_like, to_rgb
+from numba import njit, prange
+from pandas.api.types import infer_dtype, is_categorical_dtype
+from pandas.core.dtypes.common import (
+    is_bool_dtype,
+    is_integer_dtype,
+    is_numeric_dtype,
+    is_object_dtype,
+    is_string_dtype,
+)
+from scipy.sparse import issparse, spmatrix
+from scipy.spatial import KDTree
 
 from napari_spatialdata._categoricals_utils import (
     add_colors_for_categorical_sample_annotation,
@@ -94,9 +94,8 @@ def _set_palette(
     palette: Optional[str] = None,
     vec: Optional[pd.Series] = None,
 ) -> dict[Any, Any]:
-    if vec is not None:
-        if not is_categorical_dtype(vec):
-            raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
+    if vec is not None and not is_categorical_dtype(vec):
+        raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
 
     add_colors_for_categorical_sample_annotation(
         adata,
@@ -117,10 +116,7 @@ def _get_categorical(
     palette: Optional[str] = None,
     colordict: Union[pd.Series, dict[Any, Any], None] = None,
 ) -> NDArrayA:
-    if vec is not None:
-        categorical = vec
-    else:
-        categorical = adata.obs[key]
+    categorical = vec if vec is not None else adata.obs[key]
     if not isinstance(colordict, dict):
         col_dict = _set_palette(adata, key, palette, colordict)
     else:
@@ -130,7 +126,7 @@ def _get_categorical(
                 raise ValueError(
                     f"The key `{cat}` in the given dictionary is not an existing category in anndata[`{key}`]."
                 )
-            elif not is_color_like(colordict[cat]):
+            elif not is_color_like(colordict[cat]):  # noqa: RET506
                 raise ValueError(f"`{colordict[cat]}` is not an acceptable color.")
 
     logger.debug(f"KEY: {key}")

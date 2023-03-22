@@ -4,12 +4,11 @@
 # list see the documentation:
 # https://www.sphinx-doc.org/en/master/usage/configuration.html
 
-from pathlib import Path
-from datetime import datetime
-from importlib.metadata import metadata
-
 # -- Path setup --------------------------------------------------------------
 import sys
+from datetime import datetime
+from importlib.metadata import metadata
+from pathlib import Path
 
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
