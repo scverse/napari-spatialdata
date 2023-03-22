@@ -1,4 +1,5 @@
 from spatialdata import SpatialData
+
 from napari_spatialdata._interactive import Interactive
 
 if __name__ == "__main__":
