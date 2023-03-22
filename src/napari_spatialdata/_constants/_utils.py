@@ -55,7 +55,7 @@ class ABCEnumMeta(EnumMeta, ABCMeta):
 
     def __new__(cls, clsname: str, bases: Tuple[EnumMeta, ...], namespace: Dict[str, Any]) -> "ABCEnumMeta":
         res: ABCEnumMeta = super().__new__(cls, clsname, bases, namespace)  # type: ignore[arg-type]
-        res.__new__ = _pretty_raise_enum(res, res.__new__)  # type: ignore[assignment,arg-type]
+        res.__new__ = _pretty_raise_enum(res, res.__new__)  # type: ignore[method-assign,arg-type]
         return res
 
 
