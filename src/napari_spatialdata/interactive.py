@@ -182,23 +182,20 @@ class Interactive:
         self, sdata: SpatialData, shapes: GeoDataFrame, element_path: str, annotation_table: Optional[AnnData] = None
     ) -> None:
         shape = shapes.geometry.iloc[0]
-        if isinstance(shape, Polygon):
-            self._add_polygons(
-                sdata=sdata, polygons=shapes, element_path=element_path, annotation_table=annotation_table
-            )
-        elif isinstance(shape, MultiPolygon):
+        if isinstance(shape, Polygon) or isinstance(shape, MultiPolygon):
             ##
             new_polygons = []
             for shape in shapes.geometry:
-                if not isinstance(shape, MultiPolygon):
-                    raise TypeError(
-                        f"Mixed types are not supported, see https://github.com/scverse/spatialdata/issues/188. Type: {type(shape)}"
-                    )
+                if isinstance(shape, Polygon):
+                    new_polygons.append(shape)
+                elif isinstance(shape, MultiPolygon):
+                    polygon = shape.geoms[0]
+                    new_polygons.append(polygon)
+                else:
+                    raise TypeError(f"Unsupported type: {type(shape)}")
                 # TODO: here we are considering only the first polygon of the multipolygon, we need to addess this
                 # if len(shape.geoms) != 1:
                 #     raise NotImplementedError(f"MultiPolygons with more zero, or more than one polygon are not supported. Number of polygons: {len(shape.geoms)}")
-                polygon = shape.geoms[0]
-                new_polygons.append(polygon)
             new_shapes = GeoDataFrame(shapes.drop("geometry", axis=1), geometry=new_polygons)
             new_shapes.attrs["transform"] = shapes.attrs["transform"]
             self._add_polygons(
@@ -239,9 +236,12 @@ class Interactive:
         metadata["sdata"] = sdata
         metadata["element"] = shapes
         affine = _get_transform(element=shapes)
+        # THRESHOLD = 1000000
         THRESHOLD = 10000
         if len(spatial) < THRESHOLD:
             # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
+            # spatial = spatial[: 1000]
+            # radii = radii[: 1000]
             ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii)
             self._viewer.add_shapes(
                 ellipses,
@@ -485,7 +485,10 @@ class Interactive:
         # TODO: maybe add this check back
         # assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in circles."
         if len(annotated_instances) != len(available_instances):
-            raise ValueError("TODO: support partial annotation")
+            if annotated_instances.issuperset(available_instances):
+                pass
+            else:
+                raise ValueError("Partial annotation is support only when the annotation table contains instances not in circles.")
 
         # this is to reorder the circles to match the order of the annotation table
         a = annotating_rows.obs[instance_key].to_numpy()
