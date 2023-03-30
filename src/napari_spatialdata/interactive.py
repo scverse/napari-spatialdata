@@ -14,8 +14,9 @@ from anndata import AnnData
 from spatial_image import SpatialImage
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
 from geopandas import GeoDataFrame
-from spatialdata import SpatialData, get_axis_names
+from spatialdata import SpatialData
 from spatialdata.transformations import get_transformation
+from spatialdata.models import get_axis_names
 from spatialdata.models import get_model, Image3DModel, Labels3DModel, SpatialElement
 from datatree import DataTree
 from pandas.api.types import is_categorical_dtype
@@ -528,7 +529,7 @@ class Interactive:
         # colors are consistent
         if adata is not None:
             for key in adata.obs.keys():
-                if is_categorical_dtype(adata.obs[key]):
+                if is_categorical_dtype(adata.obs[key]) and f'{key}_colors' not in adata.uns:
                     _set_colors_for_categorical_obs(adata, key, palette="tab20")
 
     def _add_layers_from_sdata(
