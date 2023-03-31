@@ -40,7 +40,7 @@ def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> 
     viewer = make_napari_viewer()
 
     # create our widget, passing in the viewer
-    #with pytest.raises(NotImplementedError, match=r":class:`anndata.AnnData` not found in any `layer.metadata`."):
+    # with pytest.raises(NotImplementedError, match=r":class:`anndata.AnnData` not found in any `layer.metadata`."):
     with pytest.raises(AttributeError, match=r"'NoneType' object has no attribute 'metadata'"):
         _ = widget(viewer)
 
@@ -62,7 +62,7 @@ def test_model(
     )
 
     widget = widget(viewer)
-    #layer = viewer.layers.selection.active
+    # layer = viewer.layers.selection.active
     widget._select_layer()
     assert isinstance(widget.model, ImageModel)
     assert widget.model.adata is adata_labels
@@ -100,9 +100,9 @@ def test_change_layer(
     assert isinstance(widget.model.layer, Labels)
 
     # select observations
-    #widget.obs_widget._onAction(items=[obs_item])
-    #assert isinstance(viewer.layers.selection.active, Labels)
-    #assert viewer.layers.selection.active.name == f"{obs_item}:{layer_name}"
+    # widget.obs_widget._onAction(items=[obs_item])
+    # assert isinstance(viewer.layers.selection.active, Labels)
+    # assert viewer.layers.selection.active.name == f"{obs_item}:{layer_name}"
 
     # select genes
     widget.var_widget._onAction(items=[var_item])
@@ -125,9 +125,9 @@ def test_change_layer(
     assert isinstance(widget.model.layer, Image)
 
     # select observations
-    #widget.obs_widget._onAction(items=[obs_item])
-    #assert isinstance(viewer.layers.selection.active, Points)
-    #assert viewer.layers.selection.active.name == f"{obs_item}:{layer_name}"
+    # widget.obs_widget._onAction(items=[obs_item])
+    # assert isinstance(viewer.layers.selection.active, Points)
+    # assert viewer.layers.selection.active.name == f"{obs_item}:{layer_name}"
 
     # select genes
     widget.var_widget._onAction(items=[var_item])
@@ -139,7 +139,6 @@ def test_change_layer(
     # check adata layers
     assert len(widget._get_adata_layer()) == 1
     assert widget._get_adata_layer()[0] is None
-
 
 
 @pytest.mark.parametrize("widget", [QtAdataScatterWidget])
@@ -237,7 +236,6 @@ def test_component_widget(
     )
 
     widget = widget(viewer)
-    layer = viewer.layers.selection.active
     widget._select_layer()
 
     widget.x_widget.selection_widget.setCurrentText("obsm")
