@@ -433,7 +433,7 @@ class Interactive:
             u_not_annotated.remove(0)
         if len(u_not_annotated) > 0:
             logger.warning(f"{len(u_not_annotated)}/{len(u)} labels not annotated: {u_not_annotated}")
-        annotating_rows = annotating_rows[annotating_rows.obs[instance_key].isin(u), :]
+        annotating_rows = annotating_rows[annotating_rows.obs[instance_key].isin(u), :].copy()
 
         # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
         annotating_rows.uns[Key.uns.spatial] = {}
@@ -497,7 +497,7 @@ class Interactive:
         sorter = np.argsort(a)
         mapper = sorter[np.searchsorted(a, b, sorter=sorter)]
         assert np.all(a[mapper] == b)
-        annotating_rows = annotating_rows[mapper]
+        annotating_rows = annotating_rows[mapper].copy()
 
         dims = get_axis_names(circles)
         assert dims == ("x", "y") or dims == ("x", "y", "z")

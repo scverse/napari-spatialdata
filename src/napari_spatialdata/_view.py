@@ -339,7 +339,7 @@ class QtAdataViewWidget(QWidget):
                 polygon = Polygon(polygon_coords)
                 polygons.append(polygon)
             gdf = GeoDataFrame({"geometry": polygons})
-            parsed = ShapesModel.parse(gdf)
+            parsed = ShapesModel.parse(gdf, transformations={cs: Identity()})
             sdata.add_shapes(name=zarr_name, shapes=parsed, overwrite=True)
             show_info(f"Polygons saved in the SpatialData object")
         else:
