@@ -14,11 +14,14 @@ class ElementWidget(QListWidget):
     def _onClickChange(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
         self.clear()
 
-        element_names = []
-        for _, element_name, _ in self._sdata.filter_by_coordinate_system(selected_coordinate_system)._gen_elements():
-            element_names.append(element_name)
+        elements = {}
+        for element_type, element_name, _ in self._sdata.filter_by_coordinate_system(
+            selected_coordinate_system
+        )._gen_elements():
+            elements[element_name] = element_type
 
-        self.addItems(element_names)
+        self.addItems(elements.keys())
+        self._elements = elements
 
 
 class CoordinateSystemWidget(QListWidget):
@@ -50,11 +53,11 @@ class SdataWidget(QWidget):
         self.coordinate_system_widget.itemClicked.connect(lambda item: self.elements_widget._onClickChange(item.text()))
 
     def _onClick(self, text: str) -> None:
-        if "labels" in text:
+        if self.elements_widget._elements[text] == "labels":
             self._add_label(text)
-        elif "image" in text:
+        elif self.elements_widget._elements[text] == "images":
             self._add_image(text)
-        elif "points" in text:
+        elif self.elements_widget._elements[text] == "points":
             raise NotImplementedError("Points is currently not supported due to performance issues!")
 
     def _add_label(self, key: str) -> None:
