@@ -1,6 +1,9 @@
 from typing import Iterable, Union
 
 import napari
+import numpy as np
+from anndata import AnnData
+from loguru import logger
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
@@ -58,7 +61,7 @@ class SdataWidget(QWidget):
         elif self.elements_widget._elements[text] == "images":
             self._add_image(text)
         elif self.elements_widget._elements[text] == "points":
-            raise NotImplementedError("Points is currently not supported due to performance issues!")
+            self._add_points(text)
 
     def _add_label(self, key: str) -> None:
         self._viewer.add_labels(
@@ -84,13 +87,23 @@ class SdataWidget(QWidget):
             },
         )
 
-    def _add_point(self, key: str) -> None:
+    def _add_points(self, key: str) -> None:
+        points = self._sdata.points[key].compute()
+        if len(points) < 100000:
+            subsample = np.arange(len(points))
+        else:
+            logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
+            gen = np.random.default_rng()
+            subsample = gen.choice(len(points), size=100000, replace=False)
         self._viewer.add_points(
-            self._sdata.points[key],
+            points[["y", "x"]].values[subsample],
             name=key,
+            size=20,
+            metadata={
+                "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
+                "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
+            },
         )
-
-        # TODO magicgui update in plugins --possible?
 
 
 class Interactive:
