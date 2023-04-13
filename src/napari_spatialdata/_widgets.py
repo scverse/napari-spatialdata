@@ -135,7 +135,7 @@ class AListWidget(ListWidget):
                 )
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                if isinstance(self.model.layer, Image):
+                if isinstance(self.model.layer, Image) or isinstance(self.model.layer, Points):
                     self.viewer.add_points(
                         self.model.coordinates,
                         name=name,
