@@ -101,3 +101,6 @@ class Interactive:
 
     def run(self) -> None:
         napari.run()
+
+    def screenshot(self) -> None:
+        return self._viewer.screenshot(canvas_only=False)
