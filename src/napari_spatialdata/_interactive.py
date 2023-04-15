@@ -8,6 +8,8 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
+from napari_spatialdata.utils import NDArrayA
+
 
 class ElementWidget(QListWidget):
     def __init__(self, sdata: SpatialData):
@@ -118,5 +120,5 @@ class Interactive:
     def run(self) -> None:
         napari.run()
 
-    def screenshot(self) -> None:
+    def screenshot(self) -> NDArrayA:
         return self._viewer.screenshot(canvas_only=False)
