@@ -101,7 +101,7 @@ class Interactive:
     def _get_affine_for_images_labels(
         self, element: Union[SpatialImage, MultiscaleSpatialImage]
     ) -> Tuple[DataArray, np.ndarray, bool]:
-        axes = get_axis_names(element)
+        axes = get_axes_names(element)
         affine = _get_transform(element=element)
 
         if "c" in axes:
@@ -211,7 +211,7 @@ class Interactive:
     def _add_circles(
         self, sdata: SpatialData, shapes: AnnData, element_path: str, annotation_table: Optional[AnnData] = None
     ) -> None:
-        dims = get_axis_names(shapes)
+        dims = get_axes_names(shapes)
         if "z" in dims:
             logger.warning("Circles are currently only supported in 2D. Ignoring z dimension.")
         x = shapes.geometry.x.to_numpy()
@@ -274,7 +274,7 @@ class Interactive:
             )
 
     def _add_points(self, sdata: SpatialData, points: DaskDataFrame, element_path: str) -> None:
-        dims = get_axis_names(points)
+        dims = get_axes_names(points)
         spatial = points[list(dims)].compute().values
         # np.sum(np.isnan(spatial)) / spatial.size
         radii = 1
@@ -313,7 +313,7 @@ class Interactive:
         # TODO: support
         # affine is always 2d
         affine = _get_transform(element=points)
-        axes = get_axis_names(points)
+        axes = get_axes_names(points)
         if "z" in axes:
             assert len(axes) == 3
             spatial = spatial[:, :2]
@@ -499,7 +499,7 @@ class Interactive:
         assert np.all(a[mapper] == b)
         annotating_rows = annotating_rows[mapper].copy()
 
-        dims = get_axis_names(circles)
+        dims = get_axes_names(circles)
         assert dims == ("x", "y") or dims == ("x", "y", "z")
         columns = [circles.geometry.x, circles.geometry.y]
         if "z" in dims:
