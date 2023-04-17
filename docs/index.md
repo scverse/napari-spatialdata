@@ -1,4 +1,4 @@
-```{include}
+```{include} ../README.md
 
 ```
 
@@ -17,7 +17,6 @@ references.md
 :caption: Tutorials
 :hidden: true
 :maxdepth: 1
-
 
 notebooks/spatialdata
 ```
