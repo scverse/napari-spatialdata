@@ -8,8 +8,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata.utils import NDArrayA
-
+from napari_spatialdata._utils import NDArrayA
 
 class ElementWidget(QListWidget):
     def __init__(self, sdata: SpatialData):

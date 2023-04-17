@@ -14,9 +14,10 @@ references.md
 ```
 
 ```{toctree}
+:caption: Tutorials
 :hidden: true
 :maxdepth: 1
-:caption: Tutorials
+
 
 notebooks/spatialdata
 ```
