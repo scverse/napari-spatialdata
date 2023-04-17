@@ -10,6 +10,7 @@ from spatialdata import SpatialData
 
 from napari_spatialdata._utils import NDArrayA
 
+
 class ElementWidget(QListWidget):
     def __init__(self, sdata: SpatialData):
         super().__init__()
