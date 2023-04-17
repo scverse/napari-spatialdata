@@ -1,4 +1,4 @@
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import napari
 import numpy as np
@@ -9,6 +9,7 @@ from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QW
 from spatialdata import SpatialData
 
 from napari_spatialdata._utils import NDArrayA
+
 
 class ElementWidget(QListWidget):
     def __init__(self, sdata: SpatialData):
@@ -119,5 +120,5 @@ class Interactive:
     def run(self) -> None:
         napari.run()
 
-    def screenshot(self) -> NDArrayA:
+    def screenshot(self) -> Union[NDArrayA, Any]:
         return self._viewer.screenshot(canvas_only=False)
