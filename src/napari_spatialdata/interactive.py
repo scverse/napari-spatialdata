@@ -363,7 +363,7 @@ class Interactive:
             edge_width=0.5,  # TODO: choose this number based on the size of spatial elements in a smart way,
             # or let the user choose it
             edge_color="green",
-            face_color=np.array([0.0, 0, 0.0, 0.0]),
+            face_color=np.array([0.0, 1.0, 0.0, 0.3]),
             metadata=metadata,
             affine=affine,
             visible=False,
@@ -501,7 +501,15 @@ class Interactive:
 
         dims = get_axes_names(circles)
         assert dims == ("x", "y") or dims == ("x", "y", "z")
-        columns = [circles.geometry.x, circles.geometry.y]
+        if type(circles.geometry.iloc[0]) == Point:
+            columns = [circles.geometry.x, circles.geometry.y]
+            radii = circles["radius"].to_numpy()
+        elif type(circles.geometry.iloc[0]) == Polygon:
+            columns = [circles.geometry.centroid.x, circles.geometry.centroid.y]
+            radii = np.sqrt(circles.geometry.area / np.pi).to_numpy()
+        else:
+            raise NotImplementedError(f"Unsupported geometry type: {type(circles.geometry.iloc[0])}")
+
         if "z" in dims:
             columns.append(circles.geometry.z)
         spatial = np.column_stack(columns)
@@ -512,7 +520,7 @@ class Interactive:
         annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
         annotating_rows.obsm["spatial"] = spatial
         # workaround for the legacy code to support different sizes for different circles
-        annotating_rows.obsm["region_radius"] = circles["radius"].to_numpy()
+        annotating_rows.obsm["region_radius"] = radii
         return annotating_rows
 
     def _find_annotation_for_polygons(
