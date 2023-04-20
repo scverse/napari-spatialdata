@@ -1,4 +1,4 @@
-from typing import Iterable, Union
+from typing import Any, Iterable, Union
 
 import napari
 import numpy as np
@@ -8,6 +8,8 @@ from multiscale_spatial_image import MultiscaleSpatialImage
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
+
+from napari_spatialdata._utils import NDArrayA
 
 
 class ElementWidget(QListWidget):
@@ -122,3 +124,6 @@ class Interactive:
 
     def run(self) -> None:
         napari.run()
+
+    def screenshot(self) -> Union[NDArrayA, Any]:
+        return self._viewer.screenshot(canvas_only=False)
