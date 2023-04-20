@@ -4,6 +4,7 @@ import napari
 import numpy as np
 from anndata import AnnData
 from loguru import logger
+from multiscale_spatial_image import MultiscaleSpatialImage
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
@@ -76,13 +77,15 @@ class SdataWidget(QWidget):
         )
 
     def _add_image(self, key: str) -> None:
+        img = self._sdata.images[key]
+        if isinstance(img, MultiscaleSpatialImage):
+            img = img["scale0"][key]
+        # TODO: type check
         self._viewer.add_image(
-            self._sdata.images[key],
+            img,
             name=key,
             metadata={
-                "adata": self._sdata.table[
-                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-                ],
+                "adata": AnnData(),
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
             },
         )

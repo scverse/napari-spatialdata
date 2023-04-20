@@ -221,6 +221,8 @@ class QtAdataViewWidget(QWidget):
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
         self.model.scale = 1.0
+        if self.model.adata.shape == (0, 0):
+            return
         self.model.coordinates = np.insert(
             self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
         )
