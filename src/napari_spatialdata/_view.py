@@ -282,7 +282,7 @@ class QtAdataViewWidget(QWidget):
 
         sdata = sdatas[0]
         from spatialdata.transformations.transformations import Identity
-        from spatialdata.models import ShapesModel
+        from spatialdata.models import ShapesModel, PointsModel
 
         # get current coordinate system
         selected = self._coordinate_system_selector.selectedItems()
@@ -320,11 +320,19 @@ class QtAdataViewWidget(QWidget):
 
             # coords from napari are in the yx coordinate systems, we want to store them as xy
             coords = np.fliplr(coords)
-            shapes = ShapesModel.parse(
-                coords, geometry=0, transformations={cs: Identity()}, radius=sizes_array
+            # saving as points (drawback: radius is not saved)
+            points = PointsModel.parse(
+                coords, transformations={cs: Identity()}
             )
-            sdata.add_shapes(name=zarr_name, shapes=shapes, overwrite=True)
-            show_info(f"Shapes saved in the SpatialData object")
+            sdata.add_points(name=zarr_name, points=points, overwrite=True)
+            show_info(f"Points saved in the SpatialData object")
+            # saving as shapes (drawback: if save the shapes and we load them again, we can't draw points but ellipses;
+            # hence better save as points and lose the radius)
+            # shapes = ShapesModel.parse(
+            #     coords, geometry=0, transformations={cs: Identity()}, radius=sizes_array
+            # )
+            # sdata.add_shapes(name=zarr_name, shapes=shapes, overwrite=True)
+            # show_info(f"Shapes saved in the SpatialData object")
         elif isinstance(layer, napari.layers.shapes.shapes.Shapes):
             coords = [np.array([layer.data_to_world(xy) for xy in shape._data]) for shape in layer._data_view.shapes]
             # TODO: deal with the 3D case (is there a 3D case?)

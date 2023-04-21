@@ -329,7 +329,7 @@ class Interactive:
             affine=affine,
             visible=False,
         )
-        print("debug")
+        # print("debug")
         ##
 
     def _add_polygons(
