@@ -135,7 +135,7 @@ class AListWidget(ListWidget):
                 )
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                if isinstance(self.model.layer, Image) or isinstance(self.model.layer, Points):
+                if isinstance(self.model.layer, (Image, Points)):
                     self.viewer.add_points(
                         self.model.coordinates,
                         name=name,
@@ -204,7 +204,7 @@ class AListWidget(ListWidget):
             norm_vec = _min_max_norm(vec)
             color_vec = cmap(norm_vec)
             return {
-                "color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, color_vec)},
+                "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, color_vec)),
                 "properties": {"value": vec},
                 "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
             }
@@ -222,7 +222,7 @@ class AListWidget(ListWidget):
             self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
         )
         if layer is not None and isinstance(layer, Labels):
-            return {"color": {k: v for k, v in zip(self.model.adata.obs[self.model.labels_key].values, face_color)}}
+            return {"color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color))}
 
         cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
         return {
@@ -478,7 +478,7 @@ class RangeSliderWidget(QRangeSlider):
         elif isinstance(layer, Labels):
             norm_vec = self._scale_vec(clipped)
             color_vec = self._cmap(norm_vec)
-            layer.color = {k: v for k, v in zip(layer.color.keys(), color_vec)}
+            layer.color = dict(zip(layer.color.keys(), color_vec))
             layer.properties = {"value": clipped}
             layer.refresh()
 
