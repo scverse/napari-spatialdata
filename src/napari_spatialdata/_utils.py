@@ -190,3 +190,30 @@ def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
         out[i] = _point_inside_triangles(triangles - points[i])
 
     return out
+
+
+def _get_ellipses_from_circles(centroids: NDArrayA, radii: NDArrayA) -> NDArrayA:
+    """Convert circles to ellipses.
+    Parameters
+    ----------
+    centroids
+        Centroids of the circles.
+    radii
+        Radii of the circles.
+    Returns
+    -------
+    NDArrayA
+        Ellipses.
+    """
+    
+    ndim = centroids.shape[1]
+    assert ndim == 2
+    r = np.stack([radii] * ndim, axis=1)
+    lower_left = centroids - r
+    upper_right = centroids + r
+    r[:, 0] = -r[:, 0]
+    lower_right = centroids - r
+    upper_left = centroids + r
+    ellipses = np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
+
+    return ellipses

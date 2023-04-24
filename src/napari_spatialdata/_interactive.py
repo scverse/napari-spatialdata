@@ -8,7 +8,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata._utils import NDArrayA
+from napari_spatialdata._utils import NDArrayA, _get_ellipses_from_circles
 
 
 class ElementWidget(QListWidget):
@@ -23,8 +23,14 @@ class ElementWidget(QListWidget):
         for element_type, element_name, _ in self._sdata.filter_by_coordinate_system(
             selected_coordinate_system
         )._gen_elements():
+            
+            logger.info("Element type: ")
+            logger.info(element_type)
+            
             elements[element_name] = element_type
-
+            logger.info("Element: ")
+            logger.info(elements)
+            
         self.addItems(elements.keys())
         self._elements = elements
 
@@ -64,6 +70,46 @@ class SdataWidget(QWidget):
             self._add_image(text)
         elif self.elements_widget._elements[text] == "points":
             self._add_points(text)
+        elif self.elements_widget._elements[text] == "shapes":
+            self._add_shapes(text)
+    
+
+    def _add_shapes(self, key: str) -> None:
+
+        # Check if vertices are polygons or circles
+        # TODO: Is there a way to check if this is polygon or circle? cleaner way?
+        if self._sdata.shapes[key].geometry[0].geom_type == 'Polygon':
+            
+            vertices = []
+
+            for i in range(0, self._sdata.shapes[key].geometry.size):
+                vertices.append(self._sdata.shapes[key].geometry[i].exterior.coords)
+
+            self._viewer.add_shapes(
+                vertices,
+                shape_type='polygon',
+                name = key,
+            )
+
+
+        else:
+        
+            vertices = self._sdata.shapes[key].geometry[0]
+            
+            x = vertices.x
+            y = vertices.y
+
+            spatial = np.stack([x, y])
+            radii = self._sdata.shapes[key].radius
+            ellipses = _get_ellipses_from_circles(centroids=spatial, radii=radii)
+
+            self._viewer.add_shapes(
+                ellipses,
+                shape_type='ellipse',
+                name=key,
+            )
+
+        
 
     def _add_label(self, key: str) -> None:
         self._viewer.add_labels(
@@ -101,10 +147,6 @@ class SdataWidget(QWidget):
             points[["y", "x"]].values[subsample],
             name=key,
             size=20,
-            metadata={
-                "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
-                "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
-            },
         )
 
 
