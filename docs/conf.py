@@ -91,6 +91,7 @@ intersphinx_mapping = {
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
     "napari": ("https://napari.org/stable/", None),
+    "spatialdata": ("https://scverse-spatialdata.readthedocs.io/en/latest/", None),
 }
 
 # List of patterns, relative to source directory, that match files and

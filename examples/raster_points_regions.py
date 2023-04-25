@@ -26,7 +26,6 @@ viewer.add_labels(
     name="label1",
     metadata={
         "adata": adata1,
-        "library_id": "1",
         "labels_key": "cell_ID",
         "points": points1,
         "point_diameter": 10,
@@ -42,7 +41,6 @@ viewer.add_labels(
     name="label2",
     metadata={
         "adata": adata2,
-        "library_id": "2",
         "labels_key": "cell_ID",
         "points": points2,
         "point_diameter": 10,

@@ -5,8 +5,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
-from magicgui import magicgui
-from napari.layers import Labels, Layer
+from napari.layers import Labels
 from napari.viewer import Viewer
 from qtpy.QtWidgets import (
     QComboBox,
@@ -44,16 +43,11 @@ class QtAdataScatterWidget(QWidget):
         self._viewer = viewer
         self._model = ImageModel()
 
-        self._layer_selection_widget = magicgui(
-            self._select_layer,
-            layer={"choices": self._get_layer},
-            auto_call=True,
-            call_button=False,
-        )
-        self._layer_selection_widget()
+        self._select_layer()
+        self._viewer.layers.selection.events.changed.connect(self._select_layer)
+        self._viewer.layers.selection.events.changed.connect(self._on_selection)
 
         self.setLayout(QGridLayout())
-        self.layout().addWidget(self._layer_selection_widget.native, 0, 0, 1, 3)
 
         # Matplotlib
 
@@ -108,21 +102,15 @@ class QtAdataScatterWidget(QWidget):
         self.color_widget.widget._onChange()
         self.color_widget.component_widget._onChange()
 
-    def _select_layer(self, layer: Layer) -> None:
+    def _select_layer(self) -> None:
         """Napari layers."""
+        layer = self._viewer.layers.selection._current
+        if not isinstance(layer.metadata.get("adata", None), AnnData):
+            raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
+
         self.model.layer = layer
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
-        self.model.library_id = layer.metadata["library_id"]
-
-    def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
-        adata_layers = []
-        for layer in self._viewer.layers:
-            if isinstance(layer.metadata.get("adata", None), AnnData):
-                adata_layers.append(layer)
-        if not len(adata_layers):
-            raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
-        return adata_layers
 
     @property
     def viewer(self) -> napari.Viewer:
@@ -149,16 +137,11 @@ class QtAdataViewWidget(QWidget):
         self._viewer = viewer
         self._model = ImageModel()
 
-        self._layer_selection_widget = magicgui(
-            self._select_layer,
-            layer={"choices": self._get_layer},
-            auto_call=True,
-            call_button=False,
-        )
-        self._layer_selection_widget()
+        self._select_layer()
+        self._viewer.layers.selection.events.changed.connect(self._select_layer)
+        self._viewer.layers.selection.events.changed.connect(self._on_layer_update)
 
         self.setLayout(QVBoxLayout())
-        self.layout().addWidget(self._layer_selection_widget.native)
 
         # obs
         obs_label = QLabel("Observations:")
@@ -228,15 +211,23 @@ class QtAdataViewWidget(QWidget):
         self.obsm_widget._onChange()
         self.var_points_widget._onChange()
 
-    def _select_layer(self, layer: Layer) -> None:
+    def _select_layer(self) -> None:
         """Napari layers."""
+        layer = self._viewer.layers.selection._current
+        if not isinstance(layer.metadata.get("adata", None), AnnData):
+            raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
+
         self.model.layer = layer
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
-        self.model.library_id = layer.metadata["library_id"]
-        self.model.scale = self.model.adata.uns[Key.uns.spatial][self.model.library_id][Key.uns.scalefactor_key][
-            self.model.scale_key
-        ]
+        try:
+            self.model.scale = self.model.adata.uns[Key.uns.spatial][layer.metadata["library_id"]][
+                Key.uns.scalefactor_key
+            ][self.model.scale_key]
+        except KeyError:  # TODO
+            self.model.scale = 1.0
+        if self.model.adata.shape == (0, 0):
+            return
         self.model.coordinates = np.insert(
             self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2] * self.model.scale, 0, values=0, axis=1
         )
@@ -244,22 +235,10 @@ class QtAdataViewWidget(QWidget):
             self.model.points_coordinates = layer.metadata["points"].X
             self.model.points_var = layer.metadata["points"].obs["gene"]
             self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
-        self.model.spot_diameter = (
-            np.array([0.0] + [Key.uns.spot_diameter(self.model.adata, Key.obsm.spatial, self.model.library_id)] * 2)
-            * self.model.scale
-        )
+        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]
-
-    def _get_layer(self, combo_widget: QComboBox) -> Sequence[Optional[str]]:
-        adata_layers = []
-        for layer in self._viewer.layers:
-            if isinstance(layer.metadata.get("adata", None), AnnData):
-                adata_layers.append(layer)
-        if not len(adata_layers):
-            raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
-        return adata_layers
 
     def _get_adata_layer(self) -> Sequence[Optional[str]]:
         adata_layers = list(self.model.adata.layers.keys())

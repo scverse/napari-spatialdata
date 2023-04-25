@@ -22,7 +22,6 @@ class ImageModel:
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: AnnData = field(init=False, default=None, repr=True)
     _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
-    _library_id: Optional[str] = field(init=False, default=None, repr=True)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
     _label_key: Optional[str] = field(default=None, repr=True)
     _coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
@@ -205,14 +204,6 @@ class ImageModel:
     @spatial_key.setter
     def spatial_key(self, key: str) -> None:
         self._spatial_key = key
-
-    @property
-    def library_id(self) -> Optional[str]:  # noqa: D102
-        return self._library_id
-
-    @library_id.setter
-    def library_id(self, library_id: str) -> None:
-        self._library_id = library_id
 
     @property
     def adata_layer(self) -> Optional[str]:  # noqa: D102
