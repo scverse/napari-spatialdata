@@ -234,6 +234,7 @@ class AListWidget(ListWidget):
                     name=name,
                     opacity=1,
                     face_colormap=self.model.cmap,
+                    # edge_colormap doesn't seem to work, the color is gray
                     edge_colormap=self.model.cmap,
                     edge_width=0.0,
                     affine=layer.affine,
