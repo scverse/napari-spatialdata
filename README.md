@@ -22,7 +22,6 @@ and review the napari docs for plugin developers:
 https://napari.org/plugins/stable/index.html
 -->
 
-
 ## Installation
 
 You can install `napari-spatialdata` via [pip]:
@@ -70,5 +69,3 @@ If you encounter any problems, please file an [issue] along with a detailed desc
 [pip]: https://pypi.org/project/pip/
 [pypi]: https://pypi.org/
 [issue]: https://github.com/scverse/napari-spatialdata/issues
-
-
