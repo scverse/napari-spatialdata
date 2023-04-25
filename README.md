@@ -16,26 +16,30 @@ This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookie
 
 <!--
 Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
+https://github.com/napari/cook  iecutter-napari-plugin#getting-started
 
 and review the napari docs for plugin developers:
 https://napari.org/plugins/stable/index.html
 -->
 
-# UNDER DEVELOPMENT
-
-Clone repo and `pip install -e .`.
-Run examples e.g. `python shape_regions.py` or via notebook for the shape export function.
-
-More documentation on usage will be added later on.
-
-The main branch is currently opeating on the Squidpy/AnnData data model, SpatialData is handled in different branches not yet merged.
-
-Expect breaking changes.
 
 ## Installation
 
 You can install `napari-spatialdata` via [pip]:
+
+    pip install git+https://github.com/scverse/napari-spatialdata
+
+You can also install by cloning the repo directly:
+
+    git clone https://github.com/scverse/napari-spatialdata
+    cd napari-spatialdata
+    pip install -e .
+
+
+
+## Development Version
+
+You can install `napari-spatialdata` from Github with:
 
     pip install napari-spatialdata
 
@@ -51,7 +55,7 @@ Distributed under the terms of the [BSD-3] license,
 
 ## Issues
 
-If you encounter any problems, please [file an issue] along with a detailed description.
+If you encounter any problems, please file an [issue] along with a detailed description.
 
 [napari]: https://github.com/napari/napari
 [cookiecutter]: https://github.com/audreyr/cookiecutter
@@ -66,3 +70,6 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [tox]: https://tox.readthedocs.io/en/latest/
 [pip]: https://pypi.org/project/pip/
 [pypi]: https://pypi.org/
+[issue]: https://github.com/scverse/napari-spatialdata/issues
+
+
