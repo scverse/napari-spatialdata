@@ -16,7 +16,7 @@ This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookie
 
 <!--
 Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cook  iecutter-napari-plugin#getting-started
+https://github.com/napari/cookiecutter-napari-plugin#getting-started
 
 and review the napari docs for plugin developers:
 https://napari.org/plugins/stable/index.html
@@ -27,21 +27,20 @@ https://napari.org/plugins/stable/index.html
 
 You can install `napari-spatialdata` via [pip]:
 
-    pip install git+https://github.com/scverse/napari-spatialdata
-
-You can also install by cloning the repo directly:
-
-    git clone https://github.com/scverse/napari-spatialdata
-    cd napari-spatialdata
-    pip install -e .
-
+    pip install napari-spatialdata
 
 
 ## Development Version
 
 You can install `napari-spatialdata` from Github with:
 
-    pip install napari-spatialdata
+    pip install git+https://github.com/scverse/napari-spatialdata
+
+Or, you can also install in editable mode after cloning the repo by:
+
+    git clone https://github.com/scverse/napari-spatialdata
+    cd napari-spatialdata
+    pip install -e .
 
 ## Contributing
 
