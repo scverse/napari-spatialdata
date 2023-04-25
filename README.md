@@ -28,7 +28,6 @@ You can install `napari-spatialdata` via [pip]:
 
     pip install napari-spatialdata
 
-
 ## Development Version
 
 You can install `napari-spatialdata` from Github with:
