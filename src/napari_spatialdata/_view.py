@@ -220,7 +220,12 @@ class QtAdataViewWidget(QWidget):
         self.model.layer = layer
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
-        self.model.scale = 1.0
+        try:
+            self.model.scale = self.model.adata.uns[Key.uns.spatial][layer.metadata["library_id"]][
+                Key.uns.scalefactor_key
+            ][self.model.scale_key]
+        except KeyError:  # TODO
+            self.model.scale = 1.0
         if self.model.adata.shape == (0, 0):
             return
         self.model.coordinates = np.insert(
