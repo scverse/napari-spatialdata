@@ -268,3 +268,8 @@ def test_component_widget(
         widget.x_widget.component_widget.itemText(i) in [adata_labels.layers.keys(), "X"]
         for i in range(widget.x_widget.component_widget.count())
     )
+
+
+def test_layer_selection(make_napari_viewer: Any):
+    # TODO
+    make_napari_viewer()
