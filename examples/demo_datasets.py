@@ -17,7 +17,7 @@ DATASETS = [
     "visium",
     "visium_io",
     "vizgen_merscope",
-    "xenium_io",
+    "xenium_rep1_io",
 ]
 
 
