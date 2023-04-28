@@ -12,6 +12,7 @@ except ImportError:
 
 del version, parse
 
+from napari_spatialdata._interactive import Interactive as Interactive  # noqa: E402
 from napari_spatialdata._view import (  # noqa: E402
     QtAdataScatterWidget,
     QtAdataViewWidget,

@@ -1,4 +1,4 @@
-from napari_spatialdata._interactive import Interactive
+from napari_spatialdata import Interactive
 from spatialdata import SpatialData
 #from spatialdata.datasets import blobs
 
