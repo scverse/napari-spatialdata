@@ -23,6 +23,7 @@ from pandas.api.types import is_categorical_dtype
 from shapely import Polygon, MultiPolygon, Point
 
 import matplotlib.pyplot as plt
+import time
 
 __all__ = ["Interactive", "_get_transform"]
 
@@ -275,13 +276,46 @@ class Interactive:
 
     def _add_points(self, sdata: SpatialData, points: DaskDataFrame, element_path: str) -> None:
         dims = get_axes_names(points)
+        start = time.time()
         spatial = points[list(dims)].compute().values
+        print(f"instantiatction 0: {time.time() - start}")
+
+        MAX_POINTS = 10000
+        if len(spatial) > MAX_POINTS:
+            logger.warning(
+                f"Too many points {len(spatial)} > {MAX_POINTS}, subsampling to {MAX_POINTS}. Performance will be improved in a future PR"
+            )
+            choice = np.random.choice(len(spatial), MAX_POINTS, replace=False)
+            spatial = spatial[choice, :]
+        else:
+            choice = None
+
         # np.sum(np.isnan(spatial)) / spatial.size
         radii = 1
+
+        # self._viewer.add_points(
+        #     spatial[:, :2],
+        #     name=element_path,
+        #     ndim=2,  # len(axes),
+        #     # edge_color="white",
+        #     face_color="white",
+        #     size=2 * radii,
+        #     # metadata=metadata,
+        #     edge_width=0.0,
+        #     # affine=affine,
+        #     visible=False,
+        # )
+        #
+        # return
         annotations_columns = list(set(points.columns.to_list()).difference(dims))
         if len(annotations_columns) > 0:
+            start = time.time()
             df = points[annotations_columns].compute()
-            annotation = AnnData(shape=(len(points), 0), obs=df, obsm={"spatial": spatial})
+            print(f"compute2: {time.time() - start}")
+            if choice is not None:
+                df = df.iloc[choice, :]
+            annotation = AnnData(shape=(len(spatial), 0), obs=df, obsm={"spatial": spatial})
+            # if we keep using the anndata we need to set the index equal to choice
             self._init_colors_for_obs(annotation)
         else:
             annotation = None
@@ -298,16 +332,8 @@ class Interactive:
         metadata["sdata"] = sdata
         metadata["element"] = points
 
-        MAX_POINTS = 100000
-        if len(spatial) > MAX_POINTS:
-            logger.warning(
-                f"Too many points {len(spatial)} > {MAX_POINTS}, subsampling to {MAX_POINTS}. Performance will be improved in a future PR"
-            )
-            choice = np.random.choice(len(spatial), MAX_POINTS, replace=False)
-            spatial = spatial[choice]
-            if annotation is not None:
-                annotation = annotation[choice]
-                metadata["adata"] = annotation
+
+        metadata["adata"] = annotation
 
         # 3d not supported at the moment, let's remove the 3d coordinate
         # TODO: support
@@ -335,10 +361,14 @@ class Interactive:
     def _add_polygons(
         self, sdata: SpatialData, polygons: GeoDataFrame, element_path: str, annotation_table: Optional[AnnData] = None
     ) -> None:
+        start = time.time()
         coordinates = polygons.geometry.apply(lambda x: np.array(x.exterior.coords).tolist()).tolist()
+        print(f"coordinates: {time.time() - start}")
+        start = time.time()
         annotation = self._find_annotation_for_regions(
             base_element=polygons, annotation_table=annotation_table, element_path=element_path
         )
+        print(f"annotations: {time.time() - start}")
         if annotation is not None:
             metadata = {"adata": annotation, "library_id": element_path}
         else:
@@ -349,25 +379,27 @@ class Interactive:
         metadata["sdata"] = sdata
         metadata["element"] = polygons
         affine = _get_transform(element=polygons)
-        MAX_POLYGONS = 100
+        MAX_POLYGONS = 500
         if len(coordinates) > MAX_POLYGONS:
             coordinates = coordinates[:MAX_POLYGONS]
             logger.warning(
                 f"Too many polygons: {len(coordinates)}. Only the first {MAX_POLYGONS} will be shown.",
                 UserWarning,
             )
+        start = time.time()
         self._viewer.add_shapes(
             coordinates,
             shape_type="polygon",
             name=element_path,
-            edge_width=0.5,  # TODO: choose this number based on the size of spatial elements in a smart way,
+            edge_width=10,  # TODO: choose this number based on the size of spatial elements in a smart way,
             # or let the user choose it
             edge_color="green",
-            face_color=np.array([0.0, 1.0, 0.0, 0.3]),
+            face_color=np.array([0.0, 1.0, 0.0, 0.0]),
             metadata=metadata,
             affine=affine,
             visible=False,
         )
+        print(f"rendering: {time.time() - start}")
         ##
 
     def _find_annotation_for_regions(
@@ -554,6 +586,7 @@ class Interactive:
             self._init_colors_for_obs(annotation_table)
 
             for name, element in d.items():
+                start = time.time()
                 element_path = name
                 if prefix == "images":
                     if get_model(element) == Image3DModel:
@@ -579,6 +612,7 @@ class Interactive:
                         )
                 else:
                     raise ValueError(f"Unsupported element type: {type(element)}")
+                print(f"{name}: {time.time() - start}")
 
     def screenshot(
         self,
@@ -644,8 +678,10 @@ class Interactive:
 if __name__ == "__main__":
     from spatialdata import SpatialData
 
-    sdata = SpatialData.read("/Users/macbook/Downloads/xe_rep1_subset_napari_vis_fixed.zarr")
-    Interactive(sdata=sdata, images=True, labels=True, shapes=True, points=True)
+    sdata = SpatialData.read("/Users/macbook/embl/projects/basel/spatialdata-sandbox/xenium_rep1_io/data.zarr")
+    del sdata.shapes['cell_circles']
+    del sdata.shapes['nucleus_boundaries']
+    Interactive(sdata=sdata, images=False, labels=False, shapes=True, points=False)
     # sdata0 = SpatialData.read("../../spatialdata-sandbox/merfish/data.zarr")
     # sdata1 = SpatialData.read("../../spatialdata-sandbox/visium/data.zarr")
     # sdata1 = SpatialData.read(os.path.expanduser("~/temp/merged.zarr"))
