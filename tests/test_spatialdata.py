@@ -96,8 +96,3 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
         )
     assert widget._viewer.layers[1].metadata.get("adata").n_obs == 100000
     del sdata.points["many_points"]
-
-
-def test_with_plugins(make_napari_viewer: Any):
-    # TODO
-    make_napari_viewer()

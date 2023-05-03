@@ -270,6 +270,23 @@ def test_component_widget(
     )
 
 
-def test_layer_selection(make_napari_viewer: Any):
-    # TODO
-    make_napari_viewer()
+@pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
+def test_layer_selection(
+    make_napari_viewer: Any, image: NDArrayA, widget: Any, adata_labels: AnnData, adata_shapes: AnnData
+):
+    viewer = make_napari_viewer()
+
+    viewer.add_labels(
+        image,
+        name="labels",
+        metadata={"adata": adata_labels, "labels_key": "cell_id"},
+    )
+    widget = widget(viewer)
+    assert widget.model.adata is adata_labels
+    viewer.add_image(
+        image,
+        rgb=True,
+        name="image",
+        metadata={"adata": adata_shapes},
+    )
+    assert widget.model.adata is adata_shapes
