@@ -98,7 +98,6 @@ class SdataWidget(QWidget):
             affine=affine,
             metadata={
                 "adata": AnnData(),
-                "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
             },
         )
 
@@ -117,10 +116,7 @@ class SdataWidget(QWidget):
             size=20,
             affine=affine,
             metadata={
-                "adata": AnnData(
-                    obs=points.loc[subsample, :].reset_index(), obsm={"spatial": points[["x", "y"]].values[subsample]}
-                ),
-                "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
+                "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
             },
         )
 
