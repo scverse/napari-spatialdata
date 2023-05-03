@@ -9,7 +9,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata._utils import NDArrayA
+from napari_spatialdata._utils import NDArrayA, _get_transform
 
 
 class ElementWidget(QListWidget):
@@ -38,6 +38,9 @@ class CoordinateSystemWidget(QListWidget):
 
         self.addItems(self._sdata.coordinate_systems)
 
+    def _select_coord_sys(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+        self._system = str(selected_coordinate_system)
+
 
 class SdataWidget(QWidget):
     def __init__(self, viewer: Viewer, sdata: SpatialData):
@@ -57,6 +60,9 @@ class SdataWidget(QWidget):
 
         self.elements_widget.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
         self.coordinate_system_widget.itemClicked.connect(lambda item: self.elements_widget._onClickChange(item.text()))
+        self.coordinate_system_widget.itemClicked.connect(
+            lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
+        )
 
     def _onClick(self, text: str) -> None:
         if self.elements_widget._elements[text] == "labels":
@@ -67,9 +73,11 @@ class SdataWidget(QWidget):
             self._add_points(text)
 
     def _add_label(self, key: str) -> None:
+        affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
         self._viewer.add_labels(
             self._sdata.labels[key],
             name=key,
+            affine=affine,
             metadata={
                 "adata": self._sdata.table[
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
@@ -80,12 +88,14 @@ class SdataWidget(QWidget):
 
     def _add_image(self, key: str) -> None:
         img = self._sdata.images[key]
+        affine = _get_transform(self._sdata.images[key], self.coordinate_system_widget._system)
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
         self._viewer.add_image(
             img,
             name=key,
+            affine=affine,
             metadata={
                 "adata": AnnData(),
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
@@ -94,6 +104,7 @@ class SdataWidget(QWidget):
 
     def _add_points(self, key: str) -> None:
         points = self._sdata.points[key].compute()
+        affine = _get_transform(self._sdata.points[key], self.coordinate_system_widget._system)
         if len(points) < 100000:
             subsample = np.arange(len(points))
         else:
@@ -104,6 +115,7 @@ class SdataWidget(QWidget):
             points[["y", "x"]].values[subsample],
             name=key,
             size=20,
+            affine=affine,
             metadata={
                 "adata": AnnData(
                     obs=points.loc[subsample, :].reset_index(), obsm={"spatial": points[["x", "y"]].values[subsample]}
