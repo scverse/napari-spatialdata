@@ -6,8 +6,11 @@ from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Tuple, Unio
 import numpy as np
 import pandas as pd
 from anndata import AnnData
+from dask.dataframe.core import DataFrame as DaskDataFrame
+from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
+from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
 from numba import njit, prange
 from pandas.api.types import infer_dtype, is_categorical_dtype
 from pandas.core.dtypes.common import (
@@ -19,6 +22,9 @@ from pandas.core.dtypes.common import (
 )
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
+from spatial_image import SpatialImage
+from spatialdata.models import SpatialElement
+from spatialdata.transformations import get_transformation
 
 from napari_spatialdata._categoricals_utils import (
     add_colors_for_categorical_sample_annotation,
@@ -162,6 +168,27 @@ def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
     return (  # type: ignore[no-any-return]
         np.ones_like(vec) if np.isclose(minn, maxx) else ((vec - minn) / (maxx - minn))
     )
+
+
+def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str] = None) -> NDArrayA:
+    affine: NDArrayA
+    transformations = get_transformation(element, get_all=True)
+    cs = transformations.keys().__iter__().__next__() if coordinate_system_name is None else coordinate_system_name
+    ct = transformations[cs]
+    affine = ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
+
+    if not isinstance(element, (SpatialImage, MultiscaleSpatialImage, AnnData, DaskDataFrame, GeoDataFrame)):
+        raise RuntimeError("Cannot get transform for {type(element)}")
+    # elif isinstance(element, (AnnData, DaskDataFrame, GeoDataFrame)):
+    #    return affine
+    #    from spatialdata.transformations import Affine, Sequence, MapAxis
+    #    new_affine = Sequence(
+    #        [MapAxis({"x": "y", "y": "x"}), Affine(affine, input_axes=("y", "x"), output_axes=("y", "x"))]
+    #    )
+    #    new_matrix = new_affine.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
+
+    #    return new_matrix
+    return affine
 
 
 @njit(cache=True, fastmath=True)

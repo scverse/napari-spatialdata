@@ -9,6 +9,8 @@ from napari.layers import Image, Labels, Points
 from napari_spatialdata._interactive import CoordinateSystemWidget, ElementWidget, SdataWidget
 from numpy import int64
 from spatialdata.datasets import blobs
+from spatialdata.transformations import Identity
+from spatialdata.transformations.operations import set_transformation
 
 sdata = blobs()
 
@@ -43,6 +45,7 @@ def test_sdatawidget_images(make_napari_viewer: Any):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, sdata)
     assert len(widget._viewer.layers) == 0
+    widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onClickChange("global")
     widget._onClick(list(sdata.images.keys())[0])
     assert len(widget._viewer.layers) == 1
@@ -62,6 +65,7 @@ def test_sdatawidget_labels(make_napari_viewer: Any):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, sdata)
     assert len(widget._viewer.layers) == 0
+    widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onClickChange("global")
     widget._onClick(list(sdata.labels.keys())[0])
     assert len(widget._viewer.layers) == 1
@@ -79,6 +83,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, sdata)
     assert len(widget._viewer.layers) == 0
+    widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onClickChange("global")
     widget._onClick(list(sdata.points.keys())[0])
     assert len(widget._viewer.layers) == 1
@@ -88,6 +93,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
     assert widget._viewer.layers[0].metadata.get("adata").n_obs == len(sdata.points["blobs_points"]["x"])
     assert len(widget._viewer.layers[0].metadata.get("adata").obs.keys()) == sdata.points["blobs_points"].shape[1]
     sdata.points["many_points"] = from_dask_array(randint(0, 10, [200000, 2], dtype=int64), columns=["x", "y"])
+    set_transformation(sdata.points["many_points"], {"global": Identity()}, set_all=True)
     widget._add_points("many_points")
     with caplog.at_level(logging.INFO):
         assert (

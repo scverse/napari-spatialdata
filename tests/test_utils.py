@@ -6,11 +6,13 @@ import pytest
 from anndata import AnnData
 from napari_spatialdata._utils import (
     _get_categorical,
+    _get_transform,
     _min_max_norm,
     _points_inside_triangles,
     _position_cluster_labels,
     _set_palette,
 )
+from spatialdata.datasets import blobs
 
 
 def test_get_categorical(adata_labels: AnnData):
@@ -92,3 +94,8 @@ def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
 
     with caplog.at_level(logging.INFO):
         assert "Plotting" in caplog.records[0].message
+
+
+def test_get_transform():
+    sdata = blobs()
+    assert (_get_transform(sdata.images["blobs_image"]) == np.identity(3)).all()
