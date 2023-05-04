@@ -19,4 +19,5 @@ references.md
 :maxdepth: 1
 
 notebooks/spatialdata
+notebooks/nanostring
 ```
