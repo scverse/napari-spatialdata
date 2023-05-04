@@ -102,3 +102,6 @@ docs/source/external_tutorials
 # docs
 /docs/generated/
 /docs/_build/
+
+# Tutorial data
+docs/notebooks/tutorial_data/
