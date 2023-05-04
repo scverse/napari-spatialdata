@@ -7,8 +7,6 @@ from napari_spatialdata import Interactive
 from spatialdata import SpatialData
 
 if __name__ == "__main__":
-    sdata = SpatialData.read("../data/cosmx/data.zarr") # Change this path!
+    sdata = SpatialData.read("../data/cosmx/data.zarr")  # Change this path!
     i = Interactive(sdata)
     i.run()
-
-
