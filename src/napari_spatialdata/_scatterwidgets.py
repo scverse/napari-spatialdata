@@ -58,14 +58,12 @@ class SelectFromCollection:
 
     def __init__(
         self,
-        viewer: Viewer,
         model: ImageModel,
         ax: Axes,
         collection: Collection,
         data: List[NDArrayA],
         alpha_other: float = 0.3,
     ):
-        self.viewer = viewer
         self.model = model
         self.canvas = ax.figure.canvas
         self.collection = collection
@@ -274,7 +272,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self.canvas.draw()
 
         self.selector = SelectFromCollection(
-            self._viewer, self._model, self.axes, self.scatterplot, self.data
+            self._model, self.axes, self.scatterplot, self.data
         )  # type:ignore[assignment]
 
     def clear(self) -> None:
