@@ -54,13 +54,13 @@ class QtAdataScatterWidget(QWidget):
         self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
         self.layout().addWidget(self.matplotlib_widget, 1, 0, 1, 3)
 
-        self.x_widget = AxisWidgets(self.viewer, self.model, "X-axis")
+        self.x_widget = AxisWidgets(self.model, "X-axis")
         self.layout().addWidget(self.x_widget, 2, 0, 6, 1)
 
-        self.y_widget = AxisWidgets(self.viewer, self.model, "Y-axis")
+        self.y_widget = AxisWidgets(self.model, "Y-axis")
         self.layout().addWidget(self.y_widget, 2, 1, 6, 1)
 
-        self.color_widget = AxisWidgets(self.viewer, self.model, "Color", True)
+        self.color_widget = AxisWidgets(self.model, "Color", True)
         self.layout().addWidget(self.color_widget, 2, 2, 6, 1)
 
         self.plot_button_widget = QPushButton("Plot")

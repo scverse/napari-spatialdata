@@ -50,7 +50,7 @@ class ListWidget(QtWidgets.QListWidget):
     indexChanged = Signal(object)
     enterPressed = Signal(object)
 
-    def __init__(self, viewer: napari.Viewer, unique: bool = True, multiselect: bool = True, **kwargs: Any):
+    def __init__(self, viewer: Optional[napari.Viewer], unique: bool = True, multiselect: bool = True, **kwargs: Any):
         super().__init__(**kwargs)
         if multiselect:
             self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
@@ -99,7 +99,7 @@ class ListWidget(QtWidgets.QListWidget):
 class AListWidget(ListWidget):
     layerChanged = Signal()
 
-    def __init__(self, viewer: Viewer, model: ImageModel, attr: str, **kwargs: Any):
+    def __init__(self, viewer: Optional[Viewer], model: ImageModel, attr: str, **kwargs: Any):
         if attr not in ImageModel.VALID_ATTRIBUTES:
             raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
