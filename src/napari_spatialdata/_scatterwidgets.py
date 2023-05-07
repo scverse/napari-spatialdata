@@ -209,7 +209,12 @@ class ScatterListWidget(AListWidget):
 
 
 class MatplotlibWidget(NapariMPLWidget):
-    def __init__(self, viewer: Viewer, model: ImageModel):
+    def __init__(self, viewer: Optional[Viewer], model: ImageModel):
+        self.is_widget = False
+        if viewer is None:
+            viewer = Viewer()
+            self.is_widget = True
+
         super().__init__(viewer)
 
         self._viewer = viewer
@@ -217,6 +222,9 @@ class MatplotlibWidget(NapariMPLWidget):
         self.axes = self.canvas.figure.subplots()
         self.colorbar = None
         self.selector = None
+
+        if self.is_widget:
+            self._viewer.close()
 
     def _onClick(
         self,

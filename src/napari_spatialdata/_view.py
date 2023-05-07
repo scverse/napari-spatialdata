@@ -37,15 +37,20 @@ __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, viewer: Viewer):
+    def __init__(self, input: Viewer):
         super().__init__()
 
-        self._viewer = viewer
         self._model = ImageModel()
 
-        self._select_layer()
-        self._viewer.layers.selection.events.changed.connect(self._select_layer)
-        self._viewer.layers.selection.events.changed.connect(self._on_selection)
+        if isinstance(input, Viewer):
+            self._viewer = input
+            self._select_layer()
+            self._viewer.layers.selection.events.changed.connect(self._select_layer)
+            self._viewer.layers.selection.events.changed.connect(self._on_selection)
+
+        elif isinstance(input, AnnData):
+            self._viewer = None
+            self.model.adata = input
 
         self.setLayout(QGridLayout())
 
@@ -121,11 +126,6 @@ class QtAdataScatterWidget(QWidget):
     def model(self) -> ImageModel:
         """:mod:`napari` viewer."""
         return self._model
-
-    @property
-    def layernames(self) -> FrozenSet[str]:
-        """Names of :class:`napari.layers.Layer`."""
-        return frozenset(layer.name for layer in self.viewer.layers)
 
 
 class QtAdataViewWidget(QWidget):
