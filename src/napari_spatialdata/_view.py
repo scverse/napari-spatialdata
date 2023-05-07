@@ -7,6 +7,7 @@ from anndata import AnnData
 from loguru import logger
 from napari.layers import Labels
 from napari.viewer import Viewer
+from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -42,6 +43,8 @@ class QtAdataScatterWidget(QWidget):
 
         self._model = ImageModel()
 
+        self.setLayout(QGridLayout())
+
         if isinstance(input, Viewer):
             self._viewer = input
             self._select_layer()
@@ -51,8 +54,12 @@ class QtAdataScatterWidget(QWidget):
         elif isinstance(input, AnnData):
             self._viewer = None
             self.model.adata = input
-
-        self.setLayout(QGridLayout())
+            self.setStyleSheet("background-color: gray")
+            self.quit_button_widget = QPushButton("Close")
+            self.quit_button_widget.clicked.connect(self.close)
+            self.quit_button_widget.setStyleSheet("background-color: red")
+            self.quit_button_widget.setFixedSize(QSize(100, 25))
+            self.layout().addWidget(self.quit_button_widget, 0, 2, 1, 1, Qt.AlignRight)
 
         # Matplotlib
 
