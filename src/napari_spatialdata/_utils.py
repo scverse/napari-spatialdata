@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -168,6 +168,10 @@ def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
     return (  # type: ignore[no-any-return]
         np.ones_like(vec) if np.isclose(minn, maxx) else ((vec - minn) / (maxx - minn))
     )
+
+
+def _swap_coordinates(data: List[Any]) -> List[Any]:
+    return [[(y, x) for x, y in sublist] for sublist in data]
 
 
 def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str] = None) -> NDArrayA:
