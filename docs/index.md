@@ -21,4 +21,5 @@ references.md
 notebooks/spatialdata
 notebooks/nanostring_analysis
 notebooks/mibitof_analysis
+notebooks/scatterwidget
 ```
