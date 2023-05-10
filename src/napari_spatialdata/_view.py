@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
+from napari._qt.utils import QImg2array
 from napari.layers import Labels
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
@@ -123,6 +124,9 @@ class QtAdataScatterWidget(QWidget):
         self.model.layer = layer
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
+
+    def screenshot(self) -> Any:
+        return QImg2array(self.grab().toImage())
 
     @property
     def viewer(self) -> napari.Viewer:
