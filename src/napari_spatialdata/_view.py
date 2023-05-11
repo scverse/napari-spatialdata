@@ -5,8 +5,11 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
+from napari._qt.qt_resources import get_stylesheet
+from napari._qt.utils import QImg2array
 from napari.layers import Labels
 from napari.viewer import Viewer
+from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -37,30 +40,41 @@ __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, viewer: Viewer):
+    def __init__(self, input: Viewer):
         super().__init__()
 
-        self._viewer = viewer
         self._model = ImageModel()
 
-        self._select_layer()
-        self._viewer.layers.selection.events.changed.connect(self._select_layer)
-        self._viewer.layers.selection.events.changed.connect(self._on_selection)
-
         self.setLayout(QGridLayout())
+
+        if isinstance(input, Viewer):
+            self._viewer = input
+            self._select_layer()
+            self._viewer.layers.selection.events.changed.connect(self._select_layer)
+            self._viewer.layers.selection.events.changed.connect(self._on_selection)
+
+        elif isinstance(input, AnnData):
+            self._viewer = None
+            self.model.adata = input
+            self.setStyleSheet(get_stylesheet("dark"))
+            self.quit_button_widget = QPushButton("Close")
+            self.quit_button_widget.clicked.connect(self.close)
+            self.quit_button_widget.setStyleSheet("background-color: red")
+            self.quit_button_widget.setFixedSize(QSize(100, 25))
+            self.layout().addWidget(self.quit_button_widget, 0, 2, 1, 1, Qt.AlignRight)
 
         # Matplotlib
 
         self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
         self.layout().addWidget(self.matplotlib_widget, 1, 0, 1, 3)
 
-        self.x_widget = AxisWidgets(self.viewer, self.model, "X-axis")
+        self.x_widget = AxisWidgets(self.model, "X-axis")
         self.layout().addWidget(self.x_widget, 2, 0, 6, 1)
 
-        self.y_widget = AxisWidgets(self.viewer, self.model, "Y-axis")
+        self.y_widget = AxisWidgets(self.model, "Y-axis")
         self.layout().addWidget(self.y_widget, 2, 1, 6, 1)
 
-        self.color_widget = AxisWidgets(self.viewer, self.model, "Color", True)
+        self.color_widget = AxisWidgets(self.model, "Color", True)
         self.layout().addWidget(self.color_widget, 2, 2, 6, 1)
 
         self.plot_button_widget = QPushButton("Plot")
@@ -112,6 +126,9 @@ class QtAdataScatterWidget(QWidget):
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
 
+    def screenshot(self) -> Any:
+        return QImg2array(self.grab().toImage())
+
     @property
     def viewer(self) -> napari.Viewer:
         """:mod:`napari` viewer."""
@@ -121,11 +138,6 @@ class QtAdataScatterWidget(QWidget):
     def model(self) -> ImageModel:
         """:mod:`napari` viewer."""
         return self._model
-
-    @property
-    def layernames(self) -> FrozenSet[str]:
-        """Names of :class:`napari.layers.Layer`."""
-        return frozenset(layer.name for layer in self.viewer.layers)
 
 
 class QtAdataViewWidget(QWidget):

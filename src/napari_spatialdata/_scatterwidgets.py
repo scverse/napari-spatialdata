@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
 
 import matplotlib as plt
-import napari
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -58,14 +57,12 @@ class SelectFromCollection:
 
     def __init__(
         self,
-        viewer: Viewer,
         model: ImageModel,
         ax: Axes,
         collection: Collection,
         data: List[NDArrayA],
         alpha_other: float = 0.3,
     ):
-        self.viewer = viewer
         self.model = model
         self.canvas = ax.figure.canvas
         self.collection = collection
@@ -116,8 +113,8 @@ class ScatterListWidget(AListWidget):
     _text = None
     _chosen = None
 
-    def __init__(self, viewer: Viewer, model: ImageModel, attr: str, color: bool, **kwargs: Any):
-        AListWidget.__init__(self, viewer, model, attr, **kwargs)
+    def __init__(self, model: ImageModel, attr: str, color: bool, **kwargs: Any):
+        AListWidget.__init__(self, None, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
         self._data: Optional[Union[NDArrayA, Dict[str, Any]]] = None
@@ -212,7 +209,12 @@ class ScatterListWidget(AListWidget):
 
 
 class MatplotlibWidget(NapariMPLWidget):
-    def __init__(self, viewer: Viewer, model: ImageModel):
+    def __init__(self, viewer: Optional[Viewer], model: ImageModel):
+        self.is_widget = False
+        if viewer is None:
+            viewer = Viewer()
+            self.is_widget = True
+
         super().__init__(viewer)
 
         self._viewer = viewer
@@ -220,6 +222,9 @@ class MatplotlibWidget(NapariMPLWidget):
         self.axes = self.canvas.figure.subplots()
         self.colorbar = None
         self.selector = None
+
+        if self.is_widget:
+            self._viewer.close()
 
     def _onClick(
         self,
@@ -274,7 +279,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self.canvas.draw()
 
         self.selector = SelectFromCollection(
-            self._viewer, self._model, self.axes, self.scatterplot, self.data
+            self._model, self.axes, self.scatterplot, self.data
         )  # type:ignore[assignment]
 
     def clear(self) -> None:
@@ -286,10 +291,9 @@ class MatplotlibWidget(NapariMPLWidget):
 
 
 class AxisWidgets(QtWidgets.QWidget):
-    def __init__(self, viewer: Viewer, model: ImageModel, name: str, color: bool = False):
+    def __init__(self, model: ImageModel, name: str, color: bool = False):
         super().__init__()
 
-        self._viewer = viewer
         self._model = model
 
         selection_label = QtWidgets.QLabel(f"{name} type:")
@@ -306,7 +310,7 @@ class AxisWidgets(QtWidgets.QWidget):
         label = QtWidgets.QLabel(f"Select for {name}:")
         label.setToolTip(f"Select {name}.")
 
-        self.widget = ScatterListWidget(self.viewer, self.model, attr="obsm", color=color)
+        self.widget = ScatterListWidget(self.model, attr="obsm", color=color)
         self.widget.setAttribute("obsm")
 
         self.component_widget = ComponentWidget(self.model, attr="obsm")
@@ -336,11 +340,6 @@ class AxisWidgets(QtWidgets.QWidget):
                 + str(self.widget.text)
             )
         )
-
-    @property
-    def viewer(self) -> napari.Viewer:
-        """:mod:`napari` viewer."""
-        return self._viewer
 
     @property
     def model(self) -> ImageModel:
