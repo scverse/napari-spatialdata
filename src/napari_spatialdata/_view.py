@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
+from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Labels
 from napari.viewer import Viewer
@@ -55,7 +56,7 @@ class QtAdataScatterWidget(QWidget):
         elif isinstance(input, AnnData):
             self._viewer = None
             self.model.adata = input
-            self.setStyleSheet("background-color: gray")
+            self.setStyleSheet(get_stylesheet("dark"))
             self.quit_button_widget = QPushButton("Close")
             self.quit_button_widget.clicked.connect(self.close)
             self.quit_button_widget.setStyleSheet("background-color: red")
