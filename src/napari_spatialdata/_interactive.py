@@ -2,6 +2,7 @@ from typing import Any, Iterable, Union
 
 import napari
 import numpy as np
+import shapely
 from anndata import AnnData
 from loguru import logger
 from multiscale_spatial_image import MultiscaleSpatialImage
@@ -9,7 +10,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata._utils import NDArrayA, _get_transform
+from napari_spatialdata._utils import NDArrayA, _get_transform, _swap_coordinates
 
 
 class ElementWidget(QListWidget):
@@ -71,9 +72,66 @@ class SdataWidget(QWidget):
             self._add_image(text)
         elif self.elements_widget._elements[text] == "points":
             self._add_points(text)
+        elif self.elements_widget._elements[text] == "shapes":
+            self._add_shapes(text)
+
+    def _add_circles(self, key: str) -> None:
+        circles = []
+        df = self._sdata.shapes[key]
+        affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
+
+        for i in range(0, len(df)):
+            circles.append([df.geometry[i].coords[0], [df.radius[i], df.radius[i]]])
+
+        circles = _swap_coordinates(circles)
+
+        self._viewer.add_shapes(
+            circles,
+            name=key,
+            affine=affine,
+            shape_type="ellipse",
+            metadata={
+                "adata": self._sdata.table[
+                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+                ],
+                "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
+            },
+        )
+
+    def _add_polygons(self, key: str) -> None:
+        polygons = []
+        df = self._sdata.shapes[key]
+        affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
+
+        for i in range(0, len(df)):
+            polygons.append(list(df.geometry[i].exterior.coords))
+
+        polygons = _swap_coordinates(polygons)
+
+        self._viewer.add_shapes(
+            polygons,
+            name=key,
+            affine=affine,
+            shape_type="polygon",
+            metadata={
+                "adata": self._sdata.table[
+                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+                ],
+                "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
+            },
+        )
+
+    def _add_shapes(self, key: str) -> None:
+        if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
+            self._add_circles(key)
+        elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon:
+            self._add_polygons(key)
+        else:
+            raise TypeError("Incorrect data type passed for shapes (should be Shapely Point or Polygon).")
 
     def _add_label(self, key: str) -> None:
         affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
+
         self._viewer.add_labels(
             self._sdata.labels[key],
             name=key,
@@ -89,6 +147,7 @@ class SdataWidget(QWidget):
     def _add_image(self, key: str) -> None:
         img = self._sdata.images[key]
         affine = _get_transform(self._sdata.images[key], self.coordinate_system_widget._system)
+
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
