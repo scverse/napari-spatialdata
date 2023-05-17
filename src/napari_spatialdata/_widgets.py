@@ -9,7 +9,7 @@ import napari
 import numpy as np
 import pandas as pd
 from loguru import logger
-from napari.layers import Image, Labels, Layer, Points
+from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -124,6 +124,7 @@ class AListWidget(ListWidget):
             except Exception as e:  # noqa: BLE001
                 logger.error(e)
                 continue
+
             if vec.ndim == 2:
                 self.viewer.add_points(
                     vec,
@@ -150,6 +151,13 @@ class AListWidget(ListWidget):
                     self.viewer.add_labels(
                         self.model.layer.data.copy(),
                         name=name,
+                        **properties,
+                    )
+                elif isinstance(self.model.layer, Shapes):
+                    self.viewer.add_shapes(
+                        self.model.layer.data,
+                        name=name,
+                        shape_type="ellipse",
                         **properties,
                     )
                 else:

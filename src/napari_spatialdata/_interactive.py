@@ -85,15 +85,18 @@ class SdataWidget(QWidget):
 
         circles = _swap_coordinates(circles)
 
+        adata = self._sdata.table[
+            self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+        ]
+        adata.obsm["spatial"] = np.array(circles)
+
         self._viewer.add_shapes(
             circles,
             name=key,
             affine=affine,
             shape_type="ellipse",
             metadata={
-                "adata": self._sdata.table[
-                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-                ],
+                "adata": adata,
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
             },
         )
