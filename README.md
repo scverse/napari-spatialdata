@@ -1,4 +1,6 @@
-# napari-spatialdata
+![SpatialData banner](https://github.com/scverse/spatialdata/blob/main/docs/_static/img/spatialdata_horizontal.png?raw=true)
+
+# napari-spatialdata: interactive exploration and annotation of spatial omics data
 
 [![License](https://img.shields.io/pypi/l/napari-spatialdata.svg?color=green)](https://github.com/scverse/napari-spatialdata/raw/main/LICENSE)
 [![PyPI](https://img.shields.io/pypi/v/napari-spatialdata.svg?color=green)](https://pypi.org/project/napari-spatialdata)
@@ -8,19 +10,7 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/scverse/napari-spatialdata/main.svg)](https://results.pre-commit.ci/latest/github/scverse/napari-spatialdata/main)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatialdata)](https://napari-hub.org/plugins/napari-spatialdata)
 
-Interactive visualization of spatial omics data with napari
-
----
-
-This [napari] plugin was generated with [Cookiecutter] using [@napari]'s [cookiecutter-napari-plugin] template.
-
-<!--
-Don't miss the full getting started guide to set up your new package:
-https://github.com/napari/cookiecutter-napari-plugin#getting-started
-
-and review the napari docs for plugin developers:
-https://napari.org/plugins/stable/index.html
--->
+This repository contains a napari plugin for interactively exploring and annotating SpatialData objects. `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [documentation](https://spatialdata.scverse.org/).
 
 ## Installation
 
@@ -39,6 +29,9 @@ Or, you can also install in editable mode after cloning the repo by:
     git clone https://github.com/scverse/napari-spatialdata
     cd napari-spatialdata
     pip install -e .
+    
+## Getting started
+
 
 ## Contributing
 
