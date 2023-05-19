@@ -92,8 +92,6 @@ class SdataWidget(QWidget):
             self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
         ]
 
-        adata.obsm["spatial"] = np.array(circles)
-
         self._viewer.add_shapes(
             circles,
             name=key,
