@@ -31,7 +31,9 @@ Or, you can also install in editable mode after cloning the repo by:
     pip install -e .
 
 ## Getting started
+
 To learn how to use the `napari-spatialdata` plugin, please see the [documentation](https://spatialdata.scverse.org/projects/napari/en/latest/notebooks/spatialdata.html). To learn how to integrate napari-spatialdata into your analysis workflows, please see the [SpatialData tutorials](https://spatialdata.scverse.org/en/latest/tutorials/notebooks/notebooks.html). In particular:
+
 - [Annotating regions of interest with napari](https://spatialdata.scverse.org/en/latest/tutorials/notebooks/notebooks/examples/napari_rois.html)
 - [Use landmark annotations to align multiple -omics layers](https://spatialdata.scverse.org/en/latest/tutorials/notebooks/notebooks/examples/alignment_using_landmarks.html)
 
