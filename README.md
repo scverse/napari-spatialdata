@@ -29,9 +29,8 @@ Or, you can also install in editable mode after cloning the repo by:
     git clone https://github.com/scverse/napari-spatialdata
     cd napari-spatialdata
     pip install -e .
-    
-## Getting started
 
+## Getting started
 
 ## Contributing
 
