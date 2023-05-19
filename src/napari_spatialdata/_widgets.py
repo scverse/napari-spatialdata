@@ -136,6 +136,7 @@ class AListWidget(ListWidget):
                 )
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
+
                 if isinstance(self.model.layer, (Image, Points)):
                     self.viewer.add_points(
                         self.model.coordinates,
@@ -154,10 +155,14 @@ class AListWidget(ListWidget):
                         **properties,
                     )
                 elif isinstance(self.model.layer, Shapes):
+                    # metadata = properties['metadata']
+                    # metadata['adata'] = self.model.adata
+
                     self.viewer.add_shapes(
-                        self.model.layer.data,
+                        self.model.layer.data.copy(),
                         name=name,
                         shape_type="ellipse",
+                        affine=self.model.adata.uns["affine"],
                         **properties,
                     )
                 else:

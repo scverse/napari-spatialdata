@@ -78,7 +78,10 @@ class SdataWidget(QWidget):
     def _add_circles(self, key: str) -> None:
         circles = []
         df = self._sdata.shapes[key]
+
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
+
+        self._sdata.table.uns["affine"] = affine  # TODO: find a better way of handling this
 
         for i in range(0, len(df)):
             circles.append([df.geometry[i].coords[0], [df.radius[i], df.radius[i]]])
@@ -88,6 +91,7 @@ class SdataWidget(QWidget):
         adata = self._sdata.table[
             self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
         ]
+
         adata.obsm["spatial"] = np.array(circles)
 
         self._viewer.add_shapes(
@@ -96,6 +100,7 @@ class SdataWidget(QWidget):
             affine=affine,
             shape_type="ellipse",
             metadata={
+                "sdata": self._sdata,
                 "adata": adata,
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
             },
