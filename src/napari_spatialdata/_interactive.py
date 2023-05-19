@@ -100,7 +100,6 @@ class SdataWidget(QWidget):
             affine=affine,
             shape_type="ellipse",
             metadata={
-                "sdata": self._sdata,
                 "adata": adata,
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
             },
