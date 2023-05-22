@@ -1,9 +1,8 @@
-from napari_plugin_engine import napari_hook_implementation
-from imageio import formats
-from spatialdata import SpatialData
-from napari_spatialdata import Interactive
-
 from loguru import logger
+from napari_plugin_engine import napari_hook_implementation
+from spatialdata import SpatialData
+
+from napari_spatialdata import Interactive
 
 readable_extensions = (".zarr",)
 
