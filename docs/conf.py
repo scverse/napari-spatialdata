@@ -53,6 +53,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_autodoc_typehints",
     "sphinx_qt_documentation",
+    "scanpydoc",
     "IPython.sphinxext.ipython_console_highlighting",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]
@@ -90,6 +91,10 @@ source_suffix = {
 intersphinx_mapping = {
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "geopandas": ("https://geopandas.org/en/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "datatree": ("https://datatree.readthedocs.io/en/latest/", None),
+    "dask": ("https://docs.dask.org/en/latest/", None),
     "napari": ("https://napari.org/stable/", None),
     "spatialdata": ("https://scverse-spatialdata.readthedocs.io/en/latest/", None),
 }
@@ -117,7 +122,8 @@ html_theme_options = {
 pygments_style = "default"
 
 nitpick_ignore = [
-    # ("py:class", "destroyed"),
+    ("py:data", "typing.Any"),
+    ("py:data", "typing.Union"),
     # ("py:class", "self"),
     # ("py:obj", "napari_spatialdata.QtAdataScatterWidget.setTabOrder"),
     # ("py:obj", "napari_spatialdata.QtAdataViewWidget.insertAction"),
@@ -132,6 +138,10 @@ nitpick_ignore = [
 ]
 
 qt_documentation = "PyQt6"
+
+suppress_warnings = [
+    "myst.header",  # https://github.com/executablebooks/MyST-Parser/issues/262
+]
 
 
 def setup(app):
