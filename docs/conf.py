@@ -90,6 +90,10 @@ source_suffix = {
 intersphinx_mapping = {
     "anndata": ("https://anndata.readthedocs.io/en/stable/", None),
     "numpy": ("https://numpy.org/doc/stable/", None),
+    "geopandas": ("https://geopandas.org/en/stable/", None),
+    "xarray": ("https://docs.xarray.dev/en/stable/", None),
+    "datatree": ("https://datatree.readthedocs.io/en/latest/", None),
+    "dask": ("https://docs.dask.org/en/latest/", None),
     "napari": ("https://napari.org/stable/", None),
     "spatialdata": ("https://scverse-spatialdata.readthedocs.io/en/latest/", None),
 }

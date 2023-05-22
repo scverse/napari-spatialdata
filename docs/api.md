@@ -1,9 +1,12 @@
 # API
 
-## Widgets
-
-Soon to be documented.
+<!-- .. module:: napari_spatialdata -->
 
 ```{eval-rst}
 
+
+.. autosummary::
+    :toctree: generated
+
+    Interactive
 ```
