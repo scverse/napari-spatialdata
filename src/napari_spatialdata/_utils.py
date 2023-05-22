@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -40,7 +40,7 @@ except (ImportError, TypeError):
     NDArrayA = np.ndarray  # type: ignore[misc]
 
 
-Vector_name_t = Tuple[Optional[Union[pd.Series, NDArrayA]], Optional[str]]
+Vector_name_t = tuple[Optional[Union[pd.Series, NDArrayA]], Optional[str]]
 
 
 def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vector_name_t]:
@@ -85,8 +85,8 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
 def _get_palette(
     adata: AnnData,
     key: str,
-    palette: Optional[str] = None,
-    vec: Optional[pd.Series] = None,
+    palette: str | None = None,
+    vec: pd.Series | None = None,
 ) -> dict[Any, Any]:
     if key not in adata.obs:
         raise KeyError("Missing key!")  # TODO: Improve error message
@@ -97,8 +97,8 @@ def _get_palette(
 def _set_palette(
     adata: AnnData,
     key: str,
-    palette: Optional[str] = None,
-    vec: Optional[pd.Series] = None,
+    palette: str | None = None,
+    vec: pd.Series | None = None,
 ) -> dict[Any, Any]:
     if vec is not None and not is_categorical_dtype(vec):
         raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
@@ -118,9 +118,9 @@ def _set_palette(
 def _get_categorical(
     adata: AnnData,
     key: str,
-    vec: Optional[pd.Series] = None,
-    palette: Optional[str] = None,
-    colordict: Union[pd.Series, dict[Any, Any], None] = None,
+    vec: pd.Series | None = None,
+    palette: str | None = None,
+    colordict: pd.Series | dict[Any, Any] | None = None,
 ) -> NDArrayA:
     categorical = vec if vec is not None else adata.obs[key]
     if not isinstance(colordict, dict):
@@ -154,7 +154,7 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str,
     return {"clusters": clusters}
 
 
-def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
+def _min_max_norm(vec: spmatrix | NDArrayA) -> NDArrayA:
     if issparse(vec):
         if TYPE_CHECKING:
             assert isinstance(vec, spmatrix)
@@ -170,11 +170,11 @@ def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
     )
 
 
-def _swap_coordinates(data: List[Any]) -> List[Any]:
+def _swap_coordinates(data: list[Any]) -> list[Any]:
     return [[(y, x) for x, y in sublist] for sublist in data]
 
 
-def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str] = None) -> NDArrayA:
+def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> NDArrayA:
     affine: NDArrayA
     transformations = get_transformation(element, get_all=True)
     cs = transformations.keys().__iter__().__next__() if coordinate_system_name is None else coordinate_system_name

@@ -135,7 +135,7 @@ nitpick_ignore = [
     # ("py:class", "igraph.Graph"),
 ]
 
-qt_documentation = "PyQt5"
+qt_documentation = "PyQt6"
 
 
 def setup(app):
