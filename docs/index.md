@@ -19,6 +19,7 @@ references.md
 :maxdepth: 1
 
 notebooks/spatialdata
+cli.md
 notebooks/nanostring_analysis
 notebooks/mibitof_analysis
 notebooks/scatterwidget
