@@ -9,7 +9,6 @@
 api.md
 cli.md
 contributing.md
-release-notes/index.md
 references.md
 ```
 

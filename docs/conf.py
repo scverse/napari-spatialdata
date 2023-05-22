@@ -53,6 +53,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_autodoc_typehints",
     "sphinx_qt_documentation",
+    "scanpydoc",
     "IPython.sphinxext.ipython_console_highlighting",
     *[p.stem for p in (HERE / "extensions").glob("*.py")],
 ]
@@ -137,6 +138,10 @@ nitpick_ignore = [
 ]
 
 qt_documentation = "PyQt6"
+
+suppress_warnings = [
+    "myst.header",  # https://github.com/executablebooks/MyST-Parser/issues/262
+]
 
 
 def setup(app):
