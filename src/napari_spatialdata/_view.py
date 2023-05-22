@@ -256,7 +256,9 @@ class QtAdataViewWidget(QWidget):
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]
-        if hasattr(self, "obs_widget"):
+        if hasattr(
+            self, "obs_widget"
+        ):  # to check if the widget has been already initialized, layer update should only be called on layer change
             self._on_layer_update()
         else:
             return
