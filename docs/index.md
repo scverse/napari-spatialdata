@@ -18,7 +18,6 @@ references.md
 :hidden: true
 :maxdepth: 1
 
-cli.md
 notebooks/spatialdata
 cli.md
 notebooks/nanostring_analysis
