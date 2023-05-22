@@ -148,11 +148,9 @@ class AListWidget(ListWidget):
                         **properties,
                     )
                 elif isinstance(self.model.layer, Labels):
-                    self.viewer.add_labels(
-                        self.model.layer.data.copy(),
-                        name=name,
-                        **properties,
-                    )
+                    self.model.layer.name = item
+                    self.model.layer.color = properties["color"]
+                    self.model.layer.properties = properties["properties"]
                 else:
                     raise ValueError("TODO")
                 # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
