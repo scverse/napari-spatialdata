@@ -102,22 +102,25 @@ class SdataWidget(QWidget):
         polygons = []
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
-        #when mulitpolygons are present, we select the largest ones
-        if 'MultiPolygon' in np.unique(df.geometry.type):
-            
-            logger.info('Multipolygons are present in the data. For visualization purposes, only the largest polygon per cell is retained.')
-            df=df.explode(index_parts=False)
-            df['area']=df.area
-            df=df.sort_values(by='area',ascending=False) #sort by area
-            df = df[~df.index.duplicated(keep='first')] #only keep the largest area
-            df=df.sort_index() # reset the index to the first order
-        if len(df)<100:    
+        # when mulitpolygons are present, we select the largest ones
+        if "MultiPolygon" in np.unique(df.geometry.type):
+            logger.info(
+                "Multipolygons are present in the data. For visualization purposes, only the largest polygon per cell is retained."
+            )
+            df = df.explode(index_parts=False)
+            df["area"] = df.area
+            df = df.sort_values(by="area", ascending=False)  # sort by area
+            df = df[~df.index.duplicated(keep="first")]  # only keep the largest area
+            df = df.sort_index()  # reset the index to the first order
+        if len(df) < 100:
             for i in range(0, len(df)):
                 polygons.append(list(df.geometry.iloc[i].exterior.coords))
-        else:  
-            for i in range(0, len(df)): # This can be removed once napari is sped up in the plotting. It changes the shapes only very slightly
-                polygons.append(list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords))         
-    #this will only work for polygons and not for multipolygons 
+        else:
+            for i in range(
+                0, len(df)
+            ):  # This can be removed once napari is sped up in the plotting. It changes the shapes only very slightly
+                polygons.append(list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords))
+        # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
 
         self._viewer.add_shapes(
@@ -139,9 +142,11 @@ class SdataWidget(QWidget):
         elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon:
             self._add_polygons(key)
         elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon:
-            self._add_polygons(key)    
+            self._add_polygons(key)
         else:
-            raise TypeError("Incorrect data type passed for shapes (should be Shapely Point or Polygon or MultiPolygon).")
+            raise TypeError(
+                "Incorrect data type passed for shapes (should be Shapely Point or Polygon or MultiPolygon)."
+            )
 
     def _add_label(self, key: str) -> None:
         affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
