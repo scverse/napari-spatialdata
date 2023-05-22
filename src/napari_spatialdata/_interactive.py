@@ -78,7 +78,6 @@ class SdataWidget(QWidget):
     def _add_circles(self, key: str) -> None:
         circles = []
         df = self._sdata.shapes[key]
-
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
 
         self._sdata.table.uns["affine"] = affine  # TODO: find a better way of handling this
@@ -87,10 +86,7 @@ class SdataWidget(QWidget):
             circles.append([df.geometry[i].coords[0], [df.radius[i], df.radius[i]]])
 
         circles = _swap_coordinates(circles)
-
-        adata = self._sdata.table[
-            self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-        ]
+        self._sdata.table.obsm["spatial"] = np.array(circles)
 
         self._viewer.add_shapes(
             circles,
@@ -98,7 +94,9 @@ class SdataWidget(QWidget):
             affine=affine,
             shape_type="ellipse",
             metadata={
-                "adata": adata,
+                "adata": self._sdata.table[
+                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+                ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
             },
         )
@@ -108,10 +106,14 @@ class SdataWidget(QWidget):
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
 
+        self._sdata.table.uns["affine"] = affine
+
         for i in range(0, len(df)):
             polygons.append(list(df.geometry[i].exterior.coords))
 
         polygons = _swap_coordinates(polygons)
+
+        self._sdata.table.obsm["spatial"] = np.ones((2399, 2))
 
         self._viewer.add_shapes(
             polygons,
@@ -174,6 +176,7 @@ class SdataWidget(QWidget):
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
             subsample = gen.choice(len(points), size=100000, replace=False)
+
         self._viewer.add_points(
             points[["y", "x"]].values[subsample],
             name=key,

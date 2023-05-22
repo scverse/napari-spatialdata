@@ -9,7 +9,7 @@ import napari
 import numpy as np
 import pandas as pd
 from loguru import logger
-from napari.layers import Image, Labels, Layer, Points, Shapes
+from napari.layers import Labels, Layer, Points, Shapes
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -137,7 +137,7 @@ class AListWidget(ListWidget):
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
 
-                if isinstance(self.model.layer, (Image, Points)):
+                if isinstance(self.model.layer, Points):
                     self.viewer.add_points(
                         self.model.coordinates,
                         name=name,
@@ -155,9 +155,6 @@ class AListWidget(ListWidget):
                         **properties,
                     )
                 elif isinstance(self.model.layer, Shapes):
-                    # metadata = properties['metadata']
-                    # metadata['adata'] = self.model.adata
-
                     self.viewer.add_shapes(
                         self.model.layer.data.copy(),
                         name=name,
@@ -216,6 +213,7 @@ class AListWidget(ListWidget):
             cmap = plt.get_cmap(self.model.cmap)
             norm_vec = _min_max_norm(vec)
             color_vec = cmap(norm_vec)
+
             return {
                 "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, color_vec)),
                 "properties": {"value": vec},
@@ -234,8 +232,12 @@ class AListWidget(ListWidget):
         face_color = _get_categorical(
             self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
         )
+
         if layer is not None and isinstance(layer, Labels):
             return {"color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color))}
+
+        if layer is not None and isinstance(layer, Shapes):
+            return {"face_color": face_color, "metadata": None}
 
         cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
         return {
