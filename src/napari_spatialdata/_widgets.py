@@ -9,7 +9,7 @@ import napari
 import numpy as np
 import pandas as pd
 from loguru import logger
-from napari.layers import Image, Labels, Layer, Points
+from napari.layers import Labels, Layer, Points
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -136,7 +136,7 @@ class AListWidget(ListWidget):
                 )
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                if isinstance(self.model.layer, (Image, Points)):
+                if isinstance(self.model.layer, Points):
                     self.viewer.add_points(
                         self.model.coordinates,
                         name=name,
