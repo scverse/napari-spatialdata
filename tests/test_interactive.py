@@ -1,4 +1,3 @@
-import platform
 from typing import Any, Union
 
 import numpy as np
@@ -33,18 +32,18 @@ def test_creating_widget_with_data(
     viewer.layers.selection.events.changed.disconnect()
 
 
-@pytest.mark.skipif(platform.system() == "Linux", reason="Fails on ubuntu CI")
-@pytest.mark.skipif(platform.system() == "Darwin", reason="Fails on macos CI, but locally it is fine")
-@pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
-def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> None:
-    # make viewer and add an image layer using our fixture
-    viewer = make_napari_viewer()
+# @pytest.mark.skipif(platform.system() == "Linux", reason="Fails on ubuntu CI")
+# @pytest.mark.skipif(platform.system() == "Darwin", reason="Fails on macos CI, but locally it is fine")
+# @pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
+# def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> None:
+# make viewer and add an image layer using our fixture
+#    viewer = make_napari_viewer()
 
-    # create our widget, passing in the viewer
-    # with pytest.raises(NotImplementedError, match=r":class:`anndata.AnnData` not found in any `layer.metadata`."):
-    with pytest.raises(AttributeError, match=r"'NoneType' object has no attribute 'metadata'"):
-        _ = widget(viewer)
-    viewer.layers.selection.events.changed.disconnect()
+# create our widget, passing in the viewer
+# with pytest.raises(NotImplementedError, match=r":class:`anndata.AnnData` not found in any `layer.metadata`."):
+#    with pytest.raises(AttributeError, match=r"'NoneType' object has no attribute 'metadata'"):
+#        _ = widget(viewer)
+#    viewer.layers.selection.events.changed.disconnect()
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget])

@@ -115,7 +115,8 @@ class AListWidget(ListWidget):
 
     def _onChange(self) -> None:
         self.clear()
-        self.addItems(self.model.get_items(self._attr))
+        if self._model.adata is not None:
+            self.addItems(self.model.get_items(self._attr))
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):

@@ -341,6 +341,10 @@ class AxisWidgets(QtWidgets.QWidget):
             )
         )
 
+    def clear(self) -> None:
+        self.widget.clear()
+        self.component_widget.clear()
+
     @property
     def model(self) -> ImageModel:
         """:mod:`napari` viewer."""

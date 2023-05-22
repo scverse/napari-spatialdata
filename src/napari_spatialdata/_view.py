@@ -119,10 +119,15 @@ class QtAdataScatterWidget(QWidget):
     def _select_layer(self) -> None:
         """Napari layers."""
         layer = self._viewer.layers.selection._current
-        if not isinstance(layer.metadata.get("adata", None), AnnData):
-            raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
-
         self.model.layer = layer
+        if not isinstance(layer.metadata.get("adata", None), AnnData):
+            if hasattr(self, "x_widget"):
+                self.x_widget.clear()
+                self.y_widget.clear()
+                self.color_widget.clear()
+            logger.warning(":class:`anndata.AnnData` not found in any `layer.metadata`.")
+            return
+
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
 
@@ -151,7 +156,7 @@ class QtAdataViewWidget(QWidget):
 
         self._select_layer()
         self._viewer.layers.selection.events.changed.connect(self._select_layer)
-        self._viewer.layers.selection.events.changed.connect(self._on_layer_update)
+        # self._viewer.layers.selection.events.changed.connect(self._on_layer_update)
 
         self.setLayout(QVBoxLayout())
 
@@ -172,8 +177,10 @@ class QtAdataViewWidget(QWidget):
         adata_layer_label = QLabel("Layers:")
         adata_layer_label.setToolTip("Keys in `adata.layers` used when visualizing gene expression.")
         self.adata_layer_widget = QComboBox()
-        self.adata_layer_widget.addItem("X", None)
-        self.adata_layer_widget.addItems(self._get_adata_layer())
+        if self.model.adata is not None:
+            self.adata_layer_widget.addItem("X", None)
+            self.adata_layer_widget.addItems(self._get_adata_layer())
+
         self.adata_layer_widget.currentTextChanged.connect(self.var_widget.setAdataLayer)
 
         self.layout().addWidget(self.adata_layer_widget)
@@ -226,10 +233,17 @@ class QtAdataViewWidget(QWidget):
     def _select_layer(self) -> None:
         """Napari layers."""
         layer = self._viewer.layers.selection._current
-        if not isinstance(layer.metadata.get("adata", None), AnnData):
-            raise NotImplementedError(":class:`anndata.AnnData` not found in any `layer.metadata`.")
-
         self.model.layer = layer
+        if not isinstance(layer.metadata.get("adata", None), AnnData):
+            if hasattr(self, "obs_widget"):
+                self.adata_layer_widget.clear()
+                self.obs_widget.clear()
+                self.var_widget.clear()
+                self.obsm_widget.clear()
+                self.var_points_widget.clear()
+            logger.warning(":class:`anndata.AnnData` not found in any `layer.metadata`.")
+            return
+
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
 
@@ -245,6 +259,10 @@ class QtAdataViewWidget(QWidget):
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]
+        if hasattr(self, "obs_widget"):
+            self._on_layer_update()
+        else:
+            return
 
     def _get_adata_layer(self) -> Sequence[Optional[str]]:
         adata_layers = list(self.model.adata.layers.keys())
@@ -274,10 +292,11 @@ class QtAdataViewWidget(QWidget):
         # TODO(giovp): check if view and save accordingly
         points_mask: NDArrayA = _points_inside_triangles(self.model.coordinates[:, 1:], triangles)
 
-        logger.info("Saving layer shapes.")
+        if self._model._adata is not None:
+            logger.info("Saving layer shapes.")
 
-        self._model._adata.obs[key] = pd.Categorical(points_mask)
-        self._model._adata.uns[key] = {"meshes": layer.data.copy()}
+            self._model._adata.obs[key] = pd.Categorical(points_mask)
+            self._model._adata.uns[key] = {"meshes": layer.data.copy()}
 
     def _update_obs_items(self, key: str) -> None:
         self.obs_widget.addItems(key)
