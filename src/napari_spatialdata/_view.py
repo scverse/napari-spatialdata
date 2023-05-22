@@ -235,12 +235,11 @@ class QtAdataViewWidget(QWidget):
 
         if self.model.adata.shape == (0, 0):
             return
-        
+
         self.model.coordinates = np.insert(self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1)
-            
 
         if "points" in layer.metadata:
-            #TODO: Check if this can be removed
+            # TODO: Check if this can be removed
             self.model.points_coordinates = layer.metadata["points"].X
             self.model.points_var = layer.metadata["points"].obs["gene"]
             self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
