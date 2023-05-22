@@ -106,15 +106,17 @@ class SdataWidget(QWidget):
         if 'MultiPolygon' in np.unique(df.geometry.type):
             
             logger.info('Multipolygons are present in the data. For visualization purposes, only the largest polygon per cell is retained.')
-            df=df.explode()
+            df=df.explode(index_parts=False)
             df['area']=df.area
             df=df.sort_values(by='area',ascending=False) #sort by area
-            df.index=df.index.droplevel(1)
             df = df[~df.index.duplicated(keep='first')] #only keep the largest area
             df=df.sort_index() # reset the index to the first order
-            
-        for i in range(0, len(df)):
-            polygons.append(list(df.geometry[i].exterior.coords))
+        if len(df)<100:    
+            for i in range(0, len(df)):
+                polygons.append(list(df.geometry.iloc[i].exterior.coords))
+        else:  
+            for i in range(0, len(df)): # This can be removed once napari is sped up in the plotting. It changes the shapes only very slightly
+                polygons.append(list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords))         
     #this will only work for polygons and not for multipolygons 
         polygons = _swap_coordinates(polygons)
 
