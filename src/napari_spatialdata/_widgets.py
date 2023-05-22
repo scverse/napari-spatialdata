@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import napari
@@ -50,14 +50,14 @@ class ListWidget(QtWidgets.QListWidget):
     indexChanged = Signal(object)
     enterPressed = Signal(object)
 
-    def __init__(self, viewer: Optional[napari.Viewer], unique: bool = True, multiselect: bool = True, **kwargs: Any):
+    def __init__(self, viewer: napari.Viewer | None, unique: bool = True, multiselect: bool = True, **kwargs: Any):
         super().__init__(**kwargs)
         if multiselect:
             self.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
         else:
             self.setSelectionMode(QtWidgets.QAbstractItemView.SingleSelection)
 
-        self._index: Union[int, str] = 0
+        self._index: int | str = 0
         self._unique = unique
         self._viewer = viewer
 
@@ -66,17 +66,17 @@ class ListWidget(QtWidgets.QListWidget):
         self.indexChanged.connect(self._onAction)
 
     @abstractmethod
-    def setIndex(self, index: Union[int, str]) -> None:
+    def setIndex(self, index: int | str) -> None:
         pass
 
-    def getIndex(self) -> Union[int, str]:
+    def getIndex(self) -> int | str:
         return self._index
 
     @abstractmethod
     def _onAction(self, items: Iterable[str]) -> None:
         pass
 
-    def addItems(self, labels: Union[str, Iterable[str]]) -> None:
+    def addItems(self, labels: str | Iterable[str]) -> None:
         if isinstance(labels, str):
             labels = (labels,)
         labels = tuple(labels)
@@ -99,7 +99,7 @@ class ListWidget(QtWidgets.QListWidget):
 class AListWidget(ListWidget):
     layerChanged = Signal()
 
-    def __init__(self, viewer: Optional[Viewer], model: ImageModel, attr: str, **kwargs: Any):
+    def __init__(self, viewer: Viewer | None, model: ImageModel, attr: str, **kwargs: Any):
         if attr not in ImageModel.VALID_ATTRIBUTES:
             raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
@@ -158,7 +158,7 @@ class AListWidget(ListWidget):
                 # TODO(giovp): make layer editable?
                 # self.viewer.layers[layer_name].editable = False
 
-    def setAdataLayer(self, layer: Optional[str]) -> None:
+    def setAdataLayer(self, layer: str | None) -> None:
         if layer in ("default", "None", "X"):
             layer = None
         if layer == self.getAdataLayer():
@@ -166,12 +166,12 @@ class AListWidget(ListWidget):
         self.model.adata_layer = layer
         self.layerChanged.emit()
 
-    def getAdataLayer(self) -> Optional[str]:
+    def getAdataLayer(self) -> str | None:
         if TYPE_CHECKING:
             assert isinstance(self.model.adata_layer, str)
         return self.model.adata_layer
 
-    def setIndex(self, index: Union[int, str]) -> None:
+    def setIndex(self, index: int | str) -> None:
         if isinstance(index, str):
             if index == "":
                 index = 0
@@ -185,7 +185,7 @@ class AListWidget(ListWidget):
         if self._attr == "obsm":
             self.indexChanged.emit(tuple(s.text() for s in self.selectedItems()))
 
-    def getIndex(self) -> Union[int, str]:
+    def getIndex(self) -> int | str:
         return self._index
 
     def _handle_already_present(self, layer_name: str) -> None:
@@ -193,7 +193,7 @@ class AListWidget(ListWidget):
         self.viewer.layers.selection.select_only(self.viewer.layers[layer_name])
 
     @singledispatchmethod
-    def _get_points_properties(self, vec: Union[NDArrayA, pd.Series], **kwargs: Any) -> dict[str, Any]:
+    def _get_points_properties(self, vec: NDArrayA | pd.Series, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError(type(vec))
 
     @_get_points_properties.register(np.ndarray)
@@ -258,7 +258,7 @@ class ComponentWidget(QtWidgets.QComboBox):
         self.setStyleSheet("combobox-popup: 0;")
         self._attr = attr
 
-    def addItems(self, texts: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
+    def addItems(self, texts: QtWidgets.QListWidgetItem | int | Iterable[str]) -> None:
         if isinstance(texts, QtWidgets.QListWidgetItem):
             try:
                 key = texts.text()
@@ -285,7 +285,7 @@ class ComponentWidget(QtWidgets.QComboBox):
             super().setToolTip("")
         return
 
-    def setAttribute(self, field: Optional[str]) -> None:
+    def setAttribute(self, field: str | None) -> None:
         if field == self.attr:
             return
         self.attr = field
@@ -298,12 +298,12 @@ class ComponentWidget(QtWidgets.QComboBox):
         else:
             self.clear()
 
-    def _onClickChange(self, clicked: Union[QtWidgets.QListWidgetItem, int, Iterable[str]]) -> None:
+    def _onClickChange(self, clicked: QtWidgets.QListWidgetItem | int | Iterable[str]) -> None:
         if self.attr == "obsm":
             self.clear()
             self.addItems(clicked)
 
-    def _getAllLayers(self) -> Sequence[Optional[str]]:
+    def _getAllLayers(self) -> Sequence[str | None]:
         adata_layers = list(self._model.adata.layers.keys())
         if len(adata_layers):
             adata_layers.insert(0, "X")
@@ -311,13 +311,13 @@ class ComponentWidget(QtWidgets.QComboBox):
         return ["X"]
 
     @property
-    def attr(self) -> Optional[str]:
+    def attr(self) -> str | None:
         if TYPE_CHECKING:
             assert isinstance(self._attr, str)
         return self._attr
 
     @attr.setter
-    def attr(self, field: Optional[str]) -> None:
+    def attr(self, field: str | None) -> None:
         if field not in ("var", "obs", "obsm"):
             raise ValueError(f"{field} is not a valid adata field.")
         self._attr = field
@@ -333,9 +333,9 @@ class CBarWidget(QtWidgets.QWidget):
         self,
         model: ImageModel,
         cmap: str = "viridis",
-        label: Optional[str] = None,
-        width: Optional[int] = 250,
-        height: Optional[int] = 50,
+        label: str | None = None,
+        width: int | None = 250,
+        height: int | None = 50,
         **kwargs: Any,
     ):
         super().__init__(**kwargs)
