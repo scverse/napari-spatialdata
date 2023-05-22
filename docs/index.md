@@ -8,9 +8,8 @@
 
 api.md
 cli.md
-changelog.md
 contributing.md
-template_usage.md
+release-notes/index.md
 references.md
 ```
 
