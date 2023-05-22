@@ -102,10 +102,20 @@ class SdataWidget(QWidget):
         polygons = []
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
-
+        #when mulitpolygons are present, we select the largest ones
+        if 'MultiPolygon' in np.unique(df.geometry.type):
+            
+            logger.info('Multipolygons are present in the data. For visualization purposes, only the largest polygon per cell is retained.')
+            df=df.explode()
+            df['area']=df.area
+            df=df.sort_values(by='area',ascending=False) #sort by area
+            df.index=df.index.droplevel(1)
+            df = df[~df.index.duplicated(keep='first')] #only keep the largest area
+            df=df.sort_index() # reset the index to the first order
+            
         for i in range(0, len(df)):
             polygons.append(list(df.geometry[i].exterior.coords))
-
+    #this will only work for polygons and not for multipolygons 
         polygons = _swap_coordinates(polygons)
 
         self._viewer.add_shapes(
@@ -126,8 +136,10 @@ class SdataWidget(QWidget):
             self._add_circles(key)
         elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon:
             self._add_polygons(key)
+        elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon:
+            self._add_polygons(key)    
         else:
-            raise TypeError("Incorrect data type passed for shapes (should be Shapely Point or Polygon).")
+            raise TypeError("Incorrect data type passed for shapes (should be Shapely Point or Polygon or MultiPolygon).")
 
     def _add_label(self, key: str) -> None:
         affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
