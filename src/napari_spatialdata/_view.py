@@ -120,7 +120,7 @@ class QtAdataScatterWidget(QWidget):
         """Napari layers."""
         layer = self._viewer.layers.selection._current
         self.model.layer = layer
-        if not isinstance(layer.metadata.get("adata", None), AnnData):
+        if not hasattr(layer, "metadata") or not isinstance(layer.metadata.get("adata", None), AnnData):
             if hasattr(self, "x_widget"):
                 self.x_widget.clear()
                 self.y_widget.clear()
@@ -232,7 +232,7 @@ class QtAdataViewWidget(QWidget):
         """Napari layers."""
         layer = self._viewer.layers.selection._current
         self.model.layer = layer
-        if not isinstance(layer.metadata.get("adata", None), AnnData):
+        if not hasattr(layer, "metadata") or not isinstance(layer.metadata.get("adata", None), AnnData):
             if hasattr(self, "obs_widget"):
                 self.adata_layer_widget.clear()
                 self.obs_widget.clear()
