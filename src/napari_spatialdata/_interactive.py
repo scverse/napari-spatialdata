@@ -9,7 +9,7 @@ from napari_spatialdata._utils import NDArrayA
 
 class Interactive:
     def __init__(
-        self, sdata: SpatialData, images: bool = True, labels: bool = True, shapes: bool = True, points: bool = True
+        self, sdata: SpatialData, images: bool = False, labels: bool = False, shapes: bool = False, points: bool = False
     ):
         self._viewer = napari.Viewer()
         self._sdata = sdata

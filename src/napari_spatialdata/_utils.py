@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from dask.dataframe.core import DataFrame as DaskDataFrame
+from datatree import DataTree
 from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
@@ -23,7 +24,7 @@ from pandas.core.dtypes.common import (
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
-from spatialdata.models import SpatialElement
+from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
 from napari_spatialdata._categoricals_utils import (
@@ -31,6 +32,8 @@ from napari_spatialdata._categoricals_utils import (
 )
 from napari_spatialdata._constants._pkg_constants import Key
 
+if TYPE_CHECKING:
+    from xarray import DataArray
 try:
     from numpy.typing import NDArray
 
@@ -183,15 +186,7 @@ def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str
 
     if not isinstance(element, (SpatialImage, MultiscaleSpatialImage, AnnData, DaskDataFrame, GeoDataFrame)):
         raise RuntimeError("Cannot get transform for {type(element)}")
-    # elif isinstance(element, (AnnData, DaskDataFrame, GeoDataFrame)):
-    #    return affine
-    #    from spatialdata.transformations import Affine, Sequence, MapAxis
-    #    new_affine = Sequence(
-    #        [MapAxis({"x": "y", "y": "x"}), Affine(affine, input_axes=("y", "x"), output_axes=("y", "x"))]
-    #    )
-    #    new_matrix = new_affine.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
 
-    #    return new_matrix
     return affine
 
 
@@ -221,3 +216,41 @@ def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
         out[i] = _point_inside_triangles(triangles - points[i])
 
     return out
+
+
+def _transform_to_rgb(element: Union[SpatialImage, MultiscaleSpatialImage]) -> Tuple[DataArray, bool]:
+    """Swap the axes to y, x, c if an image supports rgb(a) visualization."""
+    axes = get_axes_names(element)
+
+    if "c" in axes:
+        assert axes.index("c") == 0
+        if isinstance(element, SpatialImage):
+            n_channels = element.shape[0]
+        elif isinstance(element, MultiscaleSpatialImage):
+            v = element["scale0"].values()
+            assert len(v) == 1
+            n_channels = v.__iter__().__next__().shape[0]
+        else:
+            raise TypeError(f"Unsupported type for images or labels: {type(element)}")
+    else:
+        n_channels = 0
+
+    if n_channels in [3, 4]:
+        rgb = True
+        new_raster = element.transpose("y", "x", "c")
+    else:
+        rgb = False
+        new_raster = element
+
+    # TODO: after we call .transpose() on a MultiscaleSpatialImage object we get a DataTree object. We should look at
+    # this better and either cast somehow back to MultiscaleSpatialImage or fix/report this
+    if isinstance(new_raster, (MultiscaleSpatialImage, DataTree)):
+        list_of_xdata = []
+        for k in new_raster:
+            v = new_raster[k].values()
+            assert len(v) == 1
+            xdata = v.__iter__().__next__()
+            list_of_xdata.append(xdata)
+        new_raster = list_of_xdata
+
+    return new_raster, rgb

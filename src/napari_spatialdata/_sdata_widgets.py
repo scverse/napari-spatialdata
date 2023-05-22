@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Union
+from typing import Iterable, Union
 
 import numpy as np
 import shapely
 from anndata import AnnData
 from loguru import logger
-from multiscale_spatial_image import MultiscaleSpatialImage
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
+from spatialdata import SpatialData
+from spatialdata.models import Image3DModel, get_model
+from spatialdata.transformations import get_transformation
 
-from napari_spatialdata._utils import _get_transform, _swap_coordinates
-
-if TYPE_CHECKING:
-    from spatialdata import SpatialData
+from napari_spatialdata._utils import _get_transform, _swap_coordinates, _transform_to_rgb
 
 
 class ElementWidget(QListWidget):
@@ -22,6 +21,7 @@ class ElementWidget(QListWidget):
         self._sdata = sdata
 
     def _onClickChange(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+        """Change list of elements displayed when selected coordinate system has changed."""
         self.clear()
 
         elements = {}
@@ -51,6 +51,11 @@ class SdataWidget(QWidget):
         super().__init__()
         self._sdata = sdata
         self._viewer = viewer
+
+        # if isinstance(sdata, SpatialData):
+        #     sdata = [sdata]
+        # for s in sdata:
+        #     self._add_layers_from_sdata(sdata=s, images=images, labels=labels, shapes=shapes, points=points)
 
         self.setLayout(QVBoxLayout())
 
@@ -148,16 +153,23 @@ class SdataWidget(QWidget):
         )
 
     def _add_image(self, key: str) -> None:
-        img = self._sdata.images[key]
-        affine = _get_transform(self._sdata.images[key], self.coordinate_system_widget._system)
+        img_element = self._sdata.images[key]
+        coordinate_systems = list(get_transformation(img_element, get_all=True).keys())
+        if get_model(img_element) == Image3DModel:
+            logger.warning("3D images are not supported yet. Skipping.")
+            return
 
-        if isinstance(img, MultiscaleSpatialImage):
-            img = img["scale0"][key]
-        # TODO: type check
+        affine = _get_transform(self._sdata.images[key], self.coordinate_system_widget._system)
+        new_image, rgb = _transform_to_rgb(element=img_element)
+
+        metadata = {"coordinate_systems": coordinate_systems, "sdata": self._sdata, "element": img_element}
         self._viewer.add_image(
-            img,
+            new_image,
+            rgb=rgb,
             name=key,
             affine=affine,
+            visible=True,
+            metadata=metadata,
         )
 
     def _add_points(self, key: str) -> None:
