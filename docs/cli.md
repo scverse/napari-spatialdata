@@ -17,4 +17,3 @@ spatialdata viewer <path_to_dataset>
 ```
 
 This will open a napari viewer with the napari-spatialdata plugin and dataset loaded.
-
