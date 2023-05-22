@@ -1,6 +1,6 @@
-__version__ = "0.1.0"
-
 from importlib.metadata import version  # Python = 3.9
+
+__version__ = version("spatialdata")
 
 from packaging.version import parse
 

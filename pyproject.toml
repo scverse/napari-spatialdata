@@ -88,6 +88,3 @@ target-version = "py38"
     "src/napari_spatialdata/_scatterwidgets.py" = ["D"]
 [tool.ruff.pydocstyle]
 convention = "numpy"
-[tool.ruff.pyupgrade]
-# Preserve types, even if a file imports `from __future__ import annotations`.
-keep-runtime-typing = true
