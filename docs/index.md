@@ -7,6 +7,7 @@
 :maxdepth: 1
 
 api.md
+cli.md
 changelog.md
 contributing.md
 template_usage.md
@@ -19,7 +20,6 @@ references.md
 :maxdepth: 1
 
 notebooks/spatialdata
-cli.md
 notebooks/nanostring_analysis
 notebooks/mibitof_analysis
 notebooks/scatterwidget
