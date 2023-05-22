@@ -125,7 +125,6 @@ class QtAdataScatterWidget(QWidget):
                 self.x_widget.clear()
                 self.y_widget.clear()
                 self.color_widget.clear()
-            logger.warning(":class:`anndata.AnnData` not found in any `layer.metadata`.")
             return
 
         # if layer is not None and "adata" in layer.metadata:
@@ -241,7 +240,6 @@ class QtAdataViewWidget(QWidget):
                 self.var_widget.clear()
                 self.obsm_widget.clear()
                 self.var_points_widget.clear()
-            logger.warning(":class:`anndata.AnnData` not found in any `layer.metadata`.")
             return
 
         # if layer is not None and "adata" in layer.metadata:
