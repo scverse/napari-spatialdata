@@ -20,7 +20,7 @@ class ImageModel:
 
     events: EmitterGroup = field(init=False, default=None, repr=True)
     _layer: Layer = field(init=False, default=None, repr=True)
-    _adata: AnnData = field(init=False, default=None, repr=True)
+    _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
     _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
     _label_key: Optional[str] = field(default=None, repr=True)

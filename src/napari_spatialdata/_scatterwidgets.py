@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterable
 
 import matplotlib as plt
 import numpy as np
@@ -60,7 +60,7 @@ class SelectFromCollection:
         model: ImageModel,
         ax: Axes,
         collection: Collection,
-        data: List[NDArrayA],
+        data: list[NDArrayA],
         alpha_other: float = 0.3,
     ):
         self.model = model
@@ -84,7 +84,7 @@ class SelectFromCollection:
 
         self.selector = LassoSelector(ax, onselect=self.onselect)
 
-        self.ind: Optional[NDArrayA] = None
+        self.ind: NDArrayA | None = None
 
     def export(self, adata: AnnData) -> None:
         model_layer: Layer = self.model.layer
@@ -93,7 +93,7 @@ class SelectFromCollection:
         adata.obs[obs_name] = self.exported_data
         logger.info("Exported selected coordinates to obs in AnnData as: {}", obs_name)  # noqa: P103
 
-    def onselect(self, verts: List[NDArrayA]) -> None:
+    def onselect(self, verts: list[NDArrayA]) -> None:
         self.path = Path(verts)
         self.ind = np.nonzero(self.path.contains_points(self.xys))[0]
 
@@ -117,7 +117,7 @@ class ScatterListWidget(AListWidget):
         AListWidget.__init__(self, None, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
-        self._data: Optional[Union[NDArrayA, Dict[str, Any]]] = None
+        self._data: NDArrayA | dict[str, Any] | None = None
         self.itemClicked.connect(lambda item: self._onOneClick((item.text(),)))
 
     def _onChange(self) -> None:
@@ -157,7 +157,7 @@ class ScatterListWidget(AListWidget):
         self._onAction(items)
         return
 
-    def setAttribute(self, field: Optional[str]) -> None:
+    def setAttribute(self, field: str | None) -> None:
         if field == self.getAttribute():
             return
         if field not in ("var", "obs", "obsm"):
@@ -166,12 +166,12 @@ class ScatterListWidget(AListWidget):
         self._getter = getattr(self.model, f"get_{field}")
         self.attrChanged.emit()
 
-    def getAttribute(self) -> Optional[str]:
+    def getAttribute(self) -> str | None:
         if TYPE_CHECKING:
             assert isinstance(self._attr, str)
         return self._attr
 
-    def setComponent(self, text: Optional[Union[int, str]]) -> None:
+    def setComponent(self, text: int | str | None) -> None:
         if self.getAttribute() == "var":
             if TYPE_CHECKING:
                 assert isinstance(text, str)
@@ -184,32 +184,32 @@ class ScatterListWidget(AListWidget):
             super().setIndex(text)
 
     @property
-    def text(self) -> Optional[str]:
+    def text(self) -> str | None:
         return self._text
 
     @text.setter
-    def text(self, text: Optional[Union[str, int]]) -> None:
+    def text(self, text: str | int | None) -> None:
         self._text = text if text is not None else None
 
     @property
-    def chosen(self) -> Optional[str]:
+    def chosen(self) -> str | None:
         return self._chosen
 
     @chosen.setter
-    def chosen(self, chosen: Optional[str]) -> None:
+    def chosen(self, chosen: str | None) -> None:
         self._chosen = chosen if chosen is not None else None
 
     @property
-    def data(self) -> Optional[Union[NDArrayA, Dict[str, Any]]]:
+    def data(self) -> NDArrayA | dict[str, Any] | None:
         return self._data
 
     @data.setter
-    def data(self, data: Union[NDArrayA, Dict[str, Any]]) -> None:
+    def data(self, data: NDArrayA | dict[str, Any]) -> None:
         self._data = data
 
 
 class MatplotlibWidget(NapariMPLWidget):
-    def __init__(self, viewer: Optional[Viewer], model: ImageModel):
+    def __init__(self, viewer: Viewer | None, model: ImageModel):
         self.is_widget = False
         if viewer is None:
             viewer = Viewer()
@@ -228,12 +228,12 @@ class MatplotlibWidget(NapariMPLWidget):
 
     def _onClick(
         self,
-        x_data: Union[NDArrayA, pd.Series],
-        y_data: Union[NDArrayA, pd.Series],
-        color_data: Union[NDArrayA, dict[str, Union[NDArrayA, pd.Series, dict[str, str]]]],
-        x_label: Optional[str],
-        y_label: Optional[str],
-        color_label: Optional[str],
+        x_data: NDArrayA | pd.Series,
+        y_data: NDArrayA | pd.Series,
+        color_data: NDArrayA | dict[str, NDArrayA | pd.Series | dict[str, str]],
+        x_label: str | None,
+        y_label: str | None,
+        color_label: str | None,
     ) -> None:
         self.cat = None
         self.palette = None
@@ -326,7 +326,7 @@ class AxisWidgets(QtWidgets.QWidget):
         self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
         self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
 
-    def getFormattedLabel(self) -> Optional[str]:
+    def getFormattedLabel(self) -> str | None:
         return (
             str(self.widget.getAttribute()) + ": " + str(self.widget.chosen)
             if self.widget.text is None
@@ -340,6 +340,10 @@ class AxisWidgets(QtWidgets.QWidget):
                 + str(self.widget.text)
             )
         )
+
+    def clear(self) -> None:
+        self.widget.clear()
+        self.component_widget.clear()
 
     @property
     def model(self) -> ImageModel:

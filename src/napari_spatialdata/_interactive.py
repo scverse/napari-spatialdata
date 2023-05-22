@@ -155,9 +155,6 @@ class SdataWidget(QWidget):
             img,
             name=key,
             affine=affine,
-            metadata={
-                "adata": AnnData(),
-            },
         )
 
     def _add_points(self, key: str) -> None:
