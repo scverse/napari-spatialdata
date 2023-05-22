@@ -155,7 +155,6 @@ class QtAdataViewWidget(QWidget):
 
         self._select_layer()
         self._viewer.layers.selection.events.changed.connect(self._select_layer)
-        # self._viewer.layers.selection.events.changed.connect(self._on_layer_update)
 
         self.setLayout(QVBoxLayout())
 
