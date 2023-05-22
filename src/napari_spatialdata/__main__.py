@@ -16,19 +16,22 @@ def main() -> None:
 
 
 @cli.command(help="Interactive visualization of SpatialData datasets with napari")
-@click.argument("path", nargs=-1, type=tuple, required=True)
+@click.argument("paths", nargs=-1, required=True)
 def view(paths: tuple[str]) -> None:
     """Interactive visualization of SpatialData datasets with napari.
 
-    :param path: Path to the SpatialData dataset
+    :param paths: Paths to one or more SpatialData datasets.
     """
-    assert type(paths) == tuple
-
     import spatialdata as sd
 
     from napari_spatialdata import Interactive
 
     sdatas = []
+
+    # TODO: remove when multiple datasets are supported
+    if len(paths) > 1:
+        logger.warning("More than one path provided. Only the first path will be used.")
+
     for path in paths:
         p = Path(path).resolve()
         assert p.exists(), f"Error: {p} does not exist"
@@ -43,8 +46,10 @@ def view(paths: tuple[str]) -> None:
             return
         sdata = sd.SpatialData.read(p)
         sdatas.append(sdata)
+        # TODO: remove when multiple datasets are supported
+        break
 
-    # TODO: support multiple spatial data
+    # TODO: remove [0] when multiple datasets are supported
     interactive = Interactive(sdata=sdatas[0])
     interactive.run()
 
