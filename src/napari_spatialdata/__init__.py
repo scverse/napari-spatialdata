@@ -1,6 +1,6 @@
 from importlib.metadata import version  # Python = 3.9
 
-__version__ = version("spatialdata")
+__version__ = version("napari-spatialdata")
 
 from packaging.version import parse
 
