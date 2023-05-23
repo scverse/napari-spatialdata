@@ -261,7 +261,7 @@ class QtAdataViewWidget(QWidget):
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
         self.model.system_name = self.model.layer.name
-        
+
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]
         if hasattr(

@@ -82,13 +82,12 @@ class SdataWidget(QWidget):
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
 
-        self._sdata.table.uns["affine"] = affine  # TODO: find a better way of handling this
+        self._sdata.table.uns["affine"] = affine  # TODO: will be replaced with Wouter's PR
 
         for i in range(0, len(df)):
             circles.append([df.geometry[i].coords[0], [df.radius[i], df.radius[i]]])
 
         circles = _swap_coordinates(circles)
-        self._sdata.table.obsm["spatial"] = np.array(circles)
 
         self._viewer.add_shapes(
             circles,
@@ -109,7 +108,7 @@ class SdataWidget(QWidget):
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
 
-        self._sdata.table.uns["affine"] = affine
+        self._sdata.table.uns["affine"] = affine  # TODO: will be replaced with Wouter's PR
 
         # when mulitpolygons are present, we select the largest ones
         if "MultiPolygon" in np.unique(df.geometry.type):

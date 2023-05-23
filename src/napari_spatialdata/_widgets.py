@@ -138,7 +138,7 @@ class AListWidget(ListWidget):
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
 
-                if isinstance(self.model.layer, Points) or isinstance(self.model.layer, Shapes):
+                if isinstance(self.model.layer, (Points, Shapes)):
                     self.model.layer.name = (
                         "" if self.model.system_name is None else self.model.system_name + ":"
                     ) + item
