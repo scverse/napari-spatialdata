@@ -178,19 +178,20 @@ class SdataWidget(QWidget):
 
 
 class Interactive:
+    """
+    Interactive visualization of spatial data.
+
+    Parameters
+    ----------
+    sdata
+        SpatialData object.
+
+    Returns
+    -------
+    None
+    """
+
     def __init__(self, sdata: SpatialData):
-        """
-        Interactive visualization of spatial data.
-
-        Parameters
-        ----------
-        sdata
-            SpatialData object.
-
-        Returns
-        -------
-        None
-        """
         self._viewer = napari.Viewer()
         self._sdata = sdata
         self._sdata_widget = SdataWidget(self._viewer, sdata)
