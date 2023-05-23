@@ -3,15 +3,24 @@ from __future__ import annotations
 from typing import Iterable, Union
 
 import numpy as np
-import shapely
+from geopandas import GeoDataFrame
 from loguru import logger
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
+from shapely import MultiPolygon, Point, Polygon
 from spatialdata import SpatialData
 from spatialdata.models import Image3DModel, get_axes_names, get_model
 from spatialdata.transformations import get_transformation
 
-from napari_spatialdata._utils import _get_transform, _swap_coordinates, _transform_to_rgb, points_to_anndata
+from napari_spatialdata._utils import (
+    _find_annotation_for_regions,
+    _get_ellipses_from_circles,
+    _get_mapping_info,
+    _get_transform,
+    _swap_coordinates,
+    _transform_to_rgb,
+    points_to_anndata,
+)
 
 
 class ElementWidget(QListWidget):
@@ -78,73 +87,149 @@ class SdataWidget(QWidget):
             self._add_shapes(text)
 
     def _add_circles(self, key: str) -> None:
-        circles = []
-        df = self._sdata.shapes[key]
+        gpdf = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
+        coordinate_systems = list(get_transformation(gpdf, get_all=True).keys())
+        coords_yx = np.stack([gpdf.geometry.y.to_numpy(), gpdf.geometry.x.to_numpy()], axis=1)
 
-        for i in range(0, len(df)):
-            circles.append([df.geometry[i].coords[0], [df.radius[i], df.radius[i]]])
+        dims = get_axes_names(gpdf)
+        if "z" in dims:
+            logger.warning("Circles are currently only supported in 2D. Ignoring z dimension.")
 
-        circles = _swap_coordinates(circles)
+        radii = gpdf.radius.to_numpy() if "radius" in gpdf.columns else 10
 
-        self._viewer.add_shapes(
-            circles,
-            name=key,
-            affine=affine,
-            shape_type="ellipse",
-            metadata={
-                "adata": self._sdata.table[
-                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-                ],
-                "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
-            },
+        annotation = _find_annotation_for_regions(
+            base_element=gpdf, annotation_table=self._sdata.table, element_path=key
         )
+
+        metadata = {"adata": annotation} if annotation is not None else {}
+
+        metadata["coordinate_systems"] = coordinate_systems
+        metadata["sdata"] = self._sdata
+        metadata["element"] = gpdf
+
+        THRESHOLD = 10000
+        if len(coords_yx) < THRESHOLD:
+            # showing ellipses to overcome https://github.com/scverse/napari-spatialdata/issues/35
+            ellipses = _get_ellipses_from_circles(centroids=coords_yx, radii=radii)
+            self._viewer.add_shapes(
+                ellipses,
+                shape_type="ellipse",
+                name=key,
+                edge_color="white",
+                face_color="white",
+                metadata=metadata,
+                edge_width=0.0,
+                affine=affine,
+                visible=False,
+            )
+        else:
+            logger.warning(
+                f"Too many shapes {len(coords_yx)} > {THRESHOLD}, using points instead of ellipses. Size will stop "
+                f"being correct beyond a certain zoom level"
+            )
+            # TODO: If https://github.com/scverse/napari-spatialdata/issues/35 is fixed, use points for circles, faster
+            self._viewer.add_points(
+                coords_yx,
+                name=key,
+                edge_color="white",
+                face_color="white",
+                size=2 * radii,
+                metadata=metadata,
+                edge_width=0.0,
+                affine=affine,
+                visible=False,
+            )
 
     def _add_polygons(self, key: str) -> None:
         polygons = []
-        df = self._sdata.shapes[key]
+        gpdf = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
 
-        for i in range(0, len(df)):
-            polygons.append(list(df.geometry[i].exterior.coords))
+        if "MultiPolygon" in np.unique(gpdf.geometry.type):
+            logger.info(
+                "Multipolygons are present in the data. For visualization purposes, only the largest polygon per cell "
+                "is retained."
+            )
+            gpdf = gpdf.explode(index_parts=False)
+            gpdf["area"] = gpdf.area
+            gpdf = gpdf.sort_values(by="area", ascending=False)  # sort by area
+            gpdf = gpdf[~gpdf.index.duplicated(keep="first")]  # only keep the largest area
+            gpdf = gpdf.sort_index()  # reset the index to the first order
 
-        polygons = _swap_coordinates(polygons)
+        for shape in gpdf.geometry:
+            polygons.append(shape)
+
+        new_shapes = GeoDataFrame(gpdf.drop("geometry", axis=1), geometry=polygons)
+        new_shapes.attrs["transform"] = gpdf.attrs["transform"]
+
+        if len(new_shapes) < 100:
+            coordinates = new_shapes.geometry.apply(lambda x: np.array(x.exterior.coords).tolist()).tolist()
+        else:
+            # TODO: This can be removed once napari shape performance improved. Now, changes shapes vis slightly.
+            logger.warning("Shape visuals are simplified for performance reasons.")
+            coordinates = new_shapes.geometry.apply(
+                lambda x: np.array(x.exterior.simplify(tolerance=2).coords).tolist()
+            ).tolist()
+
+        annotation = _find_annotation_for_regions(
+            base_element=polygons, annotation_table=self._sdata.table, element_path=key
+        )
+
+        metadata = {"adata": annotation} if annotation is not None else {}
+
+        coordinate_systems = list(get_transformation(gpdf, get_all=True).keys())
+        metadata["coordinate_systems"] = coordinate_systems
+        metadata["sdata"] = self._sdata
+        metadata["element"] = polygons
+        MAX_POLYGONS = 500
+        if len(coordinates) > MAX_POLYGONS:
+            coordinates = coordinates[:MAX_POLYGONS]
+            logger.warning(
+                f"Too many polygons: {len(coordinates)}. Only the first {MAX_POLYGONS} will be shown.",
+                UserWarning,
+            )
+        # Done because of napary requiring y, x
+        coordinates = _swap_coordinates(coordinates)
 
         self._viewer.add_shapes(
-            polygons,
+            coordinates,
             name=key,
             affine=affine,
             shape_type="polygon",
-            metadata={
-                "adata": self._sdata.table[
-                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-                ],
-                "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
-            },
+            metadata=metadata,
         )
 
     def _add_shapes(self, key: str) -> None:
-        if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
+        shape_type = type(self._sdata.shapes[key].iloc[0][0])
+        if shape_type == Point:
             self._add_circles(key)
-        elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon:
+        elif shape_type in (Polygon, MultiPolygon):
             self._add_polygons(key)
         else:
             raise TypeError("Incorrect data type passed for shapes (should be Shapely Point or Polygon).")
 
     def _add_label(self, key: str) -> None:
+        label_element = self._sdata.labels[key]
         affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
 
-        self._viewer.add_labels(
-            self._sdata.labels[key],
-            name=key,
-            affine=affine,
-            metadata={
-                "adata": self._sdata.table[
-                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-                ],
-                "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
-            },
+        annotation = _find_annotation_for_regions(
+            base_element=label_element, element_path=key, annotation_table=self._sdata.table
         )
+        if annotation is not None:
+            _, _, instance_key = _get_mapping_info(annotation)
+            metadata = {
+                "adata": annotation,
+                "labels_key": instance_key,
+            }
+        else:
+            metadata = {}
+        coordinate_systems = list(get_transformation(label_element, get_all=True).keys())
+        metadata["coordinate_systems"] = coordinate_systems
+        metadata["sdata"] = self._sdata
+        metadata["element"] = label_element
+        rgb_labels, rgb = _transform_to_rgb(element=label_element)
+        self._viewer.add_labels(rgb_labels, name=key, metadata=metadata, affine=affine)
 
     def _add_image(self, key: str) -> None:
         img_element = self._sdata.images[key]

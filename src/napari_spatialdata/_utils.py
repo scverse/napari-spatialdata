@@ -23,6 +23,8 @@ from pandas.core.dtypes.common import (
 )
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
+from shapely import MultiPolygon, Point, Polygon
+from skimage.measure import regionprops
 from spatial_image import SpatialImage
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
@@ -279,3 +281,184 @@ def points_to_anndata(
         annotation = AnnData(shape=(len(points), 0), obs=df, obsm={"spatial": points})
         return _init_colors_for_obs(annotation)
     return None
+
+
+def _get_mapping_info(annotation_table: AnnData) -> tuple[str, str, str]:
+    regions = annotation_table.uns["spatialdata_attrs"]["region"]
+    regions_key = annotation_table.uns["spatialdata_attrs"]["region_key"]
+    instance_key = annotation_table.uns["spatialdata_attrs"]["instance_key"]
+    return regions, regions_key, instance_key
+
+
+def _find_annotation_for_labels(
+    labels: Union[SpatialImage, MultiscaleSpatialImage],
+    element_path: str,
+    annotating_rows: AnnData,
+    instance_key: str,
+) -> AnnData:
+    # TODO: use xarray apis
+    x = np.array(labels.data)
+    u = np.unique(x)
+    # backgrond = 0 in u
+    # adjacent_labels = (len(u) - 1 if backgrond else len(u)) == np.max(u)
+    available_u = annotating_rows.obs[instance_key]
+    u_not_annotated = set(np.setdiff1d(u, available_u).tolist())
+    if 0 in set(u_not_annotated):
+        u_not_annotated.remove(0)
+    if len(u_not_annotated) > 0:
+        logger.warning(f"{len(u_not_annotated)}/{len(u)} labels not annotated: {u_not_annotated}")
+    annotating_rows = annotating_rows[annotating_rows.obs[instance_key].isin(u), :].copy()
+
+    # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
+    annotating_rows.uns[Key.uns.spatial] = {}
+    annotating_rows.uns[Key.uns.spatial][element_path] = {}
+    annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key] = {}
+    annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
+    list_of_cx = []
+    list_of_cy = []
+    list_of_v = []
+    regions = regionprops(x)
+    for props in regions:
+        cx, cy = props.centroid
+        v = props.label
+        list_of_cx.append(cx)
+        list_of_cy.append(cy)
+        list_of_v.append(v)
+    centroids = pd.DataFrame({"cx": list_of_cx, "cy": list_of_cy, "v": list_of_v})
+    merged = pd.merge(annotating_rows.obs, centroids, left_on=instance_key, right_on="v", how="left", indicator=True)
+    # background = merged.query('_merge == "left_only"')
+    # assert len(background) == 1
+    # assert background.loc[background.index[0], instance_key] == 0
+    # index_of_background = merged[merged[instance_key] == 0].index[0]
+    # merged.loc[index_of_background, "v"] = 0
+    merged["v"] = merged["v"].astype(int)
+
+    assert len(annotating_rows) == len(merged)
+    assert annotating_rows.obs[instance_key].tolist() == merged["v"].tolist()
+
+    merged_centroids = merged[["cx", "cy"]].to_numpy()
+    assert len(merged_centroids) == len(merged)
+    annotating_rows.obsm["spatial"] = merged_centroids
+    annotating_rows.obsm["region_radius"] = np.array([10.0] * len(merged_centroids))  # arbitrary value
+    return annotating_rows
+
+
+def _find_annotation_for_shapes(
+    circles: GeoDataFrame, element_path: str, annotating_rows: AnnData, instance_key: str
+) -> Optional[AnnData]:
+    """Find the annotation for a circles layer from the annotation table."""
+    available_instances = circles.index.tolist()
+    annotated_instances = annotating_rows.obs[instance_key].tolist()
+    assert len(available_instances) == len(set(available_instances)), (
+        "Instance keys must be unique. Found " "multiple regions instances with the " "same key."
+    )
+    if len(annotated_instances) != len(set(annotated_instances)):
+        raise ValueError("Instance keys must be unique. Found multiple regions instances with the same key.")
+    available_instances = set(available_instances)
+    annotated_instances = set(annotated_instances)
+    # TODO: maybe add this check back
+    # assert annotated_instances.issubset(available_instances), "Annotation table contains instances not in circles."
+    if len(annotated_instances) != len(available_instances):
+        if annotated_instances.issuperset(available_instances):
+            pass
+        else:
+            raise ValueError(
+                "Partial annotation is support only when the annotation table contains instances not in circles."
+            )
+
+    # this is to reorder the circles to match the order of the annotation table
+    a = annotating_rows.obs[instance_key].to_numpy()
+    b = circles.index.to_numpy()
+    sorter = np.argsort(a)
+    mapper = sorter[np.searchsorted(a, b, sorter=sorter)]
+    assert np.all(a[mapper] == b)
+    annotating_rows = annotating_rows[mapper].copy()
+
+    dims = get_axes_names(circles)
+    assert dims == ("x", "y") or dims == ("x", "y", "z")
+    if type(circles.geometry.iloc[0]) == Point:
+        columns = [circles.geometry.x, circles.geometry.y]
+        radii = circles["radius"].to_numpy()
+    elif type(circles.geometry.iloc[0]) == Polygon:
+        columns = [circles.geometry.centroid.x, circles.geometry.centroid.y]
+        radii = np.sqrt(circles.geometry.area / np.pi).to_numpy()
+    else:
+        raise NotImplementedError(f"Unsupported geometry type: {type(circles.geometry.iloc[0])}")
+
+    if "z" in dims:
+        columns.append(circles.geometry.z)
+    spatial = np.column_stack(columns)
+    # TODO: requirement due to the squidpy legacy code, in the future this will not be needed
+    annotating_rows.uns[Key.uns.spatial] = {}
+    annotating_rows.uns[Key.uns.spatial][element_path] = {}
+    annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key] = {}
+    annotating_rows.uns[Key.uns.spatial][element_path][Key.uns.scalefactor_key]["tissue_hires_scalef"] = 1.0
+    annotating_rows.obsm["spatial"] = spatial
+    # workaround for the legacy code to support different sizes for different circles
+    annotating_rows.obsm["region_radius"] = radii
+    return annotating_rows
+
+
+def _find_annotation_for_regions(
+    base_element: SpatialElement, element_path: str, annotation_table: Optional[AnnData] = None
+) -> Optional[AnnData]:
+    if annotation_table is None:
+        return None
+
+    regions, regions_key, instance_key = _get_mapping_info(annotation_table)
+    if element_path in regions:
+        assert regions is not None
+        annotating_rows = annotation_table[annotation_table.obs[regions_key] == element_path, :]
+        if len(annotating_rows) == 0:
+            logger.warning(f"Layer {element_path} expected to be annotated but no annotation found")
+            return None
+
+        if isinstance(base_element, (SpatialImage, MultiscaleSpatialImage)):
+            table = _find_annotation_for_labels(
+                labels=base_element,
+                element_path=element_path,
+                annotating_rows=annotating_rows,
+                instance_key=instance_key,
+            )
+        elif isinstance(base_element, GeoDataFrame):
+            shape = base_element.geometry.iloc[0]
+            if isinstance(shape, (Polygon, MultiPolygon, Point)):
+                table = _find_annotation_for_shapes(
+                    circles=base_element,
+                    element_path=element_path,
+                    annotating_rows=annotating_rows,
+                    instance_key=instance_key,
+                )
+            else:
+                raise TypeError(f"Unsupported shape type: {type(shape)}")
+        else:
+            raise ValueError(f"Unsupported element type: {type(base_element)}")
+        return table
+
+    return None
+
+
+def _get_ellipses_from_circles(centroids: NDArrayA, radii: NDArrayA) -> NDArrayA:
+    """Convert circles to ellipses.
+
+    Parameters
+    ----------
+    centroids
+        Centroids of the circles.
+    radii
+        Radii of the circles.
+
+    Returns
+    -------
+    NDArrayA
+        Ellipses.
+    """
+    ndim = centroids.shape[1]
+    assert ndim == 2
+    r = np.stack([radii] * ndim, axis=1)
+    lower_left = centroids - r
+    upper_right = centroids + r
+    r[:, 0] = -r[:, 0]
+    lower_right = centroids - r
+    upper_left = centroids + r
+    return np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
