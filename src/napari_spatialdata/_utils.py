@@ -209,7 +209,23 @@ def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
 
 
 def _transform_to_rgb(element: Union[SpatialImage, MultiscaleSpatialImage]) -> Tuple[DataArray, bool]:
-    """Swap the axes to y, x, c if an image supports rgb(a) visualization."""
+    """Swap the axes to y, x, c if an image supports rgb(a) visualization.
+
+    Checks whether c dim is present in the axes and allows for rgb(a) visualization. If so, subsequently transposes it
+    into c x y x x and flags as suitable for rgb visualization.
+
+    Parameters
+    ----------
+    element: Union[SpatialImage, MultiScaleSpatialImage]
+        Element in sdata.images
+
+    Returns
+    -------
+    new_raster: DataArray
+        The image in shape of c x y x x.
+    rgb: bool
+        Flag indicating suitability for rgb(a) visualization
+    """
     axes = get_axes_names(element)
 
     if "c" in axes:
