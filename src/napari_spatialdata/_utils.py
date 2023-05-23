@@ -87,18 +87,6 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
     return decorator
 
 
-def _get_palette(
-    adata: AnnData,
-    key: str,
-    palette: Optional[str] = None,
-    vec: Optional[pd.Series] = None,
-) -> dict[Any, Any]:
-    if key not in adata.obs:
-        raise KeyError(f"{key} not found in adata.obs!")
-
-    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
-
-
 def _set_palette(
     adata: AnnData,
     key: str,
@@ -116,7 +104,7 @@ def _set_palette(
         palette=palette,  # type: ignore[arg-type]
     )
     vec = vec if vec is not None else adata.obs[key]
-    #
+
     return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
 
 
