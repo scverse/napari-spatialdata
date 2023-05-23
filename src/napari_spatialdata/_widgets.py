@@ -108,7 +108,7 @@ class AListWidget(ListWidget):
         self._model = model
 
         self._attr = attr
-        
+
         self._getter = getattr(self.model, f"get_{attr}")
         self.layerChanged.connect(self._onChange)
         self._onChange()
@@ -135,7 +135,6 @@ class AListWidget(ListWidget):
                     symbol=self.model.symbol,
                 )
             else:
-            
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
 
                 if isinstance(self.model.layer, Points):
@@ -156,9 +155,8 @@ class AListWidget(ListWidget):
                         **properties,
                     )
                 elif isinstance(self.model.layer, Shapes):
-                    
                     # Check whether circles or polygons
-                    if (self.model.layer.metadata['shapes_type'] == "circles"):
+                    if self.model.layer.metadata["shapes_type"] == "circles":
                         self.viewer.add_shapes(
                             self.model.layer.data.copy(),
                             name=name,
@@ -166,7 +164,7 @@ class AListWidget(ListWidget):
                             affine=self.model.adata.uns["affine"],
                             **properties,
                         )
-                    elif (self.model.layer.metadata['shapes_type'] == "polygons"):
+                    elif self.model.layer.metadata["shapes_type"] == "polygons":
                         self.viewer.add_shapes(
                             self.model.layer.data.copy(),
                             name=name,
@@ -234,14 +232,13 @@ class AListWidget(ListWidget):
                 "properties": {"value": vec},
                 "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
             }
-        
-        if layer is not None and isinstance(layer, Shapes):
 
+        if layer is not None and isinstance(layer, Shapes):
             cmap = plt.get_cmap(self.model.cmap)
             norm_vec = _min_max_norm(vec)
             color_vec = cmap(norm_vec)
 
-            return{
+            return {
                 "text": None,
                 "face_color": color_vec,
             }

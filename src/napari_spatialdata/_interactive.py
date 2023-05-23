@@ -121,7 +121,7 @@ class SdataWidget(QWidget):
             shape_type="polygon",
             metadata={
                 "adata": self._sdata.table[
-                            self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "polygons",
