@@ -106,9 +106,7 @@ class SdataWidget(QWidget):
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
         # when mulitpolygons are present, we select the largest ones
         if "MultiPolygon" in np.unique(df.geometry.type):
-            logger.info(
-                "Multipolygons are present in the data. For visualization purposes, only the largest polygon per cell is retained."
-            )
+            logger.info("Multipolygons are present in the data. Only the largest polygon per cell is retained.")
             df = df.explode(index_parts=False)
             df["area"] = df.area
             df = df.sort_values(by="area", ascending=False)  # sort by area
@@ -141,9 +139,9 @@ class SdataWidget(QWidget):
     def _add_shapes(self, key: str) -> None:
         if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
             self._add_circles(key)
-        elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon:
-            self._add_polygons(key)
-        elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon:
+        elif (type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon) or (
+            type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon
+        ):
             self._add_polygons(key)
         else:
             raise TypeError(
