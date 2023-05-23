@@ -94,7 +94,7 @@ def _get_palette(
     vec: Optional[pd.Series] = None,
 ) -> dict[Any, Any]:
     if key not in adata.obs:
-        raise KeyError("Missing key!")  # TODO: Improve error message
+        raise KeyError(f"{key} not found in adata.obs!")
 
     return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
 
