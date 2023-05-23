@@ -137,13 +137,17 @@ class AListWidget(ListWidget):
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
                 if isinstance(self.model.layer, Points):
-                    self.model.layer.name = item
+                    self.model.layer.name = (
+                        "" if self.model.system_name is None else self.model.system_name + ":"
+                    ) + item
                     self.model.layer.text = None  # needed because of the text-feature order of updates
                     self.model.layer.features = properties.get("features", None)
                     self.model.layer.face_color = properties["face_color"]
                     self.model.layer.text = properties["text"]
                 elif isinstance(self.model.layer, Labels):
-                    self.model.layer.name = item
+                    self.model.layer.name = (
+                        "" if self.model.system_name is None else self.model.system_name + ":"
+                    ) + item
                     self.model.layer.color = properties["color"]
                     self.model.layer.properties = properties.get("properties", None)
                 else:
