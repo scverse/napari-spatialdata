@@ -254,3 +254,28 @@ def _transform_to_rgb(element: Union[SpatialImage, MultiscaleSpatialImage]) -> T
         new_raster = list_of_xdata
 
     return new_raster, rgb
+
+
+def _init_colors_for_obs(adata: AnnData) -> AnnData:
+    from scanpy.plotting._utils import _set_colors_for_categorical_obs
+
+    # quick and dirty to set the colors for all the categorical dtype so that if we subset the table the
+    # colors are consistent
+
+    for key in adata.obs:
+        if is_categorical_dtype(adata.obs[key]) and f"{key}_colors" not in adata.uns:
+            _set_colors_for_categorical_obs(adata, key, palette="tab20")
+    return adata
+
+
+def points_to_anndata(
+    points_element: DaskDataFrame, points: NDArrayA, dims: tuple[str], sampling: Optional[NDArrayA]
+) -> Optional[AnnData]:
+    annotations_columns = list(set(points_element.columns.to_list()).difference(dims))
+    if len(annotations_columns) > 0:
+        df = points_element[annotations_columns].compute()
+        if sampling is not None:
+            df = df.iloc[sampling, :]
+        annotation = AnnData(shape=(len(points), 0), obs=df, obsm={"spatial": points})
+        return _init_colors_for_obs(annotation)
+    return None

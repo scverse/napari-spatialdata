@@ -4,15 +4,14 @@ from typing import Iterable, Union
 
 import numpy as np
 import shapely
-from anndata import AnnData
 from loguru import logger
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
-from spatialdata.models import Image3DModel, get_model
+from spatialdata.models import Image3DModel, get_axes_names, get_model
 from spatialdata.transformations import get_transformation
 
-from napari_spatialdata._utils import _get_transform, _swap_coordinates, _transform_to_rgb
+from napari_spatialdata._utils import _get_transform, _swap_coordinates, _transform_to_rgb, points_to_anndata
 
 
 class ElementWidget(QListWidget):
@@ -51,11 +50,6 @@ class SdataWidget(QWidget):
         super().__init__()
         self._sdata = sdata
         self._viewer = viewer
-
-        # if isinstance(sdata, SpatialData):
-        #     sdata = [sdata]
-        # for s in sdata:
-        #     self._add_layers_from_sdata(sdata=s, images=images, labels=labels, shapes=shapes, points=points)
 
         self.setLayout(QVBoxLayout())
 
@@ -173,20 +167,46 @@ class SdataWidget(QWidget):
         )
 
     def _add_points(self, key: str) -> None:
-        points = self._sdata.points[key].compute()
+        points_element = self._sdata.points[key]
+        dims = get_axes_names(points_element)
+        point_coords = points_element[list(dims)].compute().values
+
+        MAX_POINTS = 100000
         affine = _get_transform(self._sdata.points[key], self.coordinate_system_widget._system)
-        if len(points) < 100000:
-            subsample = np.arange(len(points))
+
+        if len(point_coords) < MAX_POINTS:
+            choice = None
         else:
-            logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
+            logger.warning(
+                f"Too many points {len(point_coords)} > {MAX_POINTS}, subsampling to {MAX_POINTS}. "
+                f"Performance will be improved in a future PR"
+            )
             gen = np.random.default_rng()
-            subsample = gen.choice(len(points), size=100000, replace=False)
+            choice = gen.choice(len(point_coords), size=MAX_POINTS, replace=False)
+            point_coords = point_coords[choice, :]
+
+        annotation = points_to_anndata(points_element, point_coords, dims, choice)
+
+        metadata = {"adata": annotation, "library_id": key} if annotation is not None else {}
+
+        coordinate_systems = list(get_transformation(points_element, get_all=True).keys())
+        metadata["coordinate_systems"] = coordinate_systems
+        metadata["sdata"] = self._sdata
+        metadata["element"] = points_element
+
+        if "z" in dims:
+            assert len(dims) == 3
+            point_coords = point_coords[:, :2]
+
+        radii = 1
         self._viewer.add_points(
-            points[["y", "x"]].values[subsample],
+            point_coords,
             name=key,
-            size=20,
+            ndim=2,
+            face_color="white",
+            size=2 * radii,
+            metadata=metadata,
+            edge_width=0.0,
             affine=affine,
-            metadata={
-                "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
-            },
+            visible=True,
         )
