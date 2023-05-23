@@ -124,6 +124,7 @@ pygments_style = "default"
 nitpick_ignore = [
     ("py:data", "typing.Any"),
     ("py:data", "typing.Union"),
+    ("py:class", "NDArrayA"),
     # ("py:class", "self"),
     # ("py:obj", "napari_spatialdata.QtAdataScatterWidget.setTabOrder"),
     # ("py:obj", "napari_spatialdata.QtAdataViewWidget.insertAction"),
