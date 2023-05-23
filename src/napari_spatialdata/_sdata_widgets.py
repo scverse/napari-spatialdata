@@ -116,12 +116,8 @@ class SdataWidget(QWidget):
                 ellipses,
                 shape_type="ellipse",
                 name=key,
-                edge_color="white",
-                face_color="white",
                 metadata=metadata,
-                edge_width=0.0,
                 affine=affine,
-                visible=False,
             )
         else:
             logger.warning(
@@ -247,7 +243,6 @@ class SdataWidget(QWidget):
             rgb=rgb,
             name=key,
             affine=affine,
-            visible=True,
             metadata=metadata,
         )
 
@@ -288,10 +283,7 @@ class SdataWidget(QWidget):
             point_coords,
             name=key,
             ndim=2,
-            face_color="white",
             size=2 * radii,
             metadata=metadata,
-            edge_width=0.0,
             affine=affine,
-            visible=True,
         )
