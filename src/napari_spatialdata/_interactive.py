@@ -1,4 +1,6 @@
-from typing import Any, Iterable, Union
+from __future__ import annotations
+
+from typing import Any, Iterable
 
 import napari
 import numpy as np
@@ -18,7 +20,7 @@ class ElementWidget(QListWidget):
         super().__init__()
         self._sdata = sdata
 
-    def _onClickChange(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+    def _onClickChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self.clear()
 
         elements = {}
@@ -39,7 +41,7 @@ class CoordinateSystemWidget(QListWidget):
 
         self.addItems(self._sdata.coordinate_systems)
 
-    def _select_coord_sys(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+    def _select_coord_sys(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self._system = str(selected_coordinate_system)
 
 
@@ -109,9 +111,23 @@ class SdataWidget(QWidget):
 
         self._sdata.table.uns["affine"] = affine
 
-        for i in range(0, len(df)):
-            polygons.append(list(df.geometry[i].exterior.coords))
-
+        # when mulitpolygons are present, we select the largest ones
+        if "MultiPolygon" in np.unique(df.geometry.type):
+            logger.info("Multipolygons are present in the data. Only the largest polygon per cell is retained.")
+            df = df.explode(index_parts=False)
+            df["area"] = df.area
+            df = df.sort_values(by="area", ascending=False)  # sort by area
+            df = df[~df.index.duplicated(keep="first")]  # only keep the largest area
+            df = df.sort_index()  # reset the index to the first order
+        if len(df) < 100:
+            for i in range(0, len(df)):
+                polygons.append(list(df.geometry.iloc[i].exterior.coords))
+        else:
+            for i in range(
+                0, len(df)
+            ):  # This can be removed once napari is sped up in the plotting. It changes the shapes only very slightly
+                polygons.append(list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords))
+        # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
 
         self._viewer.add_shapes(
@@ -131,10 +147,14 @@ class SdataWidget(QWidget):
     def _add_shapes(self, key: str) -> None:
         if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
             self._add_circles(key)
-        elif type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon:
+        elif (type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon) or (
+            type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon
+        ):
             self._add_polygons(key)
         else:
-            raise TypeError("Incorrect data type passed for shapes (should be Shapely Point or Polygon).")
+            raise TypeError(
+                "Incorrect data type passed for shapes (should be Shapely Point or Polygon or MultiPolygon)."
+            )
 
     def _add_label(self, key: str) -> None:
         affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
@@ -162,9 +182,6 @@ class SdataWidget(QWidget):
             img,
             name=key,
             affine=affine,
-            metadata={
-                "adata": AnnData(),
-            },
         )
 
     def _add_points(self, key: str) -> None:
@@ -189,6 +206,19 @@ class SdataWidget(QWidget):
 
 
 class Interactive:
+    """
+    Interactive visualization of spatial data.
+
+    Parameters
+    ----------
+    sdata
+        SpatialData object.
+
+    Returns
+    -------
+    None
+    """
+
     def __init__(self, sdata: SpatialData):
         self._viewer = napari.Viewer()
         self._sdata = sdata
@@ -200,5 +230,5 @@ class Interactive:
     def run(self) -> None:
         napari.run()
 
-    def screenshot(self) -> Union[NDArrayA, Any]:
+    def screenshot(self) -> NDArrayA | Any:
         return self._viewer.screenshot(canvas_only=False)
