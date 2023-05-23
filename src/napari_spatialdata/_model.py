@@ -28,7 +28,7 @@ class ImageModel:
     _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
     _scale: Optional[float] = field(init=False, default=None)
-    _system_name: Optional[str] = field(init=False, default=None)
+    _system_name: Optional[str] = field(default=None, repr=True)
 
     _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     _point_diameter: Union[NDArrayA, float] = field(init=False, default=1)
