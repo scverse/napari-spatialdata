@@ -230,7 +230,7 @@ class AListWidget(ListWidget):
                 self._viewer.add_shapes(
                     layer.data.copy(),
                     # ellipses,
-                    shape_type="ellipse",
+                    shape_type=layer.shape_type,
                     name=name,
                     opacity=1,
                     face_colormap=self.model.cmap,

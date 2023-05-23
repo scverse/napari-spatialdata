@@ -27,7 +27,6 @@ import time
 
 __all__ = ["Interactive", "_get_transform"]
 
-
 def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str] = None) -> np.ndarray:
     affine: np.ndarray
     transformations = get_transformation(element, get_all=True)
@@ -379,7 +378,7 @@ class Interactive:
         metadata["sdata"] = sdata
         metadata["element"] = polygons
         affine = _get_transform(element=polygons)
-        MAX_POLYGONS = 500
+        MAX_POLYGONS = 2000
         if len(coordinates) > MAX_POLYGONS:
             coordinates = coordinates[:MAX_POLYGONS]
             logger.warning(
