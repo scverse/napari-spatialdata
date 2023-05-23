@@ -108,8 +108,8 @@ class AListWidget(ListWidget):
         self._model = model
 
         self._attr = attr
+        
         self._getter = getattr(self.model, f"get_{attr}")
-
         self.layerChanged.connect(self._onChange)
         self._onChange()
 
@@ -135,6 +135,7 @@ class AListWidget(ListWidget):
                     symbol=self.model.symbol,
                 )
             else:
+            
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
 
                 if isinstance(self.model.layer, Points):
@@ -155,13 +156,27 @@ class AListWidget(ListWidget):
                         **properties,
                     )
                 elif isinstance(self.model.layer, Shapes):
-                    self.viewer.add_shapes(
-                        self.model.layer.data.copy(),
-                        name=name,
-                        shape_type="ellipse",
-                        affine=self.model.adata.uns["affine"],
-                        **properties,
-                    )
+                    
+                    # Check whether circles or polygons
+                    if (self.model.layer.metadata['shapes_type'] == "circles"):
+                        self.viewer.add_shapes(
+                            self.model.layer.data.copy(),
+                            name=name,
+                            shape_type="ellipse",
+                            affine=self.model.adata.uns["affine"],
+                            **properties,
+                        )
+                    elif (self.model.layer.metadata['shapes_type'] == "polygons"):
+                        self.viewer.add_shapes(
+                            self.model.layer.data.copy(),
+                            name=name,
+                            shape_type="polygon",
+                            affine=self.model.adata.uns["affine"],
+                            **properties,
+                        )
+                    else:
+                        raise TypeError("Shape type in layer metadata is not polygons or circles.")
+
                 else:
                     raise ValueError("TODO")
                 # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
@@ -219,6 +234,18 @@ class AListWidget(ListWidget):
                 "properties": {"value": vec},
                 "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
             }
+        
+        if layer is not None and isinstance(layer, Shapes):
+
+            cmap = plt.get_cmap(self.model.cmap)
+            norm_vec = _min_max_norm(vec)
+            color_vec = cmap(norm_vec)
+
+            return{
+                "text": None,
+                "face_color": color_vec,
+            }
+
         return {
             "text": None,
             "face_color": "value",

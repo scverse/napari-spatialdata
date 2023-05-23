@@ -7,7 +7,7 @@ from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
-from napari.layers import Labels
+from napari.layers import Labels, Shapes
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
@@ -235,8 +235,9 @@ class QtAdataViewWidget(QWidget):
 
         if self.model.adata.shape == (0, 0):
             return
-
-        self.model.coordinates = np.insert(self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1)
+        
+        if "spatial" in self.model.adata.obsm.keys():
+            self.model.coordinates = np.insert(self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1)
 
         if "points" in layer.metadata:
             # TODO: Check if this can be removed
@@ -246,6 +247,7 @@ class QtAdataViewWidget(QWidget):
 
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
+        self.model.shapes_key = layer.metadata["shapes_key"] if isinstance(layer, Shapes) else None
 
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]
