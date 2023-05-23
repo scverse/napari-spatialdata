@@ -1,4 +1,6 @@
-from typing import Any, Iterable, Union
+from __future__ import annotations
+
+from typing import Any, Iterable
 
 import napari
 import numpy as np
@@ -18,7 +20,7 @@ class ElementWidget(QListWidget):
         super().__init__()
         self._sdata = sdata
 
-    def _onClickChange(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+    def _onClickChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self.clear()
 
         elements = {}
@@ -39,7 +41,7 @@ class CoordinateSystemWidget(QListWidget):
 
         self.addItems(self._sdata.coordinate_systems)
 
-    def _select_coord_sys(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+    def _select_coord_sys(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self._system = str(selected_coordinate_system)
 
 
@@ -178,19 +180,20 @@ class SdataWidget(QWidget):
 
 
 class Interactive:
+    """
+    Interactive visualization of spatial data.
+
+    Parameters
+    ----------
+    sdata
+        SpatialData object.
+
+    Returns
+    -------
+    None
+    """
+
     def __init__(self, sdata: SpatialData):
-        """
-        Interactive visualization of spatial data.
-
-        Parameters
-        ----------
-        sdata
-            SpatialData object.
-
-        Returns
-        -------
-        None
-        """
         self._viewer = napari.Viewer()
         self._sdata = sdata
         self._sdata_widget = SdataWidget(self._viewer, sdata)
@@ -201,5 +204,5 @@ class Interactive:
     def run(self) -> None:
         napari.run()
 
-    def screenshot(self) -> Union[NDArrayA, Any]:
+    def screenshot(self) -> NDArrayA | Any:
         return self._viewer.screenshot(canvas_only=False)
