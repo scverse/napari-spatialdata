@@ -244,14 +244,24 @@ class QtAdataViewWidget(QWidget):
         # if layer is not None and "adata" in layer.metadata:
         self.model.adata = layer.metadata["adata"]
 
-        self.model.coordinates = np.insert(self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1)
+        if self.model.adata.shape == (0, 0):
+            return
+
+        if "spatial" in self.model.adata.obsm:
+            self.model.coordinates = np.insert(
+                self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1
+            )
+
         if "points" in layer.metadata:
+            # TODO: Check if this can be removed
             self.model.points_coordinates = layer.metadata["points"].X
             self.model.points_var = layer.metadata["points"].obs["gene"]
             self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
+
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
         self.model.system_name = self.model.layer.name
+
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]
         if hasattr(

@@ -97,6 +97,7 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "shapes_type": "circles",
             },
         )
 
@@ -104,6 +105,7 @@ class SdataWidget(QWidget):
         polygons = []
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
+
         # when mulitpolygons are present, we select the largest ones
         if "MultiPolygon" in np.unique(df.geometry.type):
             logger.info("Multipolygons are present in the data. Only the largest polygon per cell is retained.")
@@ -133,6 +135,7 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "shapes_type": "polygons",
             },
         )
 
@@ -185,6 +188,7 @@ class SdataWidget(QWidget):
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
             subsample = gen.choice(len(points), size=100000, replace=False)
+
         self._viewer.add_points(
             points[["y", "x"]].values[subsample],
             name=key,

@@ -9,7 +9,7 @@ import napari
 import numpy as np
 import pandas as pd
 from loguru import logger
-from napari.layers import Labels, Layer, Points
+from napari.layers import Labels, Layer, Points, Shapes
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -108,8 +108,8 @@ class AListWidget(ListWidget):
         self._model = model
 
         self._attr = attr
-        self._getter = getattr(self.model, f"get_{attr}")
 
+        self._getter = getattr(self.model, f"get_{attr}")
         self.layerChanged.connect(self._onChange)
         self._onChange()
 
@@ -125,6 +125,7 @@ class AListWidget(ListWidget):
             except Exception as e:  # noqa: BLE001
                 logger.error(e)
                 continue
+
             if vec.ndim == 2:
                 self.viewer.add_points(
                     vec,
@@ -136,7 +137,8 @@ class AListWidget(ListWidget):
                 )
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                if isinstance(self.model.layer, Points):
+
+                if isinstance(self.model.layer, (Points, Shapes)):
                     self.model.layer.name = (
                         "" if self.model.system_name is None else self.model.system_name + ":"
                     ) + item
@@ -201,11 +203,26 @@ class AListWidget(ListWidget):
         norm_vec = _min_max_norm(vec)
         color_vec = cmap(norm_vec)
         if layer is not None and isinstance(layer, Labels):
+            cmap = plt.get_cmap(self.model.cmap)
+            norm_vec = _min_max_norm(vec)
+            color_vec = cmap(norm_vec)
+
             return {
                 "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, color_vec)),
                 "properties": {"value": vec},
                 "text": None,
             }
+
+        if layer is not None and isinstance(layer, Shapes):
+            cmap = plt.get_cmap(self.model.cmap)
+            norm_vec = _min_max_norm(vec)
+            color_vec = cmap(norm_vec)
+
+            return {
+                "text": None,
+                "face_color": color_vec,
+            }
+
         return {
             "text": None,
             "face_color": color_vec,
@@ -217,8 +234,12 @@ class AListWidget(ListWidget):
         face_color = _get_categorical(
             self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
         )
+
         if layer is not None and isinstance(layer, Labels):
-            return {"color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color))}
+            return {"color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color)), "text": None}
+
+        if layer is not None and isinstance(layer, Shapes):
+            return {"face_color": face_color, "metadata": None, "text": None}
 
         cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
         return {
