@@ -19,6 +19,7 @@ from napari_spatialdata._utils import (
     _get_transform,
     _swap_coordinates,
     _transform_to_rgb,
+    get_metadata_mapping,
     points_to_anndata,
 )
 
@@ -102,11 +103,7 @@ class SdataWidget(QWidget):
             base_element=gpdf, annotation_table=self._sdata.table, element_path=key
         )
 
-        metadata = {"adata": annotation} if annotation is not None else {}
-
-        metadata["coordinate_systems"] = coordinate_systems
-        metadata["sdata"] = self._sdata
-        metadata["element"] = gpdf
+        metadata = get_metadata_mapping(self._sdata, gpdf, coordinate_systems, annotation)
 
         THRESHOLD = 10000
         if len(coords_yx) < THRESHOLD:
@@ -128,13 +125,9 @@ class SdataWidget(QWidget):
             self._viewer.add_points(
                 coords_yx,
                 name=key,
-                edge_color="white",
-                face_color="white",
                 size=2 * radii,
                 metadata=metadata,
-                edge_width=0.0,
                 affine=affine,
-                visible=False,
             )
 
     def _add_polygons(self, key: str) -> None:
@@ -171,13 +164,9 @@ class SdataWidget(QWidget):
         annotation = _find_annotation_for_regions(
             base_element=polygons, annotation_table=self._sdata.table, element_path=key
         )
-
-        metadata = {"adata": annotation} if annotation is not None else {}
-
         coordinate_systems = list(get_transformation(gpdf, get_all=True).keys())
-        metadata["coordinate_systems"] = coordinate_systems
-        metadata["sdata"] = self._sdata
-        metadata["element"] = polygons
+        metadata = get_metadata_mapping(self._sdata, polygons, coordinate_systems, annotation)
+
         MAX_POLYGONS = 500
         if len(coordinates) > MAX_POLYGONS:
             coordinates = coordinates[:MAX_POLYGONS]
@@ -212,18 +201,14 @@ class SdataWidget(QWidget):
         annotation = _find_annotation_for_regions(
             base_element=label_element, element_path=key, annotation_table=self._sdata.table
         )
+        coordinate_systems = list(get_transformation(label_element, get_all=True).keys())
         if annotation is not None:
             _, _, instance_key = _get_mapping_info(annotation)
-            metadata = {
-                "adata": annotation,
-                "labels_key": instance_key,
-            }
+            metadata = get_metadata_mapping(self._sdata, label_element, coordinate_systems, annotation)
+            metadata["labels_key"] = instance_key
         else:
-            metadata = {}
-        coordinate_systems = list(get_transformation(label_element, get_all=True).keys())
-        metadata["coordinate_systems"] = coordinate_systems
-        metadata["sdata"] = self._sdata
-        metadata["element"] = label_element
+            metadata = get_metadata_mapping(self._sdata, label_element, coordinate_systems)
+
         rgb_labels, rgb = _transform_to_rgb(element=label_element)
         self._viewer.add_labels(rgb_labels, name=key, metadata=metadata, affine=affine)
 
@@ -236,8 +221,8 @@ class SdataWidget(QWidget):
 
         affine = _get_transform(self._sdata.images[key], self.coordinate_system_widget._system)
         new_image, rgb = _transform_to_rgb(element=img_element)
+        metadata = get_metadata_mapping(self._sdata, img_element, coordinate_systems)
 
-        metadata = {"coordinate_systems": coordinate_systems, "sdata": self._sdata, "element": img_element}
         self._viewer.add_image(
             new_image,
             rgb=rgb,
@@ -266,13 +251,8 @@ class SdataWidget(QWidget):
             point_coords = point_coords[choice, :]
 
         annotation = points_to_anndata(points_element, point_coords, dims, choice)
-
-        metadata = {"adata": annotation, "library_id": key} if annotation is not None else {}
-
         coordinate_systems = list(get_transformation(points_element, get_all=True).keys())
-        metadata["coordinate_systems"] = coordinate_systems
-        metadata["sdata"] = self._sdata
-        metadata["element"] = points_element
+        metadata = get_metadata_mapping(self._sdata, points_element, coordinate_systems, annotation)
 
         if "z" in dims:
             assert len(dims) == 3

@@ -26,6 +26,7 @@ from scipy.spatial import KDTree
 from shapely import MultiPolygon, Point, Polygon
 from skimage.measure import regionprops
 from spatial_image import SpatialImage
+from spatialdata import SpatialData
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -466,3 +467,16 @@ def _get_ellipses_from_circles(centroids: NDArrayA, radii: NDArrayA) -> NDArrayA
     lower_right = centroids - r
     upper_left = centroids + r
     return np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
+
+
+def get_metadata_mapping(
+    sdata: SpatialData,
+    element: SpatialElement,
+    coordinate_systems: list[str],
+    annotation: Optional[AnnData] = None,
+) -> dict[str, Union[SpatialData, SpatialElement, str, Optional[AnnData]]]:
+    metadata = {"adata": annotation} if annotation is not None else {}
+    metadata["sdata"] = sdata
+    metadata["element"] = element
+    metadata["coordinate_systems"] = coordinate_systems
+    return metadata
