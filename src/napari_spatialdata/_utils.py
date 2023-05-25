@@ -271,14 +271,10 @@ def _init_colors_for_obs(adata: AnnData) -> AnnData:
     return adata
 
 
-def points_to_anndata(
-    points_element: DaskDataFrame, points: NDArrayA, dims: tuple[str], sampling: Optional[NDArrayA]
-) -> Optional[AnnData]:
+def points_to_anndata(points_element: DaskDataFrame, points: NDArrayA, dims: tuple[str]) -> Optional[AnnData]:
     annotations_columns = list(set(points_element.columns.to_list()).difference(dims))
     if len(annotations_columns) > 0:
         df = points_element[annotations_columns].compute()
-        if sampling is not None:
-            df = df.iloc[sampling, :]
         annotation = AnnData(shape=(len(points), 0), obs=df, obsm={"spatial": points})
         return _init_colors_for_obs(annotation)
     return None

@@ -222,25 +222,27 @@ class SdataWidget(QWidget):
         )
 
     def _add_points(self, key: str) -> None:
-        points_element = self._sdata.points[key]
-        dims = get_axes_names(points_element)
-        point_coords = points_element[list(dims)].compute().values
-
         MAX_POINTS = 100000
-        affine = _get_transform(self._sdata.points[key], self.coordinate_system_widget._system)
-
-        if len(point_coords) < MAX_POINTS:
-            choice = None
-        else:
+        points_element = self._sdata.points[key]
+        if len(points_element) > MAX_POINTS:
             logger.warning(
-                f"Too many points {len(point_coords)} > {MAX_POINTS}, subsampling to {MAX_POINTS}. "
+                f"Too many points {len(points_element)} > {MAX_POINTS}, subsampling to {MAX_POINTS}. "
                 f"Performance will be improved in a future PR"
             )
-            gen = np.random.default_rng()
-            choice = gen.choice(len(point_coords), size=MAX_POINTS, replace=False)
-            point_coords = point_coords[choice, :]
+            # Using frac here as n is not supported
+            points_element = points_element.sample(frac=MAX_POINTS / len(points_element), replace=False)
 
-        annotation = points_to_anndata(points_element, point_coords, dims, choice)
+        dims = get_axes_names(points_element)
+        # Swap because napari expects y, x
+        if not dims.index("y") < dims.index("x"):
+            dims = list(dims)
+            dims[dims.index("y")], dims[dims.index("x")] = dims[dims.index("x")], dims[dims.index("y")]
+
+        point_coords = points_element[list(dims)].compute().values
+
+        affine = _get_transform(self._sdata.points[key], self.coordinate_system_widget._system)
+
+        annotation = points_to_anndata(points_element, point_coords, dims)
         coordinate_systems = list(get_transformation(points_element, get_all=True).keys())
         metadata = get_metadata_mapping(self._sdata, points_element, coordinate_systems, annotation)
 
