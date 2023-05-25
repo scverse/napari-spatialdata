@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Iterable, Union
 
 import numpy as np
-from geopandas import GeoDataFrame
 from loguru import logger
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
@@ -17,7 +16,6 @@ from napari_spatialdata._utils import (
     _get_ellipses_from_circles,
     _get_mapping_info,
     _get_transform,
-    _swap_coordinates,
     _transform_to_rgb,
     get_metadata_mapping,
     points_to_anndata,
@@ -131,51 +129,43 @@ class SdataWidget(QWidget):
             )
 
     def _add_polygons(self, key: str) -> None:
-        polygons = []
+        MAX_POLYGONS = 500
+        SIMPLIFY = 100
         gpdf = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
 
-        if "MultiPolygon" in np.unique(gpdf.geometry.type):
+        if len(gpdf) > MAX_POLYGONS:
+            gpdf = gpdf.iloc[:MAX_POLYGONS, :]
+            logger.warning(
+                f"Too many polygons: {len(gpdf)}. Only the first {MAX_POLYGONS} will be shown.",
+                UserWarning,
+            )
+
+        if "MultiPolygon" in gpdf.geometry.type.unique():
             logger.info(
                 "Multipolygons are present in the data. For visualization purposes, only the largest polygon per cell "
                 "is retained."
             )
             gpdf = gpdf.explode(index_parts=False)
             gpdf["area"] = gpdf.area
-            gpdf = gpdf.sort_values(by="area", ascending=False)  # sort by area
-            gpdf = gpdf[~gpdf.index.duplicated(keep="first")]  # only keep the largest area
-            gpdf = gpdf.sort_index()  # reset the index to the first order
+            # Boolean indexing based on max area. Quicker than sort.
+            gpdf = gpdf.loc[gpdf.groupby([gpdf.index])["area"].transform(max) == gpdf["area"]]
 
-        for shape in gpdf.geometry:
-            polygons.append(shape)
-
-        new_shapes = GeoDataFrame(gpdf.drop("geometry", axis=1), geometry=polygons)
-        new_shapes.attrs["transform"] = gpdf.attrs["transform"]
-
-        if len(new_shapes) < 100:
-            coordinates = new_shapes.geometry.apply(lambda x: np.array(x.exterior.coords).tolist()).tolist()
+        # In both cases coordinates are flipped because of napari expecting y x.
+        if len(gpdf) < SIMPLIFY:
+            coordinates = gpdf.geometry.apply(lambda x: np.flip(np.array(x.exterior.coords), axis=1).tolist()).tolist()
         else:
             # TODO: This can be removed once napari shape performance improved. Now, changes shapes vis slightly.
             logger.warning("Shape visuals are simplified for performance reasons.")
-            coordinates = new_shapes.geometry.apply(
-                lambda x: np.array(x.exterior.simplify(tolerance=2).coords).tolist()
+            coordinates = gpdf.geometry.apply(
+                lambda x: np.flip(np.array(x.exterior.simplify(tolerance=2).coords), axis=1).tolist()
             ).tolist()
 
         annotation = _find_annotation_for_regions(
-            base_element=polygons, annotation_table=self._sdata.table, element_path=key
+            base_element=gpdf, annotation_table=self._sdata.table, element_path=key
         )
         coordinate_systems = list(get_transformation(gpdf, get_all=True).keys())
-        metadata = get_metadata_mapping(self._sdata, polygons, coordinate_systems, annotation)
-
-        MAX_POLYGONS = 500
-        if len(coordinates) > MAX_POLYGONS:
-            coordinates = coordinates[:MAX_POLYGONS]
-            logger.warning(
-                f"Too many polygons: {len(coordinates)}. Only the first {MAX_POLYGONS} will be shown.",
-                UserWarning,
-            )
-        # Done because of napary requiring y, x
-        coordinates = _swap_coordinates(coordinates)
+        metadata = get_metadata_mapping(self._sdata, gpdf, coordinate_systems, annotation)
 
         self._viewer.add_shapes(
             coordinates,
