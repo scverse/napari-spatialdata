@@ -8,8 +8,15 @@ contributions:
     - id: napari-spatialdata.QtAdataViewWidget
       python_name: napari_spatialdata._view:QtAdataViewWidget
       title: Visualize spatial omics data in napari
+    - id: napari-spatialdata.get_reader
+      python_name: napari_spatialdata:get_reader
+      title: Get napari Reader for spatialdata
   widgets:
     - command: napari-spatialdata.QtAdataScatterWidget
       display_name: Scatter
     - command: napari-spatialdata.QtAdataViewWidget
       display_name: View
+  readers:
+    - command: napari-spatialdata.get_reader
+      accepts_directories: true
+      filename_patterns: ["*.zarr"]

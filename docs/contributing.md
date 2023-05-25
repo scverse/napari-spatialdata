@@ -171,6 +171,12 @@ make html
 open _build/html/index.html
 ```
 
+or use [sphinx-autobuild](https://sphinx-extensions.readthedocs.io/en/latest/sphinx-autobuild.html)
+
+```bash
+sphinx-autobuild docs docs/_build/html
+```
+
 <!-- Links -->
 
 [scanpy developer guide]: https://scanpy.readthedocs.io/en/latest/dev/index.html

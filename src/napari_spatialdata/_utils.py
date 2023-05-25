@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Callable, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -46,7 +46,7 @@ except (ImportError, TypeError):
     NDArrayA = np.ndarray  # type: ignore[misc]
 
 
-Vector_name_t = Tuple[Optional[Union[pd.Series, NDArrayA]], Optional[str]]
+Vector_name_t = tuple[Union[pd.Series, NDArrayA, None], Union[str, None]]
 
 
 def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vector_name_t]:
@@ -91,8 +91,8 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
 def _set_palette(
     adata: AnnData,
     key: str,
-    palette: Optional[str] = None,
-    vec: Optional[pd.Series] = None,
+    palette: str | None = None,
+    vec: pd.Series | None = None,
 ) -> dict[Any, Any]:
     if vec is not None and not is_categorical_dtype(vec):
         raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
@@ -112,9 +112,9 @@ def _set_palette(
 def _get_categorical(
     adata: AnnData,
     key: str,
-    vec: Optional[pd.Series] = None,
-    palette: Optional[str] = None,
-    colordict: Union[pd.Series, dict[Any, Any], None] = None,
+    vec: pd.Series | None = None,
+    palette: str | None = None,
+    colordict: pd.Series | dict[Any, Any] | None = None,
 ) -> NDArrayA:
     categorical = vec if vec is not None else adata.obs[key]
     if not isinstance(colordict, dict):
@@ -148,7 +148,7 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str,
     return {"clusters": clusters}
 
 
-def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
+def _min_max_norm(vec: spmatrix | NDArrayA) -> NDArrayA:
     if issparse(vec):
         if TYPE_CHECKING:
             assert isinstance(vec, spmatrix)
@@ -164,7 +164,7 @@ def _min_max_norm(vec: Union[spmatrix, NDArrayA]) -> NDArrayA:
     )
 
 
-def _get_transform(element: SpatialElement, coordinate_system_name: Optional[str] = None) -> NDArrayA:
+def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> NDArrayA:
     affine: NDArrayA
     transformations = get_transformation(element, get_all=True)
     cs = transformations.keys().__iter__().__next__() if coordinate_system_name is None else coordinate_system_name
@@ -205,7 +205,7 @@ def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
     return out
 
 
-def _transform_to_rgb(element: Union[SpatialImage, MultiscaleSpatialImage]) -> Tuple[DataArray, bool]:
+def _transform_to_rgb(element: SpatialImage | MultiscaleSpatialImage) -> tuple[DataArray, bool]:
     """Swap the axes to y, x, c if an image supports rgb(a) visualization.
 
     Checks whether c dim is present in the axes and allows for rgb(a) visualization. If so, subsequently transposes it
@@ -213,7 +213,7 @@ def _transform_to_rgb(element: Union[SpatialImage, MultiscaleSpatialImage]) -> T
 
     Parameters
     ----------
-    element: Union[SpatialImage, MultiScaleSpatialImage]
+    element: SpatialImage | MultiScaleSpatialImage
         Element in sdata.images
 
     Returns
@@ -271,7 +271,7 @@ def _init_colors_for_obs(adata: AnnData) -> AnnData:
     return adata
 
 
-def points_to_anndata(points_element: DaskDataFrame, points: NDArrayA, dims: tuple[str]) -> Optional[AnnData]:
+def points_to_anndata(points_element: DaskDataFrame, points: NDArrayA, dims: tuple[str]) -> AnnData | None:
     annotations_columns = list(set(points_element.columns.to_list()).difference(dims))
     if len(annotations_columns) > 0:
         df = points_element[annotations_columns].compute()
@@ -288,7 +288,7 @@ def _get_mapping_info(annotation_table: AnnData) -> tuple[str, str, str]:
 
 
 def _find_annotation_for_labels(
-    labels: Union[SpatialImage, MultiscaleSpatialImage],
+    labels: SpatialImage | MultiscaleSpatialImage,
     element_path: str,
     annotating_rows: AnnData,
     instance_key: str,
@@ -342,7 +342,7 @@ def _find_annotation_for_labels(
 
 def _find_annotation_for_shapes(
     circles: GeoDataFrame, element_path: str, annotating_rows: AnnData, instance_key: str
-) -> Optional[AnnData]:
+) -> AnnData | None:
     """Find the annotation for a circles layer from the annotation table."""
     available_instances = circles.index.tolist()
     annotated_instances = annotating_rows.obs[instance_key].tolist()
@@ -397,8 +397,8 @@ def _find_annotation_for_shapes(
 
 
 def _find_annotation_for_regions(
-    base_element: SpatialElement, element_path: str, annotation_table: Optional[AnnData] = None
-) -> Optional[AnnData]:
+    base_element: SpatialElement, element_path: str, annotation_table: AnnData | None = None
+) -> AnnData | None:
     if annotation_table is None:
         return None
 
@@ -465,8 +465,8 @@ def get_metadata_mapping(
     sdata: SpatialData,
     element: SpatialElement,
     coordinate_systems: list[str],
-    annotation: Optional[AnnData] = None,
-) -> dict[str, Union[SpatialData, SpatialElement, str, Optional[AnnData]]]:
+    annotation: AnnData | None = None,
+) -> dict[str, SpatialData | SpatialElement | str | AnnData]:
     metadata = {"adata": annotation} if annotation is not None else {}
     metadata["sdata"] = sdata
     metadata["element"] = element

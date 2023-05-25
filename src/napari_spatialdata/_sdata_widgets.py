@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Union
+from typing import Iterable
 
 import numpy as np
 from loguru import logger
@@ -27,7 +27,7 @@ class ElementWidget(QListWidget):
         super().__init__()
         self._sdata = sdata
 
-    def _onClickChange(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+    def _onClickChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         """Change list of elements displayed when selected coordinate system has changed."""
         self.clear()
 
@@ -49,12 +49,12 @@ class CoordinateSystemWidget(QListWidget):
 
         self.addItems(self._sdata.coordinate_systems)
 
-    def _select_coord_sys(self, selected_coordinate_system: Union[QListWidgetItem, int, Iterable[str]]) -> None:
+    def _select_coord_sys(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self._system = str(selected_coordinate_system)
 
 
 class SdataWidget(QWidget):
-    def __init__(self, viewer: Viewer, sdata: SpatialData, images: bool, labels: bool, shapes: bool, points: bool):
+    def __init__(self, viewer: Viewer, sdata: SpatialData):
         super().__init__()
         self._sdata = sdata
         self._viewer = viewer
