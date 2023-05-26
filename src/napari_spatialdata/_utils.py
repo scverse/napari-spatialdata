@@ -3,6 +3,7 @@ from __future__ import annotations
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Sequence, Union
 
+import dask as da
 import numpy as np
 import pandas as pd
 from anndata import AnnData
@@ -294,10 +295,8 @@ def _find_annotation_for_labels(
     instance_key: str,
 ) -> AnnData:
     # TODO: use xarray apis
-    x = np.array(labels.data)
-    u = np.unique(x)
-    # backgrond = 0 in u
-    # adjacent_labels = (len(u) - 1 if backgrond else len(u)) == np.max(u)
+    x = da.array.unique(labels.data)
+    u = x.compute()
     available_u = annotating_rows.obs[instance_key]
     u_not_annotated = set(np.setdiff1d(u, available_u).tolist())
     if 0 in set(u_not_annotated):
@@ -323,11 +322,6 @@ def _find_annotation_for_labels(
         list_of_v.append(v)
     centroids = pd.DataFrame({"cx": list_of_cx, "cy": list_of_cy, "v": list_of_v})
     merged = pd.merge(annotating_rows.obs, centroids, left_on=instance_key, right_on="v", how="left", indicator=True)
-    # background = merged.query('_merge == "left_only"')
-    # assert len(background) == 1
-    # assert background.loc[background.index[0], instance_key] == 0
-    # index_of_background = merged[merged[instance_key] == 0].index[0]
-    # merged.loc[index_of_background, "v"] = 0
     merged["v"] = merged["v"].astype(int)
 
     assert len(annotating_rows) == len(merged)
