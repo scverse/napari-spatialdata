@@ -12,6 +12,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
+from napari_spatialdata._constants._constants import SpatialDataLayers
 from napari_spatialdata._utils import NDArrayA, _get_transform, _swap_coordinates
 
 
@@ -63,6 +64,7 @@ class SdataWidget(QWidget):
 
         self.elements_widget.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
         self.coordinate_system_widget.itemClicked.connect(lambda item: self.elements_widget._onClickChange(item.text()))
+        self.coordinate_system_widget.itemClicked.connect(self._update_layer_visibility)
         self.coordinate_system_widget.itemClicked.connect(
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
@@ -76,6 +78,15 @@ class SdataWidget(QWidget):
             self._add_points(text)
         elif self.elements_widget._elements[text] == "shapes":
             self._add_shapes(text)
+
+    def _update_layer_visibility(self) -> None:
+        """Set visible to false if specific layer is not present in selected coordinate system."""
+        elements = self.elements_widget._elements
+        if self._viewer.layers:
+            for ll in self._viewer.layers:
+                # TODO: Check if it is even possible to have the second edge case.
+                if ll.name not in elements or not isinstance(ll, SpatialDataLayers[elements[ll.name]].value):
+                    ll.visible = False
 
     def _add_circles(self, key: str) -> None:
         circles = []
