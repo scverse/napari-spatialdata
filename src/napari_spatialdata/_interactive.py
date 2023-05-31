@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Iterable
+from typing import TYPE_CHECKING, Any, Iterable
 
 import napari
 import numpy as np
@@ -13,6 +13,9 @@ from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QW
 from spatialdata import SpatialData
 
 from napari_spatialdata._utils import NDArrayA, _get_transform, _swap_coordinates
+
+if TYPE_CHECKING:
+    from napari.utils.events.event import Event
 
 
 class ElementWidget(QListWidget):
@@ -77,6 +80,13 @@ class SdataWidget(QWidget):
         elif self.elements_widget._elements[text] == "shapes":
             self._add_shapes(text)
 
+    def _toggle_visible_in_cs(self, event: Event) -> None:
+        """Toggle active in cs metadata when changing visibility of layer."""
+        layer = event.source
+        elements = self.elements_widget._elements
+        if layer.name in elements:
+            layer.metadata["active_in_cs"] = not layer.metadata["active_in_cs"]
+
     def _update_layers_visibility(self) -> None:
         """Toggle layer visibility dependent on presence in currently selected coordinate system."""
         elements = self.elements_widget._elements
@@ -86,8 +96,10 @@ class SdataWidget(QWidget):
             for layer in self._viewer.layers:
                 if layer.name not in elements:
                     layer.visible = False
-                elif layer.metadata["active_in_cs"] is True:
+                elif layer.metadata["active_in_cs"]:
                     layer.visible = True
+                    # Prevent _toggle_visible_in_cs of setting to False.
+                    layer.metadata["active_in_cs"] = True
 
     def _add_circles(self, key: str) -> None:
         circles = []
@@ -99,7 +111,7 @@ class SdataWidget(QWidget):
 
         circles = _swap_coordinates(circles)
 
-        self._viewer.add_shapes(
+        layer = self._viewer.add_shapes(
             circles,
             name=key,
             affine=affine,
@@ -113,6 +125,7 @@ class SdataWidget(QWidget):
                 "active_in_cs": True,
             },
         )
+        layer.events.visible.connect(self._toggle_visible_in_cs)
 
     def _add_polygons(self, key: str) -> None:
         polygons = []
@@ -138,7 +151,7 @@ class SdataWidget(QWidget):
         # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
 
-        self._viewer.add_shapes(
+        layer = self._viewer.add_shapes(
             polygons,
             name=key,
             affine=affine,
@@ -152,6 +165,7 @@ class SdataWidget(QWidget):
                 "active_in_cs": True,
             },
         )
+        layer.events.visible.connect(self._toggle_visible_in_cs)
 
     def _add_shapes(self, key: str) -> None:
         if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
@@ -168,7 +182,7 @@ class SdataWidget(QWidget):
     def _add_label(self, key: str) -> None:
         affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
 
-        self._viewer.add_labels(
+        layer = self._viewer.add_labels(
             self._sdata.labels[key],
             name=key,
             affine=affine,
@@ -180,6 +194,7 @@ class SdataWidget(QWidget):
                 "active_in_cs": True,
             },
         )
+        layer.events.visible.connect(self._toggle_visible_in_cs)
 
     def _add_image(self, key: str) -> None:
         img = self._sdata.images[key]
@@ -188,7 +203,8 @@ class SdataWidget(QWidget):
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
-        self._viewer.add_image(img, name=key, affine=affine, metadata={"active_in_cs": True})
+        layer = self._viewer.add_image(img, name=key, affine=affine, metadata={"active_in_cs": True})
+        layer.events.visible.connect(self._toggle_visible_in_cs)
 
     def _add_points(self, key: str) -> None:
         points = self._sdata.points[key].compute()
@@ -200,7 +216,7 @@ class SdataWidget(QWidget):
             gen = np.random.default_rng()
             subsample = gen.choice(len(points), size=100000, replace=False)
 
-        self._viewer.add_points(
+        layer = self._viewer.add_points(
             points[["y", "x"]].values[subsample],
             name=key,
             size=20,
@@ -210,6 +226,7 @@ class SdataWidget(QWidget):
                 "active_in_cs": True,
             },
         )
+        layer.events.visible.connect(self._toggle_visible_in_cs)
 
 
 class Interactive:
