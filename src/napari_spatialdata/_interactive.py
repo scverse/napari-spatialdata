@@ -98,6 +98,7 @@ class SdataWidget(QWidget):
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "circles",
+                "name": key,
             },
         )
 
@@ -136,6 +137,7 @@ class SdataWidget(QWidget):
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "polygons",
+                "name": key,
             },
         )
 
@@ -163,6 +165,7 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
+                "name": key,
             },
         )
 
@@ -196,6 +199,7 @@ class SdataWidget(QWidget):
             affine=affine,
             metadata={
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
+                "name": key,
             },
         )
 
