@@ -12,7 +12,6 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata._constants._constants import SpatialDataLayers
 from napari_spatialdata._utils import NDArrayA, _get_transform, _swap_coordinates
 
 
@@ -61,10 +60,9 @@ class SdataWidget(QWidget):
         self.layout().addWidget(self.coordinate_system_widget)
         self.layout().addWidget(QLabel("Elements:"))
         self.layout().addWidget(self.elements_widget)
-
         self.elements_widget.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
         self.coordinate_system_widget.itemClicked.connect(lambda item: self.elements_widget._onClickChange(item.text()))
-        self.coordinate_system_widget.itemClicked.connect(self._update_layer_visibility)
+        self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
         self.coordinate_system_widget.itemClicked.connect(
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
@@ -79,14 +77,17 @@ class SdataWidget(QWidget):
         elif self.elements_widget._elements[text] == "shapes":
             self._add_shapes(text)
 
-    def _update_layer_visibility(self) -> None:
-        """Set visible to false if specific layer is not present in selected coordinate system."""
+    def _update_layers_visibility(self) -> None:
+        """Toggle layer visibility dependent on presence in currently selected coordinate system."""
         elements = self.elements_widget._elements
+
+        # No layer selected on first time coordinate system selection
         if self._viewer.layers:
-            for ll in self._viewer.layers:
-                # TODO: Check if it is even possible to have the second edge case.
-                if ll.name not in elements or not isinstance(ll, SpatialDataLayers[elements[ll.name]].value):
-                    ll.visible = False
+            for layer in self._viewer.layers:
+                if layer.name not in elements:
+                    layer.visible = False
+                elif layer.metadata["active_in_cs"] is True:
+                    layer.visible = True
 
     def _add_circles(self, key: str) -> None:
         circles = []
@@ -109,6 +110,7 @@ class SdataWidget(QWidget):
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "circles",
+                "active_in_cs": True,
             },
         )
 
@@ -147,6 +149,7 @@ class SdataWidget(QWidget):
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "polygons",
+                "active_in_cs": True,
             },
         )
 
@@ -174,6 +177,7 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
+                "active_in_cs": True,
             },
         )
 
@@ -184,11 +188,7 @@ class SdataWidget(QWidget):
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
-        self._viewer.add_image(
-            img,
-            name=key,
-            affine=affine,
-        )
+        self._viewer.add_image(img, name=key, affine=affine, metadata={"active_in_cs": True})
 
     def _add_points(self, key: str) -> None:
         points = self._sdata.points[key].compute()
@@ -207,6 +207,7 @@ class SdataWidget(QWidget):
             affine=affine,
             metadata={
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
+                "active_in_cs": True,
             },
         )
 
