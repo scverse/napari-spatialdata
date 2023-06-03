@@ -65,10 +65,10 @@ class SdataWidget(QWidget):
         self.layout().addWidget(self.elements_widget)
         self.elements_widget.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
         self.coordinate_system_widget.itemClicked.connect(lambda item: self.elements_widget._onClickChange(item.text()))
-        self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
         self.coordinate_system_widget.itemClicked.connect(
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
+        self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
 
     def _onClick(self, text: str) -> None:
         if self.elements_widget._elements[text] == "labels":
@@ -80,16 +80,23 @@ class SdataWidget(QWidget):
         elif self.elements_widget._elements[text] == "shapes":
             self._add_shapes(text)
 
-    def _toggle_visible_in_cs(self, event: Event) -> None:
+    def _update_visible_in_cs(self, event: Event) -> None:
         """Toggle active in cs metadata when changing visibility of layer."""
         layer = event.source
+        layer_active = layer.metadata["active_in_cs"]
+        selected_coordinate_system = self.coordinate_system_widget._system
+
         elements = self.elements_widget._elements
         if layer.name in elements:
-            layer.metadata["active_in_cs"] = not layer.metadata["active_in_cs"]
+            if selected_coordinate_system not in layer_active:
+                layer_active.add(selected_coordinate_system)
+            else:
+                layer_active.remove(selected_coordinate_system)
 
     def _update_layers_visibility(self) -> None:
         """Toggle layer visibility dependent on presence in currently selected coordinate system."""
         elements = self.elements_widget._elements
+        coordinate_space = self.coordinate_system_widget._system
 
         # No layer selected on first time coordinate system selection
         if self._viewer.layers:
@@ -98,10 +105,11 @@ class SdataWidget(QWidget):
                     layer.visible = False
                 elif layer.metadata["active_in_cs"]:
                     layer.visible = True
-                    # Prevent _toggle_visible_in_cs of setting to False.
-                    layer.metadata["active_in_cs"] = True
+                    # Prevent _update_visible_in_cs of removing coordinate system if previously in coordinate system.
+                    layer.metadata["active_in_cs"].add(coordinate_space)
 
     def _add_circles(self, key: str) -> None:
+        selected_cs = self.coordinate_system_widget._system
         circles = []
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
@@ -122,15 +130,16 @@ class SdataWidget(QWidget):
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "circles",
-                "active_in_cs": True,
+                "active_in_cs": {selected_cs},
             },
         )
-        layer.events.visible.connect(self._toggle_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_cs)
 
     def _add_polygons(self, key: str) -> None:
+        selected_cs = self.coordinate_system_widget._system
         polygons = []
         df = self._sdata.shapes[key]
-        affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
+        affine = _get_transform(self._sdata.shapes[key], selected_cs)
 
         # when mulitpolygons are present, we select the largest ones
         if "MultiPolygon" in np.unique(df.geometry.type):
@@ -162,10 +171,10 @@ class SdataWidget(QWidget):
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "polygons",
-                "active_in_cs": True,
+                "active_in_cs": {selected_cs},
             },
         )
-        layer.events.visible.connect(self._toggle_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_cs)
 
     def _add_shapes(self, key: str) -> None:
         if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
@@ -180,7 +189,8 @@ class SdataWidget(QWidget):
             )
 
     def _add_label(self, key: str) -> None:
-        affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
+        selected_cs = self.coordinate_system_widget._system
+        affine = _get_transform(self._sdata.labels[key], selected_cs)
 
         layer = self._viewer.add_labels(
             self._sdata.labels[key],
@@ -191,24 +201,26 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
-                "active_in_cs": True,
+                "active_in_cs": {selected_cs},
             },
         )
-        layer.events.visible.connect(self._toggle_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_cs)
 
     def _add_image(self, key: str) -> None:
+        selected_cs = self.coordinate_system_widget._system
         img = self._sdata.images[key]
-        affine = _get_transform(self._sdata.images[key], self.coordinate_system_widget._system)
+        affine = _get_transform(self._sdata.images[key], selected_cs)
 
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
-        layer = self._viewer.add_image(img, name=key, affine=affine, metadata={"active_in_cs": True})
-        layer.events.visible.connect(self._toggle_visible_in_cs)
+        layer = self._viewer.add_image(img, name=key, affine=affine, metadata={"active_in_cs": {selected_cs}})
+        layer.events.visible.connect(self._update_visible_in_cs)
 
     def _add_points(self, key: str) -> None:
+        selected_cs = self.coordinate_system_widget._system
         points = self._sdata.points[key].compute()
-        affine = _get_transform(self._sdata.points[key], self.coordinate_system_widget._system)
+        affine = _get_transform(self._sdata.points[key], selected_cs)
         if len(points) < 100000:
             subsample = np.arange(len(points))
         else:
@@ -223,10 +235,10 @@ class SdataWidget(QWidget):
             affine=affine,
             metadata={
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
-                "active_in_cs": True,
+                "active_in_cs": {selected_cs},
             },
         )
-        layer.events.visible.connect(self._toggle_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_cs)
 
 
 class Interactive:
