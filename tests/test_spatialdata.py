@@ -163,6 +163,10 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space", "other"}
     assert not viewer.layers[1].visible
 
+    # Check case for landmark registration
+    viewer.layers[1].visible = True
+    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space"}
+
     # Check previously active coordinate system
     model_index = widget.coordinate_system_widget.model().index(2, 0)
     center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
