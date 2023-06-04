@@ -31,6 +31,8 @@ def test_creating_widget_with_data(
     # create our widget, passing in the viewer
     widget_instance = widget(viewer)
     viewer.layers.selection.events.changed.disconnect()
+    for child in widget_instance.children():
+        child.deleteLater()
     widget_instance.deleteLater()
     qtbot.wait(50)
 
