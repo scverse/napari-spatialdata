@@ -16,21 +16,21 @@ def main() -> None:
 
 
 @cli.command(help="Interactive visualization of SpatialData datasets with napari")
-@click.argument("path", nargs=-1, type=tuple, required=True)
-def view(paths: tuple[str]) -> None:
+@click.argument("path", nargs=-1, type=str, required=True)
+def view(path: str) -> None:
     """Interactive visualization of SpatialData datasets with napari.
 
     :param path: Path to the SpatialData dataset
     """
-    assert type(paths) == tuple
+    assert type(path) == tuple
 
     import spatialdata as sd
 
     from napari_spatialdata import Interactive
 
     sdatas = []
-    for path in paths:
-        p = Path(path).resolve()
+    for p in path:
+        p = Path(p).resolve()
         assert p.exists(), f"Error: {p} does not exist"
         logger.info(f"Reading {p}")
         if not p.is_dir():
