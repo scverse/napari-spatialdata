@@ -17,7 +17,14 @@ def main() -> None:
 
 @cli.command(help="Interactive visualization of SpatialData datasets with napari")
 @click.argument("path", nargs=-1, type=str, required=True)
-def view(path: str) -> None:
+@click.option(
+    "--headless",
+    "-h",
+    is_flag=True,
+    default=False,
+    help="Run napari in headless mode. Used for testing.",
+)
+def view(path: tuple[str], headless: bool) -> None:
     """Interactive visualization of SpatialData datasets with napari.
 
     :param path: Path to the SpatialData dataset
@@ -29,8 +36,8 @@ def view(path: str) -> None:
     from napari_spatialdata import Interactive
 
     sdatas = []
-    for p in path:
-        p = Path(p).resolve()
+    for p_str in path:
+        p = Path(p_str).resolve()
         assert p.exists(), f"Error: {p} does not exist"
         logger.info(f"Reading {p}")
         if not p.is_dir():
@@ -46,7 +53,8 @@ def view(path: str) -> None:
 
     # TODO: support multiple spatial data
     interactive = Interactive(sdata=sdatas[0])
-    interactive.run()
+    if not headless:
+        interactive.run()
 
 
 if __name__ == "__main__":
