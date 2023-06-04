@@ -17,6 +17,7 @@ def test_creating_widget_with_data(
     widget: Any,
     image: NDArrayA,
     adata_shapes: AnnData,
+    qtbot,
 ) -> None:
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
@@ -29,7 +30,6 @@ def test_creating_widget_with_data(
 
     # create our widget, passing in the viewer
     _ = widget(viewer)
-    viewer.layers.selection.events.changed.disconnect()
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
