@@ -124,6 +124,7 @@ class SdataWidget(QWidget):
             affine=affine,
             shape_type="ellipse",
             metadata={
+                "sdata": self._sdata,
                 "adata": self._sdata.table[
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
@@ -165,6 +166,7 @@ class SdataWidget(QWidget):
             affine=affine,
             shape_type="polygon",
             metadata={
+                "sdata": self._sdata,
                 "adata": self._sdata.table[
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
@@ -196,6 +198,7 @@ class SdataWidget(QWidget):
             name=key,
             affine=affine,
             metadata={
+                "sdata": self._sdata,
                 "adata": self._sdata.table[
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
@@ -233,6 +236,7 @@ class SdataWidget(QWidget):
             size=20,
             affine=affine,
             metadata={
+                "sdata": self._sdata,
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
                 "active_in_cs": {selected_cs},
             },
