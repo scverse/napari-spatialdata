@@ -6,7 +6,7 @@ from dask.array.random import randint
 from dask.dataframe import from_dask_array
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
-from napari_spatialdata._interactive import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from numpy import int64
 from PyQt6.QtCore import Qt
 from spatialdata.datasets import blobs
@@ -108,8 +108,9 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, sdata)
 
-    # Click on `global` coordinate system
-    model_index = widget.coordinate_system_widget.model().index(2, 0)
+    # Click on `space` coordinate system
+    list_item = widget.coordinate_system_widget.findItems("global", Qt.MatchExactly)[0]
+    model_index = widget.coordinate_system_widget.indexFromItem(list_item)
     center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
 
     # Ensure that signal is sent before progressing
@@ -125,11 +126,16 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     widget._onClick(list(sdata.points.keys())[0])
     widget._onClick(list(sdata.labels.keys())[0])
 
-    assert viewer.layers[0].metadata["active_in_cs"]
-    assert viewer.layers[1].metadata["active_in_cs"]
+    points = viewer.layers[0]
+    labels = viewer.layers[1]
+
+    assert points.metadata["active_in_cs"]
+    assert labels.metadata["active_in_cs"]
+    assert labels.metadata["current_cs"] == "global"
 
     # Click on `space` coordinate system
-    model_index = widget.coordinate_system_widget.model().index(1, 0)
+    list_item = widget.coordinate_system_widget.findItems("space", Qt.MatchExactly)[0]
+    model_index = widget.coordinate_system_widget.indexFromItem(list_item)
     center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
     with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
         qtbot.mouseClick(
@@ -139,18 +145,21 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
             pos=center_pos,
         )
     # Is present in coordinate system and should stay visible.
-    assert viewer.layers[0].visible
-    assert viewer.layers[1].visible
-    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space"}
-    assert viewer.layers[1].metadata["active_in_cs"] == {"global", "space"}
+    assert points.visible
+    assert labels.visible
+    assert points.metadata["active_in_cs"] == {"global", "space"}
+    assert labels.metadata["active_in_cs"] == {"global", "space"}
+    assert labels.metadata["current_cs"] == "space"
 
     # Test visibility within same coordinate system
-    viewer.layers[1].visible = False
-    assert viewer.layers[1].metadata["active_in_cs"] == {"global"}
-    viewer.layers[1].visible = True
+    labels.visible = False
+    assert labels.metadata["active_in_cs"] == {"global"}
+    assert labels.metadata["current_cs"] == "space"
+    labels.visible = True
 
     # Click on `other` coordinate system
-    model_index = widget.coordinate_system_widget.model().index(0, 0)
+    list_item = widget.coordinate_system_widget.findItems("other", Qt.MatchExactly)[0]
+    model_index = widget.coordinate_system_widget.indexFromItem(list_item)
     center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
     with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
         qtbot.mouseClick(
@@ -159,13 +168,15 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
             Qt.KeyboardModifier.NoModifier,
             pos=center_pos,
         )
-    assert viewer.layers[0].visible
-    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space", "other"}
-    assert not viewer.layers[1].visible
+    assert points.visible
+    assert points.metadata["active_in_cs"] == {"global", "space", "other"}
+    assert not labels.visible
+    # Since not present in current selected cs, this layer is still in previously selected cs.
+    assert labels.metadata["current_cs"] == "space"
 
     # Check case for landmark registration
-    viewer.layers[1].visible = True
-    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space"}
+    labels.visible = True
+    assert labels.metadata["active_in_cs"] == {"global", "space"}
 
     # Check previously active coordinate system
     model_index = widget.coordinate_system_widget.model().index(2, 0)
@@ -177,5 +188,5 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
             Qt.KeyboardModifier.NoModifier,
             pos=center_pos,
         )
-    assert viewer.layers[0].visible
-    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space", "other"}
+    assert points.visible
+    assert points.metadata["active_in_cs"] == {"global", "space", "other"}

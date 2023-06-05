@@ -106,6 +106,7 @@ class SdataWidget(QWidget):
                     layer.visible = True
                     # Prevent _update_visible_in_cs of removing coordinate system if previously in coordinate system.
                     layer.metadata["active_in_cs"].add(coordinate_space)
+                    layer.metadata["current_cs"] = coordinate_space
 
     def _add_circles(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
