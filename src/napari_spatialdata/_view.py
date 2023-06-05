@@ -213,7 +213,6 @@ class QtAdataViewWidget(QWidget):
         self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
         self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
 
-        self.viewer.bind_key("Shift-E", self.export)
         self.model.events.adata.connect(self._on_layer_update)
 
     def _on_layer_update(self, event: Optional[Any] = None) -> None:
