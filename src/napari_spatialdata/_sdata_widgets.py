@@ -131,6 +131,7 @@ class SdataWidget(QWidget):
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "circles",
                 "active_in_cs": {selected_cs},
+                "current_cs": selected_cs,
             },
         )
         layer.events.visible.connect(self._update_visible_in_cs)
@@ -173,6 +174,7 @@ class SdataWidget(QWidget):
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "polygons",
                 "active_in_cs": {selected_cs},
+                "current_cs": selected_cs,
             },
         )
         layer.events.visible.connect(self._update_visible_in_cs)
@@ -204,6 +206,7 @@ class SdataWidget(QWidget):
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
                 "active_in_cs": {selected_cs},
+                "current_cs": selected_cs,
             },
         )
         layer.events.visible.connect(self._update_visible_in_cs)
@@ -216,7 +219,9 @@ class SdataWidget(QWidget):
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
-        layer = self._viewer.add_image(img, name=key, affine=affine, metadata={"active_in_cs": {selected_cs}})
+        layer = self._viewer.add_image(
+            img, name=key, affine=affine, metadata={"active_in_cs": {selected_cs}, "current_cs": selected_cs}
+        )
         layer.events.visible.connect(self._update_visible_in_cs)
 
     def _add_points(self, key: str) -> None:
@@ -239,6 +244,7 @@ class SdataWidget(QWidget):
                 "sdata": self._sdata,
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
                 "active_in_cs": {selected_cs},
+                "current_cs": selected_cs,
             },
         )
         layer.events.visible.connect(self._update_visible_in_cs)
