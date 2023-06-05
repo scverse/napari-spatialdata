@@ -22,16 +22,16 @@ from qtpy.QtWidgets import (
 from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
-from napari_spatialdata._utils import (
-    NDArrayA,
-    _get_categorical,
-    _points_inside_triangles,
-)
 from napari_spatialdata._widgets import (
     AListWidget,
     CBarWidget,
     ComponentWidget,
     RangeSliderWidget,
+)
+from napari_spatialdata.utils._utils import (
+    NDArrayA,
+    _get_categorical,
+    _points_inside_triangles,
 )
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]

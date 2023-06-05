@@ -20,7 +20,7 @@ from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
 
 from napari_spatialdata._model import ImageModel
-from napari_spatialdata._utils import (
+from napari_spatialdata.utils._utils import (
     NDArrayA,
     _get_categorical,
     _min_max_norm,

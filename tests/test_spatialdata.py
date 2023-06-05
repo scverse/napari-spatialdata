@@ -7,6 +7,7 @@ from dask.dataframe import from_dask_array
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata.utils._test_utils import get_center_pos_listitem
 from numpy import int64
 from PyQt6.QtCore import Qt
 from spatialdata.datasets import blobs
@@ -108,10 +109,8 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, sdata)
 
-    # Click on `space` coordinate system
-    list_item = widget.coordinate_system_widget.findItems("global", Qt.MatchExactly)[0]
-    model_index = widget.coordinate_system_widget.indexFromItem(list_item)
-    center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
+    # Click on `global` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
 
     # Ensure that signal is sent before progressing
     with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
@@ -134,9 +133,7 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     assert labels.metadata["current_cs"] == "global"
 
     # Click on `space` coordinate system
-    list_item = widget.coordinate_system_widget.findItems("space", Qt.MatchExactly)[0]
-    model_index = widget.coordinate_system_widget.indexFromItem(list_item)
-    center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "space")
     with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
         qtbot.mouseClick(
             widget.coordinate_system_widget.viewport(),
@@ -158,9 +155,7 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     labels.visible = True
 
     # Click on `other` coordinate system
-    list_item = widget.coordinate_system_widget.findItems("other", Qt.MatchExactly)[0]
-    model_index = widget.coordinate_system_widget.indexFromItem(list_item)
-    center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "other")
     with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
         qtbot.mouseClick(
             widget.coordinate_system_widget.viewport(),
@@ -179,8 +174,7 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     assert labels.metadata["active_in_cs"] == {"global", "space"}
 
     # Check previously active coordinate system
-    model_index = widget.coordinate_system_widget.model().index(2, 0)
-    center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
         qtbot.mouseClick(
             widget.coordinate_system_widget.viewport(),

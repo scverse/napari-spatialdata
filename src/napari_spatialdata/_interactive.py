@@ -6,7 +6,7 @@ import napari
 from spatialdata import SpatialData
 
 from napari_spatialdata._sdata_widgets import SdataWidget
-from napari_spatialdata._utils import NDArrayA
+from napari_spatialdata.utils._utils import NDArrayA
 
 
 class Interactive:
