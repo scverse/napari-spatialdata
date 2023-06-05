@@ -1,5 +1,7 @@
+import sys
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 from napari_spatialdata.__main__ import cli
 from spatialdata.datasets import blobs
@@ -28,3 +30,5 @@ def test_view_path_is_dir():
         blobs().write(f)
         result = runner.invoke(cli, ["view", "data.zarr", "--headless"])
         assert result.exit_code == 0  # Command executed successfully
+        with pytest.raises(SystemExit):
+            runner.invoke(sys.exit())
