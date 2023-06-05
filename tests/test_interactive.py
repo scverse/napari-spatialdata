@@ -29,10 +29,7 @@ def test_creating_widget_with_data(
     )
 
     # create our widget, passing in the viewer
-    widget_instance = widget(viewer)
-    viewer.layers.selection.events.changed.disconnect()
-    widget_instance.deleteLater()
-    qtbot.wait(50)
+    _ = widget(viewer)
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
