@@ -2,11 +2,12 @@
 
 The Command Line Interface can be access by running `python -m napari_spatialdata` or `napari` in a shell.
 Example:
+
 ```
 python -m napari_spatialdata view path/to/data.zarr
 ```
 
-To get extra information, run 
+To get extra information, run
 
 ```
 python -m napari_spatialdata --help
