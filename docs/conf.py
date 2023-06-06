@@ -15,7 +15,7 @@ sys.path.insert(0, str(HERE / "extensions"))
 
 
 # -- Project information -----------------------------------------------------
-info = metadata("napari_spatialdata")
+info = metadata("napari-spatialdata")
 project_name = info["Name"]
 author = info["Author"]
 copyright = f"{datetime.now():%Y}, {author}."
