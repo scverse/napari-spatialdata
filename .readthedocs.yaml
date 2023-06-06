@@ -4,9 +4,6 @@ build:
   os: ubuntu-20.04
   tools:
     python: "3.10"
-  commands:
-    - sudo apt-get update
-    - sudo apt-get install libc6
 sphinx:
   configuration: docs/conf.py
   fail_on_warning: true
