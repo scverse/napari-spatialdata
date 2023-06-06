@@ -7,8 +7,8 @@ from dask.dataframe import from_dask_array
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
 from napari_spatialdata._interactive import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
-from PyQt6.QtCore import Qt
 from spatialdata.datasets import blobs
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
@@ -109,73 +109,49 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     widget = SdataWidget(viewer, sdata)
 
     # Click on `global` coordinate system
-    model_index = widget.coordinate_system_widget.model().index(2, 0)
-    center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
-
-    # Ensure that signal is sent before progressing
-    with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
-        qtbot.mouseClick(
-            widget.coordinate_system_widget.viewport(),
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-            pos=center_pos,
-        )
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     # Load 2 layers, make 1 invisible
     widget._onClick(list(sdata.points.keys())[0])
     widget._onClick(list(sdata.labels.keys())[0])
 
-    assert viewer.layers[0].metadata["active_in_cs"]
-    assert viewer.layers[1].metadata["active_in_cs"]
+    points = viewer.layers[0]
+    labels = viewer.layers[1]
+
+    assert points.metadata["active_in_cs"]
+    assert labels.metadata["active_in_cs"]
 
     # Click on `space` coordinate system
-    model_index = widget.coordinate_system_widget.model().index(1, 0)
-    center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
-    with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
-        qtbot.mouseClick(
-            widget.coordinate_system_widget.viewport(),
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-            pos=center_pos,
-        )
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "space")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
     # Is present in coordinate system and should stay visible.
-    assert viewer.layers[0].visible
-    assert viewer.layers[1].visible
-    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space"}
-    assert viewer.layers[1].metadata["active_in_cs"] == {"global", "space"}
+    assert points.visible
+    assert labels.visible
+    assert points.metadata["active_in_cs"] == {"global", "space"}
+    assert labels.metadata["active_in_cs"] == {"global", "space"}
 
     # Test visibility within same coordinate system
-    viewer.layers[1].visible = False
-    assert viewer.layers[1].metadata["active_in_cs"] == {"global"}
-    viewer.layers[1].visible = True
+    labels.visible = False
+    assert labels.metadata["active_in_cs"] == {"global"}
+    labels.visible = True
 
     # Click on `other` coordinate system
-    model_index = widget.coordinate_system_widget.model().index(0, 0)
-    center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
-    with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
-        qtbot.mouseClick(
-            widget.coordinate_system_widget.viewport(),
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-            pos=center_pos,
-        )
-    assert viewer.layers[0].visible
-    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space", "other"}
-    assert not viewer.layers[1].visible
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "other")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    assert points.visible
+    assert points.metadata["active_in_cs"] == {"global", "space", "other"}
+    assert not labels.visible
 
     # Check case for landmark registration
-    viewer.layers[1].visible = True
-    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space"}
+    labels.visible = True
+    assert labels.metadata["active_in_cs"] == {"global", "space"}
 
     # Check previously active coordinate system
-    model_index = widget.coordinate_system_widget.model().index(2, 0)
-    center_pos = widget.coordinate_system_widget.visualRect(model_index).center()
-    with qtbot.wait_signal(widget.coordinate_system_widget.currentItemChanged):
-        qtbot.mouseClick(
-            widget.coordinate_system_widget.viewport(),
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-            pos=center_pos,
-        )
-    assert viewer.layers[0].visible
-    assert viewer.layers[0].metadata["active_in_cs"] == {"global", "space", "other"}
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    assert points.visible
+    assert points.metadata["active_in_cs"] == {"global", "space", "other"}

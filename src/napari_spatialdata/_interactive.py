@@ -12,7 +12,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata._utils import NDArrayA, _get_transform, _swap_coordinates
+from napari_spatialdata.utils._utils import NDArrayA, _get_transform, _swap_coordinates
 
 if TYPE_CHECKING:
     from napari.utils.events.event import Event
