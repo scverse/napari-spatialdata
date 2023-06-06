@@ -14,7 +14,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from shapely.geometry import Polygon
 from spatialdata import SpatialData
-from spatialdata.models import ShapesModel
+from spatialdata.models import PointsModel, ShapesModel
 from spatialdata.transformations import Identity
 
 from napari_spatialdata.utils._utils import _get_transform, _swap_coordinates
@@ -277,7 +277,7 @@ class SdataWidget(QWidget):
         if isinstance(layer, Shapes):
             self._save_shapes(layer, zarr_name)
         elif isinstance(layer, Points):
-            self._save_points(layer)
+            self._save_points(layer, zarr_name)
 
     def _save_shapes(self, layer: Shapes, name: str) -> None:
         cs = layer.metadata["current_cs"]
@@ -296,3 +296,21 @@ class SdataWidget(QWidget):
         parsed = ShapesModel.parse(gdf, transformations={cs: Identity()})
         sdata.add_shapes(name=name, shapes=parsed, overwrite=True)
         show_info(f"Shapes layer {name} has been saved to the spatialdata object.")
+
+    def _save_points(self, layer: Points, name: str) -> None:
+        cs = layer.metadata["current_cs"]
+        points_coords = layer.data
+        sdata = layer.metadata["sdata"]
+
+        # TODO: deal with the 3D case
+        if layer.ndim == 3:
+            points_coords = points_coords[:, 1:]
+        else:
+            assert layer.ndim == 2
+
+        # coords from napari are in the yx coordinate systems, we want to store them as xy
+        points_coords = np.fliplr(points_coords)
+        # saving as points (drawback: radius is not saved)
+        points = PointsModel.parse(points_coords, transformations={cs: Identity()})
+        sdata.add_points(name=name, points=points, overwrite=True)
+        show_info("Points saved in the SpatialData object")
