@@ -81,7 +81,7 @@ class SdataWidget(QWidget):
             self._add_shapes(text)
 
     def _update_visible_in_cs(self, event: Event) -> None:
-        """Toggle active in cs metadata when changing visibility of layer."""
+        """Toggle active in the coordinate system metadata when changing visibility of layer."""
         layer = event.source
         layer_active = layer.metadata["active_in_cs"]
         selected_coordinate_system = self.coordinate_system_widget._system
