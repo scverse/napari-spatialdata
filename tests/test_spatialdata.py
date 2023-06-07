@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from anndata import AnnData
 from dask.array.random import randint
@@ -14,9 +14,6 @@ from numpy import int64
 from spatialdata.datasets import blobs
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
-
-if TYPE_CHECKING:
-    pass
 
 sdata = blobs(extra_coord_system="space")
 
