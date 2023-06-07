@@ -285,10 +285,11 @@ class SdataWidget(QWidget):
         sdata: SpatialData = layer.metadata["sdata"]
 
         if layer.ndim == 3:
-            # TODO: add z separately as shapely only supports 2D. In case of z the polygon is only present in one z
+            # TODO, maybe add warning upon creation of shapes layer with ndim 3 or add z separately.
+            show_info("3D polygons are not supported yet, converting to 2D.")
             polygons_coords = [c[:, 1:] for c in polygons_coords]
-        else:
-            assert layer.ndim == 2
+        elif layer.ndim != 2:
+            raise ValueError("Only 2D or 3D shapes are supported")
 
         # Napari coords are yx but we store xy
         polygons = [Polygon(np.fliplr(polygon_coord)) for polygon_coord in polygons_coords]
@@ -302,14 +303,13 @@ class SdataWidget(QWidget):
         points_coords = layer.data
         sdata = layer.metadata["sdata"]
 
-        # TODO: deal with the 3D case
-        if layer.ndim == 3:
-            points_coords = points_coords[:, 1:]
-        else:
-            assert layer.ndim == 2
+        assert layer.ndim in (2, 3)
 
-        # coords from napari are in the yx coordinate systems, we want to store them as xy
-        points_coords = np.fliplr(points_coords)
+        # coords from napari are in the (z)yx coordinate systems, we want to store them as (z)xy
+        if layer.ndim == 2:
+            points_coords = np.fliplr(points_coords)
+        else:
+            points_coords[:, [1, 2]] = points_coords[:, [2, 1]]
         # saving as points (drawback: radius is not saved)
         points = PointsModel.parse(points_coords, transformations={cs: Identity()})
         sdata.add_points(name=name, points=points, overwrite=True)
