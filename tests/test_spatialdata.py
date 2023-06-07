@@ -104,6 +104,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
 
 
 def test_layer_visibility(qtbot, make_napari_viewer: Any):
+    # Only points layer in coordinate system `space`
     set_transformation(sdata.points[list(sdata.points.keys())[0]], Identity(), to_coordinate_system="other")
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, sdata)
@@ -112,13 +113,14 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
-    # Load 2 layers, make 1 invisible
+    # Load 2 layers both are visible
     widget._onClick(list(sdata.points.keys())[0])
     widget._onClick(list(sdata.labels.keys())[0])
 
     points = viewer.layers[0]
     labels = viewer.layers[1]
 
+    # Check that both are not an empty set
     assert points.metadata["active_in_cs"]
     assert labels.metadata["active_in_cs"]
 
@@ -145,11 +147,11 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     assert points.metadata["active_in_cs"] == {"global", "space", "other"}
     assert not labels.visible
 
-    # Check case for landmark registration
+    # Check case for landmark registration to make layer not in the coordinate system visible.
     labels.visible = True
     assert labels.metadata["active_in_cs"] == {"global", "space"}
 
-    # Check previously active coordinate system
+    # Check previously active coordinate system whether it is not removed.
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
