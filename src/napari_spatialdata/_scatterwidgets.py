@@ -18,9 +18,9 @@ from pandas.api.types import is_categorical_dtype
 from qtpy import QtWidgets
 from qtpy.QtCore import Signal
 
-from napari_spatialdata._categoricals_utils import _add_categorical_legend
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
+from napari_spatialdata.utils._categoricals_utils import _add_categorical_legend
 from napari_spatialdata.utils._utils import NDArrayA, _get_categorical, _set_palette
 
 __all__ = [

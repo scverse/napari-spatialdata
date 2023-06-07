@@ -2,12 +2,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PyQt6.QtCore import Qt
+from qtpy.QtCore import Qt
 
 if TYPE_CHECKING:
-    from PyQt6.QtCore import QPoint
-    from PyQt6.QtWidgets import QListWidget
     from pytestqt.qtbot import QtBot
+    from qtpy.QtCore import QPoint
+    from qtpy.QtWidgets import QListWidget
 
 
 def get_center_pos_listitem(widget: QListWidget, text: str) -> QPoint:

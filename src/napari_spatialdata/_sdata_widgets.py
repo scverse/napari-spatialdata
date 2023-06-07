@@ -102,7 +102,7 @@ class SdataWidget(QWidget):
     def _update_layers_visibility(self) -> None:
         """Toggle layer visibility dependent on presence in currently selected coordinate system."""
         elements = self.elements_widget._elements
-        coordinate_space = self.coordinate_system_widget._system
+        coordinate_system = self.coordinate_system_widget._system
 
         # No layer selected on first time coordinate system selection
         if self._viewer.layers:
@@ -111,9 +111,9 @@ class SdataWidget(QWidget):
                     layer.visible = False
                 elif layer.metadata["active_in_cs"]:
                     layer.visible = True
-                    # Prevent _update_visible_in_cs of removing coordinate system if previously in coordinate system.
-                    layer.metadata["active_in_cs"].add(coordinate_space)
-                    layer.metadata["current_cs"] = coordinate_space
+                    # Prevent _update_visible_in_coordinate_system of invalid removal of coordinate system
+                    layer.metadata["active_in_cs"].add(coordinate_system)
+                    layer.metadata["current_cs"] = coordinate_system
 
     def _add_circles(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system

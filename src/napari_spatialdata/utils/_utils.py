@@ -26,10 +26,10 @@ from spatial_image import SpatialImage
 from spatialdata.models import SpatialElement
 from spatialdata.transformations import get_transformation
 
-from napari_spatialdata._categoricals_utils import (
+from napari_spatialdata._constants._pkg_constants import Key
+from napari_spatialdata.utils._categoricals_utils import (
     add_colors_for_categorical_sample_annotation,
 )
-from napari_spatialdata._constants._pkg_constants import Key
 
 try:
     from numpy.typing import NDArray
