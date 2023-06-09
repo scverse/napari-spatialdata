@@ -86,8 +86,8 @@ class SdataWidget(QWidget):
         elif self.elements_widget._elements[text] == "shapes":
             self._add_shapes(text)
 
-    def _update_visible_in_cs(self, event: Event) -> None:
-        """Toggle active in cs metadata when changing visibility of layer."""
+    def _update_visible_in_coordinate_system(self, event: Event) -> None:
+        """Toggle active in the coordinate system metadata when changing visibility of layer."""
         layer = event.source
         layer_active = layer.metadata["active_in_cs"]
         selected_coordinate_system = self.coordinate_system_widget._system
@@ -117,32 +117,30 @@ class SdataWidget(QWidget):
 
     def _add_circles(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        circles = []
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
+        radii = df.radius.values
 
-        for i in range(0, len(df)):
-            circles.append([df.geometry[i].coords[0], [df.radius[i], df.radius[i]]])
+        xy = np.array([df.geometry.x, df.geometry.y]).T
+        xy = np.fliplr(xy)
 
-        circles = _swap_coordinates(circles)
-
-        layer = self._viewer.add_shapes(
-            circles,
+        layer = self._viewer.add_points(
+            xy,
             name=key,
             affine=affine,
-            shape_type="ellipse",
+            size=2 * radii,
+            edge_width=0.0,
             metadata={
                 "sdata": self._sdata,
                 "adata": self._sdata.table[
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "shapes_type": "circles",
                 "active_in_cs": {selected_cs},
                 "current_cs": selected_cs,
             },
         )
-        layer.events.visible.connect(self._update_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_polygons(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
@@ -185,7 +183,7 @@ class SdataWidget(QWidget):
                 "current_cs": selected_cs,
             },
         )
-        layer.events.visible.connect(self._update_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_shapes(self, key: str) -> None:
         if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
@@ -217,7 +215,7 @@ class SdataWidget(QWidget):
                 "current_cs": selected_cs,
             },
         )
-        layer.events.visible.connect(self._update_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_image(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
@@ -230,7 +228,7 @@ class SdataWidget(QWidget):
         layer = self._viewer.add_image(
             img, name=key, affine=affine, metadata={"active_in_cs": {selected_cs}, "current_cs": selected_cs}
         )
-        layer.events.visible.connect(self._update_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_points(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
