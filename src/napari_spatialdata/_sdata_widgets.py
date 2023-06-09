@@ -270,17 +270,18 @@ class SdataWidget(QWidget):
                 logger.warn(f"Shape layer `{layer.name}` has no visible shapes.")
                 continue
 
-        key = f"{layer.name}"
-        # TODO: Automatically change when creating a layer, requires a napari_spatialdata_viewer.
-        zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "").replace(":", "_")
+            key = f"{layer.name}"
+            # TODO: Automatically change when creating a layer, requires a napari_spatialdata_viewer.
+            zarr_name = key.replace(" ", "_").replace("[", "").replace("]", "").replace(":", "_")
 
-        if isinstance(layer, Shapes):
-            self._save_shapes(layer, zarr_name)
-        elif isinstance(layer, Points):
-            self._save_points(layer, zarr_name)
+            if isinstance(layer, Shapes):
+                self._save_shapes(layer, zarr_name)
+            elif isinstance(layer, Points):
+                self._save_points(layer, zarr_name)
 
     def _save_shapes(self, layer: Shapes, name: str) -> None:
         cs = layer.metadata["current_cs"]
+        transformations = {"global": Identity(), cs: Identity()} if cs != "global" else {cs: Identity()}
         polygons_coords = layer.data
         sdata: SpatialData = layer.metadata["sdata"]
 
@@ -294,12 +295,14 @@ class SdataWidget(QWidget):
         # Napari coords are yx but we store xy
         polygons = [Polygon(np.fliplr(polygon_coord)) for polygon_coord in polygons_coords]
         gdf = GeoDataFrame({"geometry": polygons})
-        parsed = ShapesModel.parse(gdf, transformations={cs: Identity()})
+        parsed = ShapesModel.parse(gdf, transformations=transformations)
         sdata.add_shapes(name=name, shapes=parsed, overwrite=True)
         show_info(f"Shapes layer {name} has been saved to the spatialdata object.")
 
     def _save_points(self, layer: Points, name: str) -> None:
         cs = layer.metadata["current_cs"]
+        # TODO: change global after transform refactor.
+        transformations = {"global": Identity(), cs: Identity()} if cs != "global" else {cs: Identity()}
         points_coords = layer.data
         sdata = layer.metadata["sdata"]
 
@@ -311,6 +314,6 @@ class SdataWidget(QWidget):
         else:
             points_coords[:, [1, 2]] = points_coords[:, [2, 1]]
         # saving as points (drawback: radius is not saved)
-        points = PointsModel.parse(points_coords, transformations={cs: Identity()})
+        points = PointsModel.parse(points_coords, transformations=transformations)
         sdata.add_points(name=name, points=points, overwrite=True)
         show_info("Points saved in the SpatialData object")

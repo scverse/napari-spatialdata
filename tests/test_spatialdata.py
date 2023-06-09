@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import Any
 
 from anndata import AnnData
@@ -11,6 +12,7 @@ from napari.layers import Image, Labels, Points
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
+from spatialdata import SpatialData
 from spatialdata.datasets import blobs
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
@@ -165,3 +167,45 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
 
     assert points.visible
     assert points.metadata["active_in_cs"] == {"global", "space", "other"}
+
+
+def test_save_update_points_layers(qtbot, make_napari_viewer: Any):
+    """Test saving changed shapes and points layer of pre-existing spatial element back to sdata"""
+    set_transformation(sdata.points[list(sdata.points.keys())[0]], Identity(), to_coordinate_system="other")
+
+    path = Path("data.zarr")
+    sdata.write(path, overwrite=True)
+
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, sdata)
+
+    # Click on `global` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    # Load layers, points will be selected
+    widget._onClick(list(sdata.shapes.keys())[0])
+    widget._onClick(list(sdata.points.keys())[0])
+
+    # Click on `other` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "other")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    add_point = [20, 30]
+    viewer.layers[1].add(add_point)
+    n_shapes = len(viewer.layers[0].data)
+    viewer.layers[0]._data_view.remove(-1)
+    viewer.layers.select_all()
+    widget.export(viewer)
+
+    # Keypress or keyclicks did not trigger the callback.
+    # qtbot.keyPress(
+    #     widget, Qt.Key_E, Qt.ShiftModifier
+    # )
+    # qtbot.wait(50)
+
+    reload_sdata = SpatialData.read(path)
+    added_point = reload_sdata.points["blobs_points"].tail(1)
+    assert int(added_point.x) == add_point[1]
+    assert int(added_point.y) == add_point[0]
+    assert len(reload_sdata.shapes[list(reload_sdata.shapes.keys())[0]]) == n_shapes - 1
