@@ -118,10 +118,7 @@ class SdataWidget(QWidget):
         xy = np.fliplr(xy)
         radii = np.array([df.radius[i] for i in range(0, len(df))])
 
-        layer = self._viewer.add_shapes(
-            circles,
-
-        self._viewer.add_points(
+        layer = self._viewer.add_points(
             xy,
             name=key,
             affine=affine,
@@ -132,7 +129,6 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
-
                 "active_in_cs": {selected_cs},
             },
         )
