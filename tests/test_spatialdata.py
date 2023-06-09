@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import shutil
 from pathlib import Path
 from typing import Any
 
@@ -183,9 +184,9 @@ def test_save_update_points_layers(qtbot, make_napari_viewer: Any):
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
-    # Load layers, points will be selected
-    widget._onClick(list(sdata.shapes.keys())[0])
-    widget._onClick(list(sdata.points.keys())[0])
+    # Load layers, points will be selected, shapes is not key 0 as that is not a points layer.
+    widget._onClick("blobs_polygons")
+    widget._onClick("blobs_points")
 
     # Click on `other` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "other")
@@ -208,4 +209,5 @@ def test_save_update_points_layers(qtbot, make_napari_viewer: Any):
     added_point = reload_sdata.points["blobs_points"].tail(1)
     assert int(added_point.x) == add_point[1]
     assert int(added_point.y) == add_point[0]
-    assert len(reload_sdata.shapes[list(reload_sdata.shapes.keys())[0]]) == n_shapes - 1
+    assert len(reload_sdata.shapes["blobs_polygons"]) == n_shapes - 1
+    shutil.rmtree(path)

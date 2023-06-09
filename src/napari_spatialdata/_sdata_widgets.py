@@ -253,7 +253,7 @@ class SdataWidget(QWidget):
                 "current_cs": selected_cs,
             },
         )
-        layer.events.visible.connect(self._update_visible_in_cs)
+        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def export(self, _: Viewer) -> None:
         for layer in self._viewer.layers:
