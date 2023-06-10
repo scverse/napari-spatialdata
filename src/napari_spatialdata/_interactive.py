@@ -12,7 +12,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata._utils import NDArrayA, _get_transform, _swap_coordinates
+from napari_spatialdata._utils import NDArrayA, _get_transform, _swap_coordinates, _transform_to_rgb
 
 
 class ElementWidget(QListWidget):
@@ -174,8 +174,10 @@ class SdataWidget(QWidget):
     def _add_label(self, key: str) -> None:
         affine = _get_transform(self._sdata.labels[key], self.coordinate_system_widget._system)
 
+        rgb_labels, rgb = _transform_to_rgb(element=self._sdata.labels[key])
+
         self._viewer.add_labels(
-            self._sdata.labels[key],
+            rgb_labels,
             name=key,
             affine=affine,
             metadata={
@@ -189,12 +191,14 @@ class SdataWidget(QWidget):
     def _add_image(self, key: str) -> None:
         img = self._sdata.images[key]
         affine = _get_transform(self._sdata.images[key], self.coordinate_system_widget._system)
+        new_image, rgb = _transform_to_rgb(element=self._sdata.images[key])
 
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
         self._viewer.add_image(
-            img,
+            new_image,
+            rgb=rgb,
             name=key,
             affine=affine,
         )
