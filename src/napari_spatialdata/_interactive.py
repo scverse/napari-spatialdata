@@ -6,6 +6,7 @@ import napari
 from spatialdata import SpatialData
 
 from napari_spatialdata._sdata_widgets import SdataWidget
+from napari_spatialdata._viewer import SpatialDataViewer
 from napari_spatialdata.utils._utils import NDArrayA
 
 
@@ -24,7 +25,8 @@ class Interactive:
     """
 
     def __init__(self, sdata: SpatialData):
-        self._viewer = napari.Viewer()
+        self.sdata_viewer = SpatialDataViewer()
+        self._viewer = self.sdata_viewer._viewer
         self._sdata = sdata
         self._sdata_widget = SdataWidget(self._viewer, sdata)
         self._list_widget = self._viewer.window.add_dock_widget(
