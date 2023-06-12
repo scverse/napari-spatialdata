@@ -78,29 +78,48 @@ class SdataWidget(QWidget):
             self._add_shapes(text)
 
     def _add_circles(self, key: str) -> None:
-        circles = []
         df = self._sdata.shapes[key]
         affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
+        radii = df.radius.values
 
-        for i in range(0, len(df)):
-            circles.append([df.geometry[i].coords[0], [df.radius[i], df.radius[i]]])
+        xy = np.array([df.geometry.x, df.geometry.y]).T
+        xy = np.fliplr(xy)
+        radii = np.array([df.radius[i] for i in range(0, len(df))])
 
-        circles = _swap_coordinates(circles)
-
-        self._viewer.add_shapes(
-            circles,
+        self._viewer.add_points(
+            xy,
             name=key,
             affine=affine,
-            shape_type="ellipse",
+            size=2 * radii,
+            edge_width=0.0,
             metadata={
                 "adata": self._sdata.table[
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "shapes_type": "circles",
-                "name": key,
             },
         )
+
+        # # too slow for medium/large datasets
+        # circles = []
+        # for i in range(0, len(df)):
+        #     circles.append([df.geometry[i].coords[0], [df.radius[i], df.radius[i]]])
+        #
+        # circles = _swap_coordinates(circles)
+        #
+        # self._viewer.add_shapes(
+        #     circles,
+        #     name=key,
+        #     affine=affine,
+        #     shape_type="ellipse",
+        #     metadata={
+        #         "adata": self._sdata.table[
+        #             self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
+        #         ],
+        #         "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
+        #         "shapes_type": "circles",
+        #     },
+        # )
 
     def _add_polygons(self, key: str) -> None:
         polygons = []
@@ -197,6 +216,7 @@ class SdataWidget(QWidget):
             name=key,
             size=20,
             affine=affine,
+            edge_width=0.0,
             metadata={
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
                 "name": key,
