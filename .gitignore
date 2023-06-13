@@ -107,3 +107,6 @@ docs/source/external_tutorials
 
 # Tutorial data
 docs/notebooks/tutorial_data/
+
+# Other data
+spatialdata-sandbox
