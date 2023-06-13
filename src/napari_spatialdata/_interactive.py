@@ -191,8 +191,8 @@ class SdataWidget(QWidget):
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "polygons",
-                "_active_in_cs": {selected_cs},
                 "name": key,
+                "_active_in_cs": {selected_cs},
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
@@ -222,8 +222,8 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
-                "_active_in_cs": {selected_cs},
                 "name": key,
+                "_active_in_cs": {selected_cs},
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
