@@ -192,6 +192,7 @@ class SdataWidget(QWidget):
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "polygons",
                 "_active_in_cs": {selected_cs},
+                "name": key,
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
@@ -222,6 +223,7 @@ class SdataWidget(QWidget):
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
                 "_active_in_cs": {selected_cs},
+                "name": key,
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
@@ -257,6 +259,7 @@ class SdataWidget(QWidget):
             metadata={
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
                 "_active_in_cs": {selected_cs},
+                "name": key,
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
@@ -277,8 +280,10 @@ class Interactive:
     """
 
     def __init__(self, sdata: SpatialData):
-        self._viewer = napari.Viewer()
-        self._sdata = sdata
+        # will be None when using e.g. python -m napari_spatialdata view
+        # will be a napari.Viewer when using napari --plugin napari-spatialdata
+        viewer = napari.current_viewer()
+        self._viewer = viewer if viewer else napari.Viewer()
         self._sdata_widget = SdataWidget(self._viewer, sdata)
         self._list_widget = self._viewer.window.add_dock_widget(
             self._sdata_widget, name="SpatialData", area="left", menu=self._viewer.window.window_menu
