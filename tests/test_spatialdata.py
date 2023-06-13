@@ -121,8 +121,8 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     labels = viewer.layers[1]
 
     # Check that both are not an empty set
-    assert points.metadata["active_in_cs"]
-    assert labels.metadata["active_in_cs"]
+    assert points.metadata["_active_in_cs"]
+    assert labels.metadata["_active_in_cs"]
 
     # Click on `space` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "space")
@@ -131,12 +131,12 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     # Is present in coordinate system and should stay visible.
     assert points.visible
     assert labels.visible
-    assert points.metadata["active_in_cs"] == {"global", "space"}
-    assert labels.metadata["active_in_cs"] == {"global", "space"}
+    assert points.metadata["_active_in_cs"] == {"global", "space"}
+    assert labels.metadata["_active_in_cs"] == {"global", "space"}
 
     # Test visibility within same coordinate system
     labels.visible = False
-    assert labels.metadata["active_in_cs"] == {"global"}
+    assert labels.metadata["_active_in_cs"] == {"global"}
     labels.visible = True
 
     # Click on `other` coordinate system
@@ -144,16 +144,16 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     assert points.visible
-    assert points.metadata["active_in_cs"] == {"global", "space", "other"}
+    assert points.metadata["_active_in_cs"] == {"global", "space", "other"}
     assert not labels.visible
 
     # Check case for landmark registration to make layer not in the coordinate system visible.
     labels.visible = True
-    assert labels.metadata["active_in_cs"] == {"global", "space"}
+    assert labels.metadata["_active_in_cs"] == {"global", "space"}
 
     # Check previously active coordinate system whether it is not removed.
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     assert points.visible
-    assert points.metadata["active_in_cs"] == {"global", "space", "other"}
+    assert points.metadata["_active_in_cs"] == {"global", "space", "other"}

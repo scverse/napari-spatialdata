@@ -83,7 +83,7 @@ class SdataWidget(QWidget):
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
         """Toggle active in the coordinate system metadata when changing visibility of layer."""
         layer = event.source
-        layer_active = layer.metadata["active_in_cs"]
+        layer_active = layer.metadata["_active_in_cs"]
         selected_coordinate_system = self.coordinate_system_widget._system
 
         elements = self.elements_widget._elements
@@ -103,10 +103,10 @@ class SdataWidget(QWidget):
             for layer in self._viewer.layers:
                 if layer.name not in elements:
                     layer.visible = False
-                elif layer.metadata["active_in_cs"]:
+                elif layer.metadata["_active_in_cs"]:
                     layer.visible = True
                     # Prevent _update_visible_in_coordinate_system of invalid removal of coordinate system
-                    layer.metadata["active_in_cs"].add(coordinate_system)
+                    layer.metadata["_active_in_cs"].add(coordinate_system)
 
     def _add_circles(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
@@ -129,7 +129,7 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "active_in_cs": {selected_cs},
+                "_active_in_cs": {selected_cs},
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
@@ -191,7 +191,7 @@ class SdataWidget(QWidget):
                 ],
                 "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "shapes_type": "polygons",
-                "active_in_cs": {selected_cs},
+                "_active_in_cs": {selected_cs},
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
@@ -221,7 +221,7 @@ class SdataWidget(QWidget):
                     self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
                 ],
                 "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
-                "active_in_cs": {selected_cs},
+                "_active_in_cs": {selected_cs},
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
@@ -234,7 +234,7 @@ class SdataWidget(QWidget):
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
-        layer = self._viewer.add_image(img, name=key, affine=affine, metadata={"active_in_cs": {selected_cs}})
+        layer = self._viewer.add_image(img, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}})
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_points(self, key: str) -> None:
@@ -256,7 +256,7 @@ class SdataWidget(QWidget):
             edge_width=0.0,
             metadata={
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
-                "active_in_cs": {selected_cs},
+                "_active_in_cs": {selected_cs},
             },
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
