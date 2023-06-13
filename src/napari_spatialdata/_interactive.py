@@ -239,8 +239,10 @@ class Interactive:
     """
 
     def __init__(self, sdata: SpatialData):
-        self._viewer = napari.Viewer()
-        self._sdata = sdata
+        # will be None when using e.g. python -m napari_spatialdata view
+        # will be a napari.Viewer when using napari --plugin napari-spatialdata
+        viewer = napari.current_viewer()
+        self._viewer = viewer if viewer else napari.Viewer()
         self._sdata_widget = SdataWidget(self._viewer, sdata)
         self._list_widget = self._viewer.window.add_dock_widget(
             self._sdata_widget, name="SpatialData", area="left", menu=self._viewer.window.window_menu
