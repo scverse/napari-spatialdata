@@ -7,12 +7,13 @@ from dask.dataframe import from_dask_array
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
 from napari_spatialdata._interactive import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
 from spatialdata.datasets import blobs
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
 
-sdata = blobs()
+sdata = blobs(extra_coord_system="space")
 
 
 def test_elementwidget(make_napari_viewer: Any):
@@ -100,3 +101,59 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
         )
     assert widget._viewer.layers[1].metadata.get("adata").n_obs == 100000
     del sdata.points["many_points"]
+
+
+def test_layer_visibility(qtbot, make_napari_viewer: Any):
+    # Only points layer in coordinate system `space`
+    set_transformation(sdata.points[list(sdata.points.keys())[0]], Identity(), to_coordinate_system="other")
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, sdata)
+
+    # Click on `global` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    # Load 2 layers both are visible
+    widget._onClick(list(sdata.points.keys())[0])
+    widget._onClick(list(sdata.labels.keys())[0])
+
+    points = viewer.layers[0]
+    labels = viewer.layers[1]
+
+    # Check that both are not an empty set
+    assert points.metadata["_active_in_cs"]
+    assert labels.metadata["_active_in_cs"]
+
+    # Click on `space` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "space")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    # Is present in coordinate system and should stay visible.
+    assert points.visible
+    assert labels.visible
+    assert points.metadata["_active_in_cs"] == {"global", "space"}
+    assert labels.metadata["_active_in_cs"] == {"global", "space"}
+
+    # Test visibility within same coordinate system
+    labels.visible = False
+    assert labels.metadata["_active_in_cs"] == {"global"}
+    labels.visible = True
+
+    # Click on `other` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "other")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    assert points.visible
+    assert points.metadata["_active_in_cs"] == {"global", "space", "other"}
+    assert not labels.visible
+
+    # Check case for landmark registration to make layer not in the coordinate system visible.
+    labels.visible = True
+    assert labels.metadata["_active_in_cs"] == {"global", "space"}
+
+    # Check previously active coordinate system whether it is not removed.
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    assert points.visible
+    assert points.metadata["_active_in_cs"] == {"global", "space", "other"}

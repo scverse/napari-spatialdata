@@ -4,7 +4,7 @@ from typing import Any, List
 import numpy as np
 import pytest
 from anndata import AnnData
-from napari_spatialdata._utils import (
+from napari_spatialdata.utils._utils import (
     _get_categorical,
     _get_transform,
     _min_max_norm,

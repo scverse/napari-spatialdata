@@ -9,7 +9,7 @@ from napari.utils.events import EmitterGroup, Event
 
 from napari_spatialdata._constants._constants import Symbol
 from napari_spatialdata._constants._pkg_constants import Key
-from napari_spatialdata._utils import NDArrayA, _ensure_dense_vector
+from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
 __all__ = ["ImageModel"]
 
