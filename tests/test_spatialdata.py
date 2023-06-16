@@ -6,7 +6,7 @@ from dask.array.random import randint
 from dask.dataframe import from_dask_array
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
-from napari_spatialdata._interactive import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
 from spatialdata.datasets import blobs
