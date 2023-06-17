@@ -22,16 +22,16 @@ from qtpy.QtWidgets import (
 from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
-from napari_spatialdata._utils import (
-    NDArrayA,
-    _get_categorical,
-    _points_inside_triangles,
-)
 from napari_spatialdata._widgets import (
     AListWidget,
     CBarWidget,
     ComponentWidget,
     RangeSliderWidget,
+)
+from napari_spatialdata.utils._utils import (
+    NDArrayA,
+    _get_categorical,
+    _points_inside_triangles,
 )
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
@@ -260,7 +260,7 @@ class QtAdataViewWidget(QWidget):
 
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
-        self.model.system_name = self.model.layer.name
+        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
 
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]

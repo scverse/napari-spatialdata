@@ -6,8 +6,8 @@ import pytest
 from anndata import AnnData
 from napari.layers import Image, Labels
 from napari_spatialdata._model import ImageModel
-from napari_spatialdata._utils import NDArrayA
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
+from napari_spatialdata.utils._utils import NDArrayA
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
