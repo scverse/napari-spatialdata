@@ -68,6 +68,11 @@ class SdataWidget(QWidget):
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
         self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
+        self._viewer._viewer.layers.events.inserted.connect(self._on_insert_layer)
+
+    def _on_insert_layer(self, event: Event) -> None:
+        layer = event.value
+        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _onClick(self, text: str) -> None:
         if self.elements_widget._elements[text] == "labels":
@@ -98,8 +103,8 @@ class SdataWidget(QWidget):
         coordinate_system = self.coordinate_system_widget._system
 
         # No layer selected on first time coordinate system selection
-        if self._viewer.layers:
-            for layer in self._viewer.layers:
+        if self._viewer._viewer.layers:
+            for layer in self._viewer._viewer.layers:
                 if layer.name not in elements:
                     layer.visible = False
                 elif layer.metadata["_active_in_cs"]:
@@ -118,7 +123,7 @@ class SdataWidget(QWidget):
         xy = np.fliplr(xy)
         radii = np.array([df.radius[i] for i in range(0, len(df))])
 
-        layer = self._viewer.add_points(
+        self._viewer._viewer.add_points(
             xy,
             name=key,
             affine=affine,
@@ -134,7 +139,6 @@ class SdataWidget(QWidget):
                 "_current_cs": selected_cs,
             },
         )
-        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_polygons(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
@@ -161,7 +165,7 @@ class SdataWidget(QWidget):
         # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
 
-        layer = self._viewer.add_shapes(
+        self._viewer._viewer.add_shapes(
             polygons,
             name=key,
             affine=affine,
@@ -178,7 +182,6 @@ class SdataWidget(QWidget):
                 "_current_cs": selected_cs,
             },
         )
-        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_shapes(self, key: str) -> None:
         if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
@@ -196,7 +199,7 @@ class SdataWidget(QWidget):
         selected_cs = self.coordinate_system_widget._system
         affine = _get_transform(self._sdata.labels[key], selected_cs)
 
-        layer = self._viewer.add_labels(
+        self._viewer._viewer.add_labels(
             self._sdata.labels[key],
             name=key,
             affine=affine,
@@ -211,7 +214,6 @@ class SdataWidget(QWidget):
                 "_current_cs": selected_cs,
             },
         )
-        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_image(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
@@ -221,10 +223,12 @@ class SdataWidget(QWidget):
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
-        layer = self._viewer.add_image(
-            img, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}, "_current_cs": selected_cs}
+        self._viewer._viewer.add_image(
+            img,
+            name=key,
+            affine=affine,
+            metadata={"sdata": self._sdata, "_active_in_cs": {selected_cs}, "_current_cs": selected_cs},
         )
-        layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_points(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
@@ -237,7 +241,7 @@ class SdataWidget(QWidget):
             gen = np.random.default_rng()
             subsample = gen.choice(len(points), size=100000, replace=False)
 
-        layer = self._viewer.add_points(
+        self._viewer.add_points(
             points[["y", "x"]].values[subsample],
             name=key,
             size=20,
@@ -251,4 +255,3 @@ class SdataWidget(QWidget):
                 "_current_cs": selected_cs,
             },
         )
-        layer.events.visible.connect(self._update_visible_in_coordinate_system)

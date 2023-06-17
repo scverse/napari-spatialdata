@@ -104,7 +104,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
 
 
 def test_layer_visibility(qtbot, make_napari_viewer: Any):
-    # Only points layer in coordinate system `space`
+    # Only points layer in coordinate system `other`
     set_transformation(sdata.points[list(sdata.points.keys())[0]], Identity(), to_coordinate_system="other")
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, sdata)
