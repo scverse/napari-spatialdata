@@ -123,6 +123,7 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     # Check that both are not an empty set
     assert points.metadata["_active_in_cs"]
     assert labels.metadata["_active_in_cs"]
+    assert labels.metadata["_current_cs"] == "global"
 
     # Click on `space` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "space")
@@ -133,10 +134,12 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     assert labels.visible
     assert points.metadata["_active_in_cs"] == {"global", "space"}
     assert labels.metadata["_active_in_cs"] == {"global", "space"}
+    assert labels.metadata["_current_cs"] == "space"
 
     # Test visibility within same coordinate system
     labels.visible = False
     assert labels.metadata["_active_in_cs"] == {"global"}
+    assert labels.metadata["_current_cs"] == "space"
     labels.visible = True
 
     # Click on `other` coordinate system
@@ -146,6 +149,8 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     assert points.visible
     assert points.metadata["_active_in_cs"] == {"global", "space", "other"}
     assert not labels.visible
+    # Since not present in current selected cs, this layer is still in previously selected cs.
+    assert labels.metadata["_current_cs"] == "space"
 
     # Check case for landmark registration to make layer not in the coordinate system visible.
     labels.visible = True
