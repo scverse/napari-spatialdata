@@ -26,7 +26,7 @@ class SpatialDataViewer(Viewer):
         layer = event.value
         active_layer = self.layers.selection.active
 
-        if type(layer) in {Labels, Points, Shapes} and "sdata" not in layer.metadata:
+        if active_layer and type(layer) in {Labels, Points, Shapes} and "sdata" not in layer.metadata:
             active_layer_metadata = active_layer.metadata
             layer.metadata["sdata"] = active_layer_metadata["sdata"]
             layer.metadata["_current_cs"] = active_layer_metadata["_current_cs"]
