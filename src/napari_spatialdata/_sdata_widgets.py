@@ -2,19 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Iterable
 
-import numpy as np
 import shapely
-from anndata import AnnData
-from loguru import logger
-from multiscale_spatial_image import MultiscaleSpatialImage
-from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata.utils._utils import _get_transform, _swap_coordinates
-
 if TYPE_CHECKING:
     from napari.utils.events.event import Event
+
+    from napari_spatialdata._viewer import SpatialDataViewer
 
 
 class ElementWidget(QListWidget):
@@ -48,7 +43,7 @@ class CoordinateSystemWidget(QListWidget):
 
 
 class SdataWidget(QWidget):
-    def __init__(self, viewer: Viewer, sdata: SpatialData):
+    def __init__(self, viewer: SpatialDataViewer, sdata: SpatialData):
         super().__init__()
         self._sdata = sdata
         self._viewer = viewer
@@ -68,7 +63,7 @@ class SdataWidget(QWidget):
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
         self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
-        self._viewer._viewer.layers.events.inserted.connect(self._on_insert_layer)
+        self._viewer.layers.events.inserted.connect(self._on_insert_layer)
 
     def _on_insert_layer(self, event: Event) -> None:
         layer = event.value
@@ -103,8 +98,8 @@ class SdataWidget(QWidget):
         coordinate_system = self.coordinate_system_widget._system
 
         # No layer selected on first time coordinate system selection
-        if self._viewer._viewer.layers:
-            for layer in self._viewer._viewer.layers:
+        if self._viewer.layers:
+            for layer in self._viewer.layers:
                 if layer.name not in elements:
                     layer.visible = False
                 elif layer.metadata["_active_in_cs"]:
@@ -115,73 +110,11 @@ class SdataWidget(QWidget):
 
     def _add_circles(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        df = self._sdata.shapes[key]
-        affine = _get_transform(self._sdata.shapes[key], self.coordinate_system_widget._system)
-        radii = df.radius.values
-
-        xy = np.array([df.geometry.x, df.geometry.y]).T
-        xy = np.fliplr(xy)
-        radii = np.array([df.radius[i] for i in range(0, len(df))])
-
-        self._viewer._viewer.add_points(
-            xy,
-            name=key,
-            affine=affine,
-            size=2 * radii,
-            edge_width=0.0,
-            metadata={
-                "sdata": self._sdata,
-                "adata": self._sdata.table[
-                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-                ],
-                "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "_active_in_cs": {selected_cs},
-                "_current_cs": selected_cs,
-            },
-        )
+        self._viewer.add_sdata_circles(self._sdata, selected_cs, key)
 
     def _add_polygons(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        polygons = []
-        df = self._sdata.shapes[key]
-        affine = _get_transform(self._sdata.shapes[key], selected_cs)
-
-        # when mulitpolygons are present, we select the largest ones
-        if "MultiPolygon" in np.unique(df.geometry.type):
-            logger.info("Multipolygons are present in the data. Only the largest polygon per cell is retained.")
-            df = df.explode(index_parts=False)
-            df["area"] = df.area
-            df = df.sort_values(by="area", ascending=False)  # sort by area
-            df = df[~df.index.duplicated(keep="first")]  # only keep the largest area
-            df = df.sort_index()  # reset the index to the first order
-        if len(df) < 100:
-            for i in range(0, len(df)):
-                polygons.append(list(df.geometry.iloc[i].exterior.coords))
-        else:
-            for i in range(
-                0, len(df)
-            ):  # This can be removed once napari is sped up in the plotting. It changes the shapes only very slightly
-                polygons.append(list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords))
-        # this will only work for polygons and not for multipolygons
-        polygons = _swap_coordinates(polygons)
-
-        self._viewer._viewer.add_shapes(
-            polygons,
-            name=key,
-            affine=affine,
-            shape_type="polygon",
-            metadata={
-                "sdata": self._sdata,
-                "adata": self._sdata.table[
-                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-                ],
-                "shapes_key": self._sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "shapes_type": "polygons",
-                "name": key,
-                "_active_in_cs": {selected_cs},
-                "_current_cs": selected_cs,
-            },
-        )
+        self._viewer.add_sdata_shapes(self._sdata, selected_cs, key)
 
     def _add_shapes(self, key: str) -> None:
         if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
@@ -197,61 +130,12 @@ class SdataWidget(QWidget):
 
     def _add_label(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        affine = _get_transform(self._sdata.labels[key], selected_cs)
-
-        self._viewer._viewer.add_labels(
-            self._sdata.labels[key],
-            name=key,
-            affine=affine,
-            metadata={
-                "sdata": self._sdata,
-                "adata": self._sdata.table[
-                    self._sdata.table.obs[self._sdata.table.uns["spatialdata_attrs"]["region_key"]] == key
-                ],
-                "labels_key": self._sdata.table.uns["spatialdata_attrs"]["instance_key"],
-                "name": key,
-                "_active_in_cs": {selected_cs},
-                "_current_cs": selected_cs,
-            },
-        )
+        self._viewer.add_sdata_labels(self._sdata, selected_cs, key)
 
     def _add_image(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        img = self._sdata.images[key]
-        affine = _get_transform(self._sdata.images[key], selected_cs)
-
-        if isinstance(img, MultiscaleSpatialImage):
-            img = img["scale0"][key]
-        # TODO: type check
-        self._viewer._viewer.add_image(
-            img,
-            name=key,
-            affine=affine,
-            metadata={"sdata": self._sdata, "_active_in_cs": {selected_cs}, "_current_cs": selected_cs},
-        )
+        self._viewer.add_sdata_image(self._sdata, selected_cs, key)
 
     def _add_points(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        points = self._sdata.points[key].compute()
-        affine = _get_transform(self._sdata.points[key], selected_cs)
-        if len(points) < 100000:
-            subsample = np.arange(len(points))
-        else:
-            logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
-            gen = np.random.default_rng()
-            subsample = gen.choice(len(points), size=100000, replace=False)
-
-        self._viewer.add_points(
-            points[["y", "x"]].values[subsample],
-            name=key,
-            size=20,
-            affine=affine,
-            edge_width=0.0,
-            metadata={
-                "sdata": self._sdata,
-                "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
-                "name": key,
-                "_active_in_cs": {selected_cs},
-                "_current_cs": selected_cs,
-            },
-        )
+        self._viewer.add_sdata_points(self._sdata, selected_cs, key)

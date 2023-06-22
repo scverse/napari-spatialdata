@@ -7,8 +7,8 @@ from spatialdata.datasets import blobs
 sdata = blobs(extra_coord_system="space")
 
 
-def test_layer_visibility(qtbot):
-    viewer = SpatialDataViewer()
+def test_layer_visibility(qtbot, make_napari_viewer: any):
+    viewer = make_napari_viewer(ViewerClass=SpatialDataViewer)
     widget = SdataWidget(viewer, sdata)
 
     # Click on `space` coordinate system
@@ -16,10 +16,10 @@ def test_layer_visibility(qtbot):
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     widget._onClick(list(sdata.images.keys())[0])
-    viewer._viewer.add_points()
-    new_metadata = viewer._viewer.layers[-1].metadata
+    viewer.add_points()
+    new_metadata = viewer.layers[-1].metadata
     assert new_metadata["_current_cs"] == "space"
     assert new_metadata["_active_in_cs"] == {"space"}
-    assert viewer._viewer.layers[0].metadata["sdata"] == new_metadata["sdata"]
+    assert viewer.layers[0].metadata["sdata"] == new_metadata["sdata"]
 
     Viewer.close_all()

@@ -7,6 +7,7 @@ from dask.dataframe import from_dask_array
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata._viewer import SpatialDataViewer
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
 from spatialdata.datasets import blobs
@@ -17,7 +18,7 @@ sdata = blobs(extra_coord_system="space")
 
 
 def test_elementwidget(make_napari_viewer: Any):
-    _ = make_napari_viewer()
+    _ = make_napari_viewer(ViewerClass=SpatialDataViewer)
     widget = ElementWidget(sdata)
     assert widget._sdata is not None
     assert not hasattr(widget, "_elements")
@@ -34,7 +35,7 @@ def test_elementwidget(make_napari_viewer: Any):
 
 
 def test_coordinatewidget(make_napari_viewer: Any):
-    _ = make_napari_viewer()
+    _ = make_napari_viewer(ViewerClass=SpatialDataViewer)
     widget = CoordinateSystemWidget(sdata)
     items = [widget.item(x).text() for x in range(widget.count())]
     assert len(items) == len(sdata.coordinate_systems)
@@ -43,7 +44,7 @@ def test_coordinatewidget(make_napari_viewer: Any):
 
 
 def test_sdatawidget_images(make_napari_viewer: Any):
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(ViewerClass=SpatialDataViewer)
     widget = SdataWidget(viewer, sdata)
     assert len(widget._viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
@@ -61,7 +62,7 @@ def test_sdatawidget_images(make_napari_viewer: Any):
 
 
 def test_sdatawidget_labels(make_napari_viewer: Any):
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(ViewerClass=SpatialDataViewer)
     widget = SdataWidget(viewer, sdata)
     assert len(widget._viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
@@ -79,7 +80,7 @@ def test_sdatawidget_labels(make_napari_viewer: Any):
 
 
 def test_sdatawidget_points(caplog, make_napari_viewer: Any):
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(ViewerClass=SpatialDataViewer)
     widget = SdataWidget(viewer, sdata)
     assert len(widget._viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
@@ -106,7 +107,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
 def test_layer_visibility(qtbot, make_napari_viewer: Any):
     # Only points layer in coordinate system `other`
     set_transformation(sdata.points[list(sdata.points.keys())[0]], Identity(), to_coordinate_system="other")
-    viewer = make_napari_viewer()
+    viewer = make_napari_viewer(ViewerClass=SpatialDataViewer)
     widget = SdataWidget(viewer, sdata)
 
     # Click on `global` coordinate system
