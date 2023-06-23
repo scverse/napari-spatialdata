@@ -20,9 +20,20 @@ if TYPE_CHECKING:
 class SpatialDataViewer(Viewer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.layers.events.inserted.connect(self._on_add_layer)
+        self.layers.events.inserted.connect(self._inherit_metadata)
 
-    def _on_add_layer(self, event: Event) -> None:
+    def _inherit_metadata(self, event: Event) -> None:
+        """
+        Inherit metadata from active layer.
+
+        A new layer that is added will inherit from the layer that is active when its added, ensuring proper association
+        with a spatialdata object and coordinate space.
+
+        Paramters
+        ---------
+        event: Event
+            A layer inserted event
+        """
         layer = event.value
         active_layer = self.layers.selection.active
 
@@ -32,7 +43,6 @@ class SpatialDataViewer(Viewer):
             layer.metadata["_current_cs"] = active_layer_metadata["_current_cs"]
             layer.metadata["_active_in_cs"] = {active_layer_metadata["_current_cs"]}
             show_info(f"The spatialdata object is set to the spatialdata object of {active_layer}")
-        super()._on_add_layer(event)
 
     def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
         img = sdata.images[key]
@@ -41,7 +51,7 @@ class SpatialDataViewer(Viewer):
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
-        super().add_image(
+        self.add_image(
             img,
             name=key,
             affine=affine,
@@ -56,7 +66,7 @@ class SpatialDataViewer(Viewer):
         xy = np.fliplr(xy)
         radii = np.array([df.radius[i] for i in range(0, len(df))])
 
-        super().add_points(
+        self.add_points(
             xy,
             name=key,
             affine=affine,
@@ -95,7 +105,7 @@ class SpatialDataViewer(Viewer):
         # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
 
-        super().add_shapes(
+        self.add_shapes(
             polygons,
             name=key,
             affine=affine,
@@ -114,7 +124,7 @@ class SpatialDataViewer(Viewer):
     def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
         affine = _get_transform(sdata.labels[key], selected_cs)
 
-        super().add_labels(
+        self.add_labels(
             sdata.labels[key],
             name=key,
             affine=affine,
@@ -138,7 +148,7 @@ class SpatialDataViewer(Viewer):
             gen = np.random.default_rng()
             subsample = gen.choice(len(points), size=100000, replace=False)
 
-        super().add_points(
+        self.add_points(
             points[["y", "x"]].values[subsample],
             name=key,
             size=20,
