@@ -10,7 +10,7 @@ import pytest
 from anndata import AnnData
 from loguru import logger
 from matplotlib.testing.compare import compare_images
-from napari_spatialdata._utils import NDArrayA
+from napari_spatialdata.utils._utils import NDArrayA
 from scipy import ndimage as ndi
 from skimage import data
 
