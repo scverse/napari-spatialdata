@@ -21,7 +21,6 @@ class SpatialDataViewer(Viewer):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
         self.layers.events.inserted.connect(self._on_add_layer)
-        self
 
     def _on_add_layer(self, event: Event) -> None:
         layer = event.value
