@@ -6,10 +6,11 @@ import shapely
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-if TYPE_CHECKING:
-    from napari.utils.events.event import Event
+from napari_spatialdata._viewer import SpatialDataViewer
 
-    from napari_spatialdata._viewer import SpatialDataViewer
+if TYPE_CHECKING:
+    from napari import Viewer
+    from napari.utils.events.event import Event
 
 
 class ElementWidget(QListWidget):
@@ -43,10 +44,10 @@ class CoordinateSystemWidget(QListWidget):
 
 
 class SdataWidget(QWidget):
-    def __init__(self, viewer: SpatialDataViewer, sdata: SpatialData):
+    def __init__(self, viewer: Viewer, sdata: SpatialData):
         super().__init__()
         self._sdata = sdata
-        self._viewer = viewer
+        self.viewer_model = SpatialDataViewer(viewer)
 
         self.setLayout(QVBoxLayout())
 
@@ -63,7 +64,7 @@ class SdataWidget(QWidget):
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
         self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
-        self._viewer.viewer.layers.events.inserted.connect(self._on_insert_layer)
+        self.viewer_model.viewer.layers.events.inserted.connect(self._on_insert_layer)
 
     def _on_insert_layer(self, event: Event) -> None:
         layer = event.value
@@ -98,8 +99,8 @@ class SdataWidget(QWidget):
         coordinate_system = self.coordinate_system_widget._system
 
         # No layer selected on first time coordinate system selection
-        if self._viewer.viewer.layers:
-            for layer in self._viewer.viewer.layers:
+        if self.viewer_model.viewer.layers:
+            for layer in self.viewer_model.viewer.layers:
                 if layer.name not in elements:
                     layer.visible = False
                 elif layer.metadata["_active_in_cs"]:
@@ -110,11 +111,11 @@ class SdataWidget(QWidget):
 
     def _add_circles(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self._viewer.add_sdata_circles(self._sdata, selected_cs, key)
+        self.viewer_model.add_sdata_circles(self._sdata, selected_cs, key)
 
     def _add_polygons(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self._viewer.add_sdata_shapes(self._sdata, selected_cs, key)
+        self.viewer_model.add_sdata_shapes(self._sdata, selected_cs, key)
 
     def _add_shapes(self, key: str) -> None:
         if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
@@ -130,12 +131,12 @@ class SdataWidget(QWidget):
 
     def _add_label(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self._viewer.add_sdata_labels(self._sdata, selected_cs, key)
+        self.viewer_model.add_sdata_labels(self._sdata, selected_cs, key)
 
     def _add_image(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self._viewer.add_sdata_image(self._sdata, selected_cs, key)
+        self.viewer_model.add_sdata_image(self._sdata, selected_cs, key)
 
     def _add_points(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self._viewer.add_sdata_points(self._sdata, selected_cs, key)
+        self.viewer_model.add_sdata_points(self._sdata, selected_cs, key)

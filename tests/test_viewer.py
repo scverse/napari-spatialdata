@@ -1,6 +1,5 @@
 from napari.viewer import Viewer
 from napari_spatialdata._sdata_widgets import SdataWidget
-from napari_spatialdata._viewer import SpatialDataViewer
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from spatialdata.datasets import blobs
 
@@ -8,8 +7,7 @@ sdata = blobs(extra_coord_system="space")
 
 
 def test_layer_visibility(qtbot, make_napari_viewer: any):
-    napari_viewer = make_napari_viewer()
-    viewer = SpatialDataViewer(napari_viewer)
+    viewer = make_napari_viewer()
     widget = SdataWidget(viewer, sdata)
 
     # Click on `space` coordinate system
@@ -17,10 +15,10 @@ def test_layer_visibility(qtbot, make_napari_viewer: any):
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     widget._onClick(list(sdata.images.keys())[0])
-    viewer.viewer.add_points()
-    new_metadata = viewer.viewer.layers[-1].metadata
+    viewer.add_points()
+    new_metadata = viewer.layers[-1].metadata
     assert new_metadata["_current_cs"] == "space"
     assert new_metadata["_active_in_cs"] == {"space"}
-    assert viewer.viewer.layers[0].metadata["sdata"] == new_metadata["sdata"]
+    assert viewer.layers[0].metadata["sdata"] == new_metadata["sdata"]
 
     Viewer.close_all()
