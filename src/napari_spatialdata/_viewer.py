@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 import numpy as np
 from anndata import AnnData
@@ -17,10 +17,10 @@ if TYPE_CHECKING:
     from spatialdata import SpatialData
 
 
-class SpatialDataViewer(Viewer):
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
-        super().__init__(*args, **kwargs)
-        self.layers.events.inserted.connect(self._inherit_metadata)
+class SpatialDataViewer:
+    def __init__(self, viewer: Viewer) -> None:
+        self.viewer = viewer
+        self.viewer.layers.events.inserted.connect(self._inherit_metadata)
 
     def _inherit_metadata(self, event: Event) -> None:
         """
@@ -35,7 +35,7 @@ class SpatialDataViewer(Viewer):
             A layer inserted event
         """
         layer = event.value
-        active_layer = self.layers.selection.active
+        active_layer = self.viewer.layers.selection.active
 
         if active_layer and type(layer) in {Labels, Points, Shapes} and "sdata" not in layer.metadata:
             active_layer_metadata = active_layer.metadata
@@ -51,7 +51,7 @@ class SpatialDataViewer(Viewer):
         if isinstance(img, MultiscaleSpatialImage):
             img = img["scale0"][key]
         # TODO: type check
-        self.add_image(
+        self.viewer.add_image(
             img,
             name=key,
             affine=affine,
@@ -66,7 +66,7 @@ class SpatialDataViewer(Viewer):
         xy = np.fliplr(xy)
         radii = np.array([df.radius[i] for i in range(0, len(df))])
 
-        self.add_points(
+        self.viewer.add_points(
             xy,
             name=key,
             affine=affine,
@@ -105,7 +105,7 @@ class SpatialDataViewer(Viewer):
         # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
 
-        self.add_shapes(
+        self.viewer.add_shapes(
             polygons,
             name=key,
             affine=affine,
@@ -124,7 +124,7 @@ class SpatialDataViewer(Viewer):
     def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
         affine = _get_transform(sdata.labels[key], selected_cs)
 
-        self.add_labels(
+        self.viewer.add_labels(
             sdata.labels[key],
             name=key,
             affine=affine,
@@ -148,7 +148,7 @@ class SpatialDataViewer(Viewer):
             gen = np.random.default_rng()
             subsample = gen.choice(len(points), size=100000, replace=False)
 
-        self.add_points(
+        self.viewer.add_points(
             points[["y", "x"]].values[subsample],
             name=key,
             size=20,

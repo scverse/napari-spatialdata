@@ -63,7 +63,7 @@ class SdataWidget(QWidget):
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
         self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
-        self._viewer.layers.events.inserted.connect(self._on_insert_layer)
+        self._viewer.viewer.layers.events.inserted.connect(self._on_insert_layer)
 
     def _on_insert_layer(self, event: Event) -> None:
         layer = event.value
@@ -98,8 +98,8 @@ class SdataWidget(QWidget):
         coordinate_system = self.coordinate_system_widget._system
 
         # No layer selected on first time coordinate system selection
-        if self._viewer.layers:
-            for layer in self._viewer.layers:
+        if self._viewer.viewer.layers:
+            for layer in self._viewer.viewer.layers:
                 if layer.name not in elements:
                     layer.visible = False
                 elif layer.metadata["_active_in_cs"]:

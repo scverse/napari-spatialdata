@@ -27,16 +27,17 @@ class Interactive:
     """
 
     def __init__(self, sdata: SpatialData):
-        self.sdata_viewer = SpatialDataViewer()
-        # self._viewer = self.sdata_viewer._viewer
+        viewer = napari.current_viewer()
+        self._viewer = viewer if viewer else napari.Viewer()
+        self.sdata_viewer = SpatialDataViewer(self._viewer)
         self._sdata = sdata
         self._sdata_widget = SdataWidget(self.sdata_viewer, sdata)
-        self._list_widget = self.sdata_viewer.window.add_dock_widget(
-            self._sdata_widget, name="SpatialData", area="left", menu=self.sdata_viewer.window.window_menu
+        self._list_widget = self._viewer.window.add_dock_widget(
+            self._sdata_widget, name="SpatialData", area="left", menu=self._viewer.window.window_menu
         )
 
     def run(self) -> None:
         napari.run()
 
     def screenshot(self) -> NDArrayA | Any:
-        return self.sdata_viewer.screenshot(canvas_only=False)
+        return self.sdata_viewer.viewer.screenshot(canvas_only=False)
