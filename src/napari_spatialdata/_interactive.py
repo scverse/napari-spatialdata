@@ -237,15 +237,11 @@ class SdataWidget(QWidget):
         new_image, rgb = _transform_to_rgb(element=self._sdata.images[key])
 
         if isinstance(img, MultiscaleSpatialImage):
-            img = img["scale0"][key]
+            new_image = new_image[0]
         # TODO: type check
-        self._viewer.add_image(
-            new_image,
-            rgb=rgb,
-            name=key,
-            affine=affine,
+        layer = self._viewer.add_image(
+            new_image, rgb=rgb, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}}
         )
-        layer = self._viewer.add_image(img, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}})
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_points(self, key: str) -> None:
