@@ -234,13 +234,13 @@ class SdataWidget(QWidget):
         selected_cs = self.coordinate_system_widget._system
         img = self._sdata.images[key]
         affine = _get_transform(self._sdata.images[key], selected_cs)
-        new_image, rgb = _transform_to_rgb(element=self._sdata.images[key])
+        rgb_image, rgb = _transform_to_rgb(element=self._sdata.images[key])
 
         if isinstance(img, MultiscaleSpatialImage):
-            new_image = new_image[0]
+            rgb_image[0]
         # TODO: type check
         layer = self._viewer.add_image(
-            new_image, rgb=rgb, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}}
+            rgb_image, rgb=rgb, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}}
         )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
