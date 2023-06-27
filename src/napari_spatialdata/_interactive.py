@@ -213,7 +213,7 @@ class SdataWidget(QWidget):
         selected_cs = self.coordinate_system_widget._system
         affine = _get_transform(self._sdata.labels[key], selected_cs)
 
-        rgb_labels, _= _transform_to_rgb(element=self._sdata.labels[key])
+        rgb_labels, _ = _transform_to_rgb(element=self._sdata.labels[key])
 
         layer = self._viewer.add_labels(
             rgb_labels,
