@@ -12,7 +12,7 @@ from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata.utils._utils import NDArrayA, _get_transform, _swap_coordinates
+from napari_spatialdata.utils._utils import NDArrayA, _get_transform, _swap_coordinates, _transform_to_rgb
 
 if TYPE_CHECKING:
     from napari.utils.events.event import Event
@@ -213,8 +213,10 @@ class SdataWidget(QWidget):
         selected_cs = self.coordinate_system_widget._system
         affine = _get_transform(self._sdata.labels[key], selected_cs)
 
+        rgb_labels, _ = _transform_to_rgb(element=self._sdata.labels[key])
+
         layer = self._viewer.add_labels(
-            self._sdata.labels[key],
+            rgb_labels,
             name=key,
             affine=affine,
             metadata={
@@ -232,11 +234,14 @@ class SdataWidget(QWidget):
         selected_cs = self.coordinate_system_widget._system
         img = self._sdata.images[key]
         affine = _get_transform(self._sdata.images[key], selected_cs)
+        rgb_image, rgb = _transform_to_rgb(element=self._sdata.images[key])
 
         if isinstance(img, MultiscaleSpatialImage):
-            img = img["scale0"][key]
+            rgb_image = rgb_image[0]
         # TODO: type check
-        layer = self._viewer.add_image(img, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}})
+        layer = self._viewer.add_image(
+            rgb_image, rgb=rgb, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}}
+        )
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _add_points(self, key: str) -> None:
