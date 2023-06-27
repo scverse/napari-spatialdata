@@ -240,7 +240,7 @@ def _transform_to_rgb(element: SpatialImage | MultiscaleSpatialImage) -> tuple[D
     Returns
     -------
     new_raster: DataArray
-        The image in shape of c x y x x.
+        The image in shape of (c, y, x)
     rgb: bool
         Flag indicating suitability for rgb(a) visualization.
     """
