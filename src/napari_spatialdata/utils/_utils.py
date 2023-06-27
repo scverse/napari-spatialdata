@@ -231,7 +231,7 @@ def _transform_to_rgb(element: SpatialImage | MultiscaleSpatialImage) -> tuple[D
     """Swap the axes to y, x, c if an image supports rgb(a) visualization.
 
     Checks whether c dim is present in the axes and allows for rgb(a) visualization. If so, subsequently transposes it
-    into c x y x x and flags as suitable for rgb visualization.
+    into (c, y, x) axis order and flags as suitable for rgb visualization.
 
     Parameters
     ----------
