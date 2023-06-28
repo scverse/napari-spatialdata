@@ -10,7 +10,7 @@ from napari import Viewer
 from napari.layers import Labels, Points, Shapes
 from napari.utils.notifications import show_info
 
-from napari_spatialdata.utils._utils import _get_transform, _swap_coordinates
+from napari_spatialdata.utils._utils import _get_transform, _swap_coordinates, _transform_to_rgb
 
 if TYPE_CHECKING:
     from napari.utils.events.event import Event
@@ -47,12 +47,15 @@ class SpatialDataViewer:
     def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
         img = sdata.images[key]
         affine = _get_transform(sdata.images[key], selected_cs)
+        rgb_image, rgb = _transform_to_rgb(element=sdata.images[key])
 
         if isinstance(img, MultiscaleSpatialImage):
-            img = img["scale0"][key]
+            rgb_image = rgb_image[0]
+
         # TODO: type check
         self.viewer.add_image(
-            img,
+            rgb_image,
+            rgb=rgb,
             name=key,
             affine=affine,
             metadata={"sdata": sdata, "_active_in_cs": {selected_cs}, "_current_cs": selected_cs},
@@ -124,8 +127,10 @@ class SpatialDataViewer:
     def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
         affine = _get_transform(sdata.labels[key], selected_cs)
 
+        rgb_labels, _ = _transform_to_rgb(element=sdata.labels[key])
+
         self.viewer.add_labels(
-            sdata.labels[key],
+            rgb_labels,
             name=key,
             affine=affine,
             metadata={
