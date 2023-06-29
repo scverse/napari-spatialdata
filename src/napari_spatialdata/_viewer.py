@@ -13,16 +13,20 @@ from napari.utils.notifications import show_info
 from napari_spatialdata.utils._utils import _get_transform, _swap_coordinates, _transform_to_rgb
 
 if TYPE_CHECKING:
-    from napari.utils.events.event import Event
+    from napari.layers import Layer
     from spatialdata import SpatialData
 
 
 class SpatialDataViewer:
     def __init__(self, viewer: Viewer) -> None:
         self.viewer = viewer
-        self.viewer.layers.events.inserted.connect(self._inherit_metadata)
+        self.viewer.bind_key("Shift-L", self._inherit_metadata)
 
-    def _inherit_metadata(self, event: Event) -> None:
+    def _inherit_metadata(self, viewer: Viewer) -> None:
+        layers = list(viewer.layers.selection)
+        self.inherit_metadata(layers)
+
+    def inherit_metadata(self, layers: list[Layer]) -> None:
         """
         Inherit metadata from active layer.
 
@@ -31,18 +35,34 @@ class SpatialDataViewer:
 
         Paramters
         ---------
-        event: Event
-            A layer inserted event
+        layers: list[Layer]
+            A list of napari layers of which only 1 should have a spatialdata object from which the other layers inherit
+            metadata.
         """
-        layer = event.value
-        active_layer = self.viewer.layers.selection.active
+        # Layer.metadata.get would yield a default value which is not what we want.
+        sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
+        # len(sdatas) as opposed to 1 to ensure sdatas is not empty
+        sdata_count = sum(sdatas[0] is sdata for sdata in sdatas[1:]) if len(sdatas) != 1 else len(sdatas)
 
-        if active_layer and type(layer) in {Labels, Points, Shapes} and "sdata" not in layer.metadata:
-            active_layer_metadata = active_layer.metadata
-            layer.metadata["sdata"] = active_layer_metadata["sdata"]
-            layer.metadata["_current_cs"] = active_layer_metadata["_current_cs"]
-            layer.metadata["_active_in_cs"] = {active_layer_metadata["_current_cs"]}
-            show_info(f"The spatialdata object is set to the spatialdata object of {active_layer}")
+        if sdata_count != 1:
+            raise ValueError(
+                f"{sdata_count} different spatialdata objects in selected layers. Please ensure only 1 spatialdata "
+                f"object."
+            )
+        # TODO check why sdata_count becomes 2 after having inherited metadata once.
+        # Sdata_count check ensures ref_layer always will have a value.
+        ref_layer = next(layer for layer in layers if "sdata" in layer.metadata)
+
+        for layer in (
+            layer
+            for layer in layers
+            if layer != ref_layer and isinstance(layer, (Labels, Points, Shapes)) and "sdata" not in layer.metadata
+        ):
+            layer.metadata["sdata"] = ref_layer.metadata["sdata"]
+            layer.metadata["_current_cs"] = ref_layer.metadata["_current_cs"]
+            layer.metadata["_active_in_cs"] = {ref_layer.metadata["_current_cs"]}
+
+        show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
     def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
         img = sdata.images[key]
