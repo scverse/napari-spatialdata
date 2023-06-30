@@ -11,7 +11,7 @@ def test_layer_visibility(qtbot, make_napari_viewer: any):
     widget = SdataWidget(viewer, sdata)
 
     # Click on `space` coordinate system
-    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "space")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     widget._onClick(list(sdata.images.keys())[0])
