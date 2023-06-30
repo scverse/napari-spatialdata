@@ -41,16 +41,15 @@ class SpatialDataViewer:
         """
         # Layer.metadata.get would yield a default value which is not what we want.
         sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
-        # len(sdatas) as opposed to 1 to ensure sdatas is not empty
-        sdata_count = sum(sdatas[0] is sdata for sdata in sdatas[1:]) if len(sdatas) != 1 else len(sdatas)
 
-        if sdata_count != 1:
+        sdata_ids = {id(sdata) for sdata in sdatas}
+
+        if len(sdata_ids) != 1:
             raise ValueError(
-                f"{sdata_count} different spatialdata objects in selected layers. Please ensure only 1 spatialdata "
+                f"{len(sdata_ids)} different spatialdata objects in selected layers. Please ensure 1 spatialdata "
                 f"object."
             )
-        # TODO check why sdata_count becomes 2 after having inherited metadata once.
-        # Sdata_count check ensures ref_layer always will have a value.
+
         ref_layer = next(layer for layer in layers if "sdata" in layer.metadata)
 
         for layer in (
