@@ -29,7 +29,7 @@ def test_metadata_inheritance(qtbot, make_napari_viewer: any):
     widget = SdataWidget(viewer, sdata)
 
     # Click on `global` coordinate system
-    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "space")
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     widget._add_image(list(sdata.images.keys())[0])
@@ -49,3 +49,5 @@ def test_metadata_inheritance(qtbot, make_napari_viewer: any):
     sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
     sdata_ids = {id(sdata) for sdata in sdatas}
     assert len(sdata_ids) == 1
+    assert viewer.layers[-1].metadata["_current_cs"] == "global"
+    assert viewer.layers[-1].metadata["_active_in_cs"] == {"global"}
