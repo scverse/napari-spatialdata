@@ -42,13 +42,12 @@ class SpatialDataViewer:
         # Layer.metadata.get would yield a default value which is not what we want.
         sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
 
-        sdata_ids = {id(sdata) for sdata in sdatas}
+        # If more than 1 sdata object, ensure all are the same.
+        if len(sdatas) > 1 and not all(sdatas[0] is sdata for sdata in sdatas[1:]):
+            raise ValueError("Multiple different spatialdata object found in selected layers. One is required.")
 
-        if len(sdata_ids) != 1:
-            raise ValueError(
-                f"{len(sdata_ids)} different spatialdata objects in selected layers. Please ensure 1 spatialdata "
-                f"object."
-            )
+        if len(sdatas) < 1:
+            raise ValueError("No Spatialdata objects associated with selected layers.")
 
         ref_layer = next(layer for layer in layers if "sdata" in layer.metadata)
 

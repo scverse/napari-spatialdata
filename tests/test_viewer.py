@@ -20,15 +20,13 @@ def test_metadata_inheritance(qtbot, make_napari_viewer: any):
     # Two layers have the same spatialdata object. So we should count 1 spatialdata object.
     layers = widget.viewer_model.viewer.layers
     sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
-    sdata_ids = {id(sdata) for sdata in sdatas}
-    assert len(sdata_ids) == 1
+    assert all(sdatas[0] is sdata for sdata in sdatas[1:])
 
     widget.viewer_model.inherit_metadata(widget.viewer_model.viewer.layers)
 
     # Now we did let the shapes layer inherit sdata from another layer. The number of unique spatialdata objects
     # should still be one.
     sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
-    sdata_ids = {id(sdata) for sdata in sdatas}
-    assert len(sdata_ids) == 1
+    assert all(sdatas[0] is sdata for sdata in sdatas[1:])
     assert viewer.layers[-1].metadata["_current_cs"] == "global"
     assert viewer.layers[-1].metadata["_active_in_cs"] == {"global"}
