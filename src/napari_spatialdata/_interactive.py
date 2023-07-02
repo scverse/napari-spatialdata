@@ -7,12 +7,11 @@ import numpy as np
 import shapely
 from anndata import AnnData
 from loguru import logger
-from multiscale_spatial_image import MultiscaleSpatialImage
 from napari.viewer import Viewer
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata.utils._utils import NDArrayA, _get_transform, _swap_coordinates, _transform_to_rgb
+from napari_spatialdata.utils._utils import NDArrayA, _adjust_channels_order, _get_transform, _swap_coordinates
 
 if TYPE_CHECKING:
     from napari.utils.events.event import Event
@@ -213,7 +212,7 @@ class SdataWidget(QWidget):
         selected_cs = self.coordinate_system_widget._system
         affine = _get_transform(self._sdata.labels[key], selected_cs)
 
-        rgb_labels, _ = _transform_to_rgb(element=self._sdata.labels[key])
+        rgb_labels, _ = _adjust_channels_order(element=self._sdata.labels[key])
 
         layer = self._viewer.add_labels(
             rgb_labels,
@@ -232,12 +231,10 @@ class SdataWidget(QWidget):
 
     def _add_image(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        img = self._sdata.images[key]
+        self._sdata.images[key]
         affine = _get_transform(self._sdata.images[key], selected_cs)
-        rgb_image, rgb = _transform_to_rgb(element=self._sdata.images[key])
+        rgb_image, rgb = _adjust_channels_order(element=self._sdata.images[key])
 
-        if isinstance(img, MultiscaleSpatialImage):
-            rgb_image = rgb_image[0]
         # TODO: type check
         layer = self._viewer.add_image(
             rgb_image, rgb=rgb, name=key, affine=affine, metadata={"_active_in_cs": {selected_cs}}
