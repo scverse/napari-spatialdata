@@ -56,7 +56,7 @@ def test_sdatawidget_images(make_napari_viewer: Any):
     widget.elements_widget._onClickChange("global")
     widget._onClick("image")
     assert len(widget._viewer.layers) == 2
-    assert (widget._viewer.layers[0].data == widget._viewer.layers[1].data).all()
+    assert (widget._viewer.layers[0].data == widget._viewer.layers[1].data._data[0]).all()
     del sdata.images["image"]
 
 
