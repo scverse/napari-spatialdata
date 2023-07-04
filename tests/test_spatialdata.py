@@ -55,8 +55,9 @@ def test_sdatawidget_images(make_napari_viewer: Any):
     sdata.images["image"] = to_multiscale(sdata.images["blobs_image"], [2, 4])
     widget.elements_widget._onClickChange("global")
     widget._onClick("image")
+
     assert len(widget.viewer_model.viewer.layers) == 2
-    assert (widget.viewer_model.viewer.layers[0].data == widget.viewer_model.viewer.layers[1].data).all()
+    assert (widget.viewer_model.viewer.layers[0].data == widget.viewer_model.viewer.layers[1].data._data[0]).all()
     del sdata.images["image"]
 
 

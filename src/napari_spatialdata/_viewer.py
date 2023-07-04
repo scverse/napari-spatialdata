@@ -5,12 +5,11 @@ from typing import TYPE_CHECKING
 import numpy as np
 from anndata import AnnData
 from loguru import logger
-from multiscale_spatial_image import MultiscaleSpatialImage
 from napari import Viewer
 from napari.layers import Labels, Points, Shapes
 from napari.utils.notifications import show_info
 
-from napari_spatialdata.utils._utils import _get_transform, _swap_coordinates, _transform_to_rgb
+from napari_spatialdata.utils._utils import _adjust_channels_order, _get_transform, _swap_coordinates
 
 if TYPE_CHECKING:
     from napari.layers import Layer
@@ -63,12 +62,8 @@ class SpatialDataViewer:
         show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
     def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        img = sdata.images[key]
         affine = _get_transform(sdata.images[key], selected_cs)
-        rgb_image, rgb = _transform_to_rgb(element=sdata.images[key])
-
-        if isinstance(img, MultiscaleSpatialImage):
-            rgb_image = rgb_image[0]
+        rgb_image, rgb = _adjust_channels_order(element=sdata.images[key])
 
         # TODO: type check
         self.viewer.add_image(
@@ -145,7 +140,7 @@ class SpatialDataViewer:
     def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
         affine = _get_transform(sdata.labels[key], selected_cs)
 
-        rgb_labels, _ = _transform_to_rgb(element=sdata.labels[key])
+        rgb_labels, _ = _adjust_channels_order(element=sdata.labels[key])
 
         self.viewer.add_labels(
             rgb_labels,

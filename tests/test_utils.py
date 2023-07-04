@@ -5,13 +5,13 @@ import numpy as np
 import pytest
 from anndata import AnnData
 from napari_spatialdata.utils._utils import (
+    _adjust_channels_order,
     _get_categorical,
     _get_transform,
     _min_max_norm,
     _points_inside_triangles,
     _position_cluster_labels,
     _set_palette,
-    _transform_to_rgb,
 )
 from spatialdata.datasets import blobs
 
@@ -105,8 +105,8 @@ def test_get_transform():
 @pytest.mark.parametrize("n_channels", [3, 4, 5])
 def test_transform_to_rgb(n_channels):
     sdata = blobs(n_channels=n_channels)
-    raster, rgb = _transform_to_rgb(sdata.images["blobs_image"])
-    raster_multiscales, rgb_multiscales = _transform_to_rgb(sdata.images["blobs_multiscale_image"])
+    raster, rgb = _adjust_channels_order(sdata.images["blobs_image"])
+    raster_multiscales, rgb_multiscales = _adjust_channels_order(sdata.images["blobs_multiscale_image"])
     if n_channels not in (3, 4):
         assert not rgb
         assert not rgb_multiscales
