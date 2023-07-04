@@ -1,4 +1,3 @@
-import shutil
 from pathlib import Path
 
 from click.testing import CliRunner
@@ -33,4 +32,3 @@ def test_view_path_is_dir():
 
         # Close all existing viewer instances to avoid leaking of viewers between tests
         Viewer.close_all()
-        shutil.rmtree(f)
