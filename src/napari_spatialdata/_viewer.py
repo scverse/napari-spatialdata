@@ -60,11 +60,8 @@ class SpatialDataViewer:
             layer.metadata["_active_in_cs"] = {ref_layer.metadata["_current_cs"]}
             layer.metadata["name"] = None
             layer.metadata["adata"] = None
-            if isinstance(layer, Shapes):
-                layer.metadata["shapes_key"] = None
-                layer.metadata["shapes_type"] = None
-            elif isinstance(layer, Labels):
-                layer.metadata["labels_key"] = None
+            if isinstance(layer, (Shapes, Labels)):
+                layer.metadata["region_key"] = None
 
         show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
@@ -98,7 +95,7 @@ class SpatialDataViewer:
             metadata={
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "shapes_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "name": key,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -137,8 +134,7 @@ class SpatialDataViewer:
             metadata={
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "shapes_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "shapes_type": "polygons",
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "name": key,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -157,7 +153,7 @@ class SpatialDataViewer:
             metadata={
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "labels_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
+                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
                 "name": key,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
