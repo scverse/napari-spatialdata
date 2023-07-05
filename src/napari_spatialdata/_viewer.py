@@ -32,8 +32,8 @@ class SpatialDataViewer:
         A new layer that is added will inherit from the layer that is active when its added, ensuring proper association
         with a spatialdata object and coordinate space.
 
-        Paramters
-        ---------
+        Parameters
+        ----------
         layers: list[Layer]
             A list of napari layers of which only 1 should have a spatialdata object from which the other layers inherit
             metadata.
@@ -58,6 +58,13 @@ class SpatialDataViewer:
             layer.metadata["sdata"] = ref_layer.metadata["sdata"]
             layer.metadata["_current_cs"] = ref_layer.metadata["_current_cs"]
             layer.metadata["_active_in_cs"] = {ref_layer.metadata["_current_cs"]}
+            layer.metadata["name"] = None
+            layer.metadata["adata"] = None
+            if isinstance(layer, Shapes):
+                layer.metadata["shapes_key"] = None
+                layer.metadata["shapes_type"] = None
+            elif isinstance(layer, Labels):
+                layer.metadata["labels_key"] = None
 
         show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
@@ -92,6 +99,7 @@ class SpatialDataViewer:
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
                 "shapes_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "name": key,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
