@@ -186,3 +186,6 @@ class SpatialDataViewer:
                 "_current_cs": selected_cs,
             },
         )
+
+    def add_sdata(self, sdata: SpatialData) -> None:
+        self.sdata.add(sdata)
