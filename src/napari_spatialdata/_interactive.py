@@ -25,7 +25,7 @@ class Interactive:
     None
     """
 
-    def __init__(self, sdata: SpatialData):
+    def __init__(self, sdata: SpatialData | list[SpatialData]):
         viewer = napari.current_viewer()
         self._viewer = viewer if viewer else napari.Viewer()
         self._sdata = sdata

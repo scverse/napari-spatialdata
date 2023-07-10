@@ -52,7 +52,7 @@ def view(path: tuple[str], headless: bool) -> None:
         sdatas.append(sdata)
 
     # TODO: support multiple spatial data
-    interactive = Interactive(sdata=sdatas[0])
+    interactive = Interactive(sdata=sdatas)
     if not headless:
         interactive.run()
 

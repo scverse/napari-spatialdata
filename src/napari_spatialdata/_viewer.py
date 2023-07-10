@@ -13,12 +13,14 @@ from napari_spatialdata.utils._utils import _adjust_channels_order, _get_transfo
 
 if TYPE_CHECKING:
     from napari.layers import Layer
+    from napari.utils.events import EventedSet
     from spatialdata import SpatialData
 
 
 class SpatialDataViewer:
-    def __init__(self, viewer: Viewer) -> None:
+    def __init__(self, viewer: Viewer, sdata: EventedSet) -> None:
         self.viewer = viewer
+        self.sdata = sdata
         self.viewer.bind_key("Shift-L", self._inherit_metadata)
 
     def _inherit_metadata(self, viewer: Viewer) -> None:

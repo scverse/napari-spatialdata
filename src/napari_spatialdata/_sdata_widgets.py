@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable
 
 import shapely
+from napari.utils.events import EventedSet
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
@@ -14,7 +15,7 @@ if TYPE_CHECKING:
 
 
 class ElementWidget(QListWidget):
-    def __init__(self, sdata: SpatialData):
+    def __init__(self, sdata: EventedSet):
         super().__init__()
         self._sdata = sdata
 
@@ -22,32 +23,37 @@ class ElementWidget(QListWidget):
         self.clear()
 
         elements = {}
-        for element_type, element_name, _ in self._sdata.filter_by_coordinate_system(
-            selected_coordinate_system
-        )._gen_elements():
-            elements[element_name] = element_type
+        for sdata in self._sdata:
+            for element_type, element_name, _ in sdata.filter_by_coordinate_system(
+                selected_coordinate_system
+            )._gen_elements():
+                elements[element_name] = element_type
 
         self.addItems(elements.keys())
         self._elements = elements
 
 
 class CoordinateSystemWidget(QListWidget):
-    def __init__(self, sdata: SpatialData):
+    def __init__(self, sdata: EventedSet):
         super().__init__()
 
         self._sdata = sdata
 
-        self.addItems(self._sdata.coordinate_systems)
+        coordinate_systems = {cs for sdata in self._sdata for cs in sdata.coordinate_systems}
+        self.addItems(coordinate_systems)
 
     def _select_coord_sys(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self._system = str(selected_coordinate_system)
 
 
 class SdataWidget(QWidget):
-    def __init__(self, viewer: Viewer, sdata: SpatialData):
+    def __init__(self, viewer: Viewer, sdata: SpatialData | list[SpatialData]):
         super().__init__()
-        self._sdata = sdata
-        self.viewer_model = SpatialDataViewer(viewer)
+        if isinstance(sdata, list):
+            self._sdata = EventedSet(sdata)
+        else:
+            self._sdata = EventedSet([sdata])
+        self.viewer_model = SpatialDataViewer(viewer, self._sdata)
 
         self.setLayout(QVBoxLayout())
 
