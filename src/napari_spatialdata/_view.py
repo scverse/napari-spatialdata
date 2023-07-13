@@ -22,16 +22,16 @@ from qtpy.QtWidgets import (
 from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
-from napari_spatialdata._utils import (
-    NDArrayA,
-    _get_categorical,
-    _points_inside_triangles,
-)
 from napari_spatialdata._widgets import (
     AListWidget,
     CBarWidget,
     ComponentWidget,
     RangeSliderWidget,
+)
+from napari_spatialdata.utils._utils import (
+    NDArrayA,
+    _get_categorical,
+    _points_inside_triangles,
 )
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
@@ -247,13 +247,21 @@ class QtAdataViewWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.coordinates = np.insert(self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1)
+        if "spatial" in self.model.adata.obsm:
+            self.model.coordinates = np.insert(
+                self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1
+            )
+
         if "points" in layer.metadata:
+            # TODO: Check if this can be removed
             self.model.points_coordinates = layer.metadata["points"].X
             self.model.points_var = layer.metadata["points"].obs["gene"]
             self.model.point_diameter = np.array([0.0] + [layer.metadata["point_diameter"]] * 2) * self.model.scale
+
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.labels_key = layer.metadata["labels_key"] if isinstance(layer, Labels) else None
+        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
+
         if "colormap" in layer.metadata:
             self.model.cmap = layer.metadata["colormap"]
         if hasattr(

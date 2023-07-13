@@ -9,7 +9,7 @@ from napari.utils.events import EmitterGroup, Event
 
 from napari_spatialdata._constants._constants import Symbol
 from napari_spatialdata._constants._pkg_constants import Key
-from napari_spatialdata._utils import NDArrayA, _ensure_dense_vector
+from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
 __all__ = ["ImageModel"]
 
@@ -28,6 +28,7 @@ class ImageModel:
     _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
     _scale: Optional[float] = field(init=False, default=None)
+    _system_name: Optional[str] = field(default=None, repr=True)
 
     _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     _point_diameter: Union[NDArrayA, float] = field(init=False, default=1)
@@ -302,3 +303,11 @@ class ImageModel:
     @scale_key.setter
     def scale_key(self, scale_key: str) -> None:
         self._scale_key = scale_key
+
+    @property
+    def system_name(self) -> Optional[str]:  # noqa: D102
+        return self._system_name
+
+    @system_name.setter
+    def system_name(self, system_name: str) -> None:
+        self._system_name = system_name

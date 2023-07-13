@@ -4,7 +4,8 @@ from typing import Any, List
 import numpy as np
 import pytest
 from anndata import AnnData
-from napari_spatialdata._utils import (
+from napari_spatialdata.utils._utils import (
+    _adjust_channels_order,
     _get_categorical,
     _get_transform,
     _min_max_norm,
@@ -99,3 +100,24 @@ def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
 def test_get_transform():
     sdata = blobs()
     assert (_get_transform(sdata.images["blobs_image"]) == np.identity(3)).all()
+
+
+@pytest.mark.parametrize("n_channels", [3, 4, 5])
+def test_transform_to_rgb(n_channels):
+    sdata = blobs(n_channels=n_channels)
+    raster, rgb = _adjust_channels_order(sdata.images["blobs_image"])
+    raster_multiscales, rgb_multiscales = _adjust_channels_order(sdata.images["blobs_multiscale_image"])
+    if n_channels not in (3, 4):
+        assert not rgb
+        assert not rgb_multiscales
+        assert sdata.images["blobs_image"].shape == raster.shape
+        multiscale_shapes = [
+            next(iter(sdata["blobs_multiscale_image"][tree].values())).shape
+            for index, tree in enumerate(sdata["blobs_multiscale_image"])
+        ]
+        assert all(raster_multiscales[index].shape for index, shape in enumerate(multiscale_shapes))
+    else:
+        assert rgb
+        assert rgb_multiscales
+        assert raster.shape[2] in (3, 4)
+        assert all(raster_scale.shape[2] in (3, 4) for raster_scale in raster_multiscales)

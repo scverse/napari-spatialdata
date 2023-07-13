@@ -7,9 +7,8 @@
 :maxdepth: 1
 
 api.md
-changelog.md
+cli.md
 contributing.md
-template_usage.md
 references.md
 ```
 

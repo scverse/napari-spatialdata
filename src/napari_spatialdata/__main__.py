@@ -16,24 +16,32 @@ def main() -> None:
 
 
 @cli.command(help="Interactive visualization of SpatialData datasets with napari")
-@click.argument("paths", nargs=-1, required=True)
-def view(paths: tuple[str]) -> None:
+@click.argument("path", nargs=-1, type=str, required=True)
+@click.option(
+    "--headless",
+    "-h",
+    is_flag=True,
+    default=False,
+    help="Run napari in headless mode. Used for testing.",
+)
+def view(path: tuple[str], headless: bool) -> None:
     """Interactive visualization of SpatialData datasets with napari.
 
     :param paths: Paths to one or more SpatialData datasets.
     """
+    assert type(path) == tuple
+
     import spatialdata as sd
 
     from napari_spatialdata import Interactive
 
-    sdatas = []
-
     # TODO: remove when multiple datasets are supported
-    if len(paths) > 1:
+    if len(path) > 1:
         logger.warning("More than one path provided. Only the first path will be used.")
 
-    for path in paths:
-        p = Path(path).resolve()
+    sdatas = []
+    for p_str in path:
+        p = Path(p_str).resolve()
         assert p.exists(), f"Error: {p} does not exist"
         logger.info(f"Reading {p}")
         if not p.is_dir():
@@ -51,7 +59,8 @@ def view(paths: tuple[str]) -> None:
 
     # TODO: remove [0] when multiple datasets are supported
     interactive = Interactive(sdata=sdatas[0])
-    interactive.run()
+    if not headless:
+        interactive.run()
 
 
 if __name__ == "__main__":

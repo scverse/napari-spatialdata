@@ -9,7 +9,7 @@ import napari
 import numpy as np
 import pandas as pd
 from loguru import logger
-from napari.layers import Image, Labels, Layer, Points
+from napari.layers import Labels, Layer, Points, Shapes
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -20,7 +20,7 @@ from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
 
 from napari_spatialdata._model import ImageModel
-from napari_spatialdata._utils import (
+from napari_spatialdata.utils._utils import (
     NDArrayA,
     _get_categorical,
     _min_max_norm,
@@ -108,8 +108,8 @@ class AListWidget(ListWidget):
         self._model = model
 
         self._attr = attr
-        self._getter = getattr(self.model, f"get_{attr}")
 
+        self._getter = getattr(self.model, f"get_{attr}")
         self.layerChanged.connect(self._onChange)
         self._onChange()
 
@@ -125,6 +125,7 @@ class AListWidget(ListWidget):
             except Exception as e:  # noqa: BLE001
                 logger.error(e)
                 continue
+
             if vec.ndim == 2:
                 self.viewer.add_points(
                     vec,
@@ -136,23 +137,21 @@ class AListWidget(ListWidget):
                 )
             else:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                if isinstance(self.model.layer, (Image, Points)):
-                    self.viewer.add_points(
-                        self.model.coordinates,
-                        name=name,
-                        size=self.model.spot_diameter,
-                        opacity=1,
-                        face_colormap=self.model.cmap,
-                        edge_colormap=self.model.cmap,
-                        symbol=self.model.symbol,
-                        **properties,
-                    )
+
+                if isinstance(self.model.layer, (Points, Shapes)):
+                    self.model.layer.name = (
+                        "" if self.model.system_name is None else self.model.system_name + ":"
+                    ) + item
+                    self.model.layer.text = None  # needed because of the text-feature order of updates
+                    self.model.layer.features = properties.get("features", None)
+                    self.model.layer.face_color = properties["face_color"]
+                    self.model.layer.text = properties["text"]
                 elif isinstance(self.model.layer, Labels):
-                    self.viewer.add_labels(
-                        self.model.layer.data.copy(),
-                        name=name,
-                        **properties,
-                    )
+                    self.model.layer.name = (
+                        "" if self.model.system_name is None else self.model.system_name + ":"
+                    ) + item
+                    self.model.layer.color = properties["color"]
+                    self.model.layer.properties = properties.get("properties", None)
                 else:
                     raise ValueError("TODO")
                 # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
@@ -200,20 +199,33 @@ class AListWidget(ListWidget):
     @_get_points_properties.register(np.ndarray)
     def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
+        cmap = plt.get_cmap(self.model.cmap)
+        norm_vec = _min_max_norm(vec)
+        color_vec = cmap(norm_vec)
         if layer is not None and isinstance(layer, Labels):
             cmap = plt.get_cmap(self.model.cmap)
             norm_vec = _min_max_norm(vec)
             color_vec = cmap(norm_vec)
+
             return {
                 "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, color_vec)),
                 "properties": {"value": vec},
-                "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
+                "text": None,
             }
+
+        if layer is not None and isinstance(layer, Shapes):
+            cmap = plt.get_cmap(self.model.cmap)
+            norm_vec = _min_max_norm(vec)
+            color_vec = cmap(norm_vec)
+
+            return {
+                "text": None,
+                "face_color": color_vec,
+            }
+
         return {
             "text": None,
-            "face_color": "value",
-            "properties": {"value": vec},
-            "metadata": {"perc": (0, 100), "data": vec, "minmax": (np.nanmin(vec), np.nanmax(vec))},
+            "face_color": color_vec,
         }
 
     @_get_points_properties.register(pd.Series)
@@ -222,8 +234,12 @@ class AListWidget(ListWidget):
         face_color = _get_categorical(
             self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
         )
+
         if layer is not None and isinstance(layer, Labels):
-            return {"color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color))}
+            return {"color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color)), "text": None}
+
+        if layer is not None and isinstance(layer, Shapes):
+            return {"face_color": face_color, "metadata": None, "text": None}
 
         cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
         return {
@@ -235,7 +251,6 @@ class AListWidget(ListWidget):
             },
             "face_color": face_color,
             "features": cluster_labels,
-            "metadata": None,
         }
 
     @property
