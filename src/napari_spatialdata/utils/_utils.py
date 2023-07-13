@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from dask.dataframe.core import DataFrame as DaskDataFrame
+from datatree import DataTree
 from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
@@ -23,13 +24,16 @@ from pandas.core.dtypes.common import (
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
-from spatialdata.models import SpatialElement
+from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
 from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata.utils._categoricals_utils import (
     add_colors_for_categorical_sample_annotation,
 )
+
+if TYPE_CHECKING:
+    from xarray import DataArray
 
 try:
     from numpy.typing import NDArray
@@ -221,3 +225,57 @@ def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
         out[i] = _point_inside_triangles(triangles - points[i])
 
     return out
+
+
+def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tuple[DataArray, bool]:
+    """Swap the axes to y, x, c and check if an image supports rgb(a) visualization.
+
+    Checks whether c dim is present in the axes and if so, transposes the dimensions to have c last.
+    If the dimension of c is 3 or 4, it is assumed that the image is suitable for rgb(a) visualization.
+
+    Parameters
+    ----------
+    element: SpatialImage | MultiScaleSpatialImage
+        Element in sdata.images
+
+    Returns
+    -------
+    new_raster: DataArray
+        The image in shape of (c, y, x)
+    rgb: bool
+        Flag indicating suitability for rgb(a) visualization.
+    """
+    axes = get_axes_names(element)
+
+    if "c" in axes:
+        assert axes.index("c") == 0
+        if isinstance(element, SpatialImage):
+            n_channels = element.shape[0]
+        elif isinstance(element, MultiscaleSpatialImage):
+            v = element["scale0"].values()
+            assert len(v) == 1
+            n_channels = v.__iter__().__next__().shape[0]
+        else:
+            raise TypeError(f"Unsupported type for images or labels: {type(element)}")
+    else:
+        n_channels = 0
+
+    if n_channels in [3, 4]:
+        rgb = True
+        new_raster = element.transpose("y", "x", "c")
+    else:
+        rgb = False
+        new_raster = element
+
+    # TODO: after we call .transpose() on a MultiscaleSpatialImage object we get a DataTree object. We should look at
+    # this better and either cast somehow back to MultiscaleSpatialImage or fix/report this
+    if isinstance(new_raster, (MultiscaleSpatialImage, DataTree)):
+        list_of_xdata = []
+        for k in new_raster:
+            v = new_raster[k].values()
+            assert len(v) == 1
+            xdata = v.__iter__().__next__()
+            list_of_xdata.append(xdata)
+        new_raster = list_of_xdata
+
+    return new_raster, rgb
