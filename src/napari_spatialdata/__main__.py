@@ -27,7 +27,7 @@ def main() -> None:
 def view(path: tuple[str], headless: bool) -> None:
     """Interactive visualization of SpatialData datasets with napari.
 
-    :param paths: Paths to one or more SpatialData datasets.
+    :param path: Path to one or more SpatialData datasets.
     """
     assert type(path) == tuple
 
