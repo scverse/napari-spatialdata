@@ -1,3 +1,4 @@
+from napari.utils.events import EventedList
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from spatialdata.datasets import blobs
@@ -7,7 +8,7 @@ sdata = blobs(extra_coord_system="space")
 
 def test_metadata_inheritance(qtbot, make_napari_viewer: any):
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, sdata)
+    widget = SdataWidget(viewer, EventedList([sdata]))
 
     # Click on `global` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")

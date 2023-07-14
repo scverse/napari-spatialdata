@@ -6,6 +6,7 @@ from dask.array.random import randint
 from dask.dataframe import from_dask_array
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
+from napari.utils.events import EventedList
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
@@ -18,24 +19,24 @@ sdata = blobs(extra_coord_system="space")
 
 def test_elementwidget(make_napari_viewer: Any):
     _ = make_napari_viewer()
-    widget = ElementWidget(sdata)
+    widget = ElementWidget(EventedList([sdata]))
     assert widget._sdata is not None
     assert not hasattr(widget, "_elements")
     widget._onClickChange("global")
     assert hasattr(widget, "_elements")
     for name in sdata.images:
-        assert widget._elements[name] == "images"
+        assert widget._elements[name]["element_type"] == "images"
     for name in sdata.labels:
-        assert widget._elements[name] == "labels"
+        assert widget._elements[name]["element_type"] == "labels"
     for name in sdata.points:
-        assert widget._elements[name] == "points"
+        assert widget._elements[name]["element_type"] == "points"
     for name in sdata.shapes:
-        assert widget._elements[name] == "shapes"
+        assert widget._elements[name]["element_type"] == "shapes"
 
 
 def test_coordinatewidget(make_napari_viewer: Any):
     _ = make_napari_viewer()
-    widget = CoordinateSystemWidget(sdata)
+    widget = CoordinateSystemWidget(EventedList([sdata]))
     items = [widget.item(x).text() for x in range(widget.count())]
     assert len(items) == len(sdata.coordinate_systems)
     for item in items:
@@ -44,7 +45,7 @@ def test_coordinatewidget(make_napari_viewer: Any):
 
 def test_sdatawidget_images(make_napari_viewer: Any):
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, sdata)
+    widget = SdataWidget(viewer, EventedList([sdata]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onClickChange("global")
@@ -63,7 +64,7 @@ def test_sdatawidget_images(make_napari_viewer: Any):
 
 def test_sdatawidget_labels(make_napari_viewer: Any):
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, sdata)
+    widget = SdataWidget(viewer, EventedList([sdata]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onClickChange("global")
@@ -80,8 +81,11 @@ def test_sdatawidget_labels(make_napari_viewer: Any):
 
 
 def test_sdatawidget_points(caplog, make_napari_viewer: Any):
+    sdata.points["many_points"] = from_dask_array(randint(0, 10, [200000, 2], dtype=int64), columns=["x", "y"])
+    set_transformation(sdata.points["many_points"], {"global": Identity()}, set_all=True)
+
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, sdata)
+    widget = SdataWidget(viewer, EventedList([sdata]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onClickChange("global")
@@ -95,9 +99,8 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
         len(widget.viewer_model.viewer.layers[0].metadata.get("adata").obs.keys())
         == sdata.points["blobs_points"].shape[1]
     )
-    sdata.points["many_points"] = from_dask_array(randint(0, 10, [200000, 2], dtype=int64), columns=["x", "y"])
-    set_transformation(sdata.points["many_points"], {"global": Identity()}, set_all=True)
-    widget._add_points("many_points")
+
+    widget._onClick("many_points")
     with caplog.at_level(logging.INFO):
         assert (
             "Subsampling points because the number of points exceeds the currently supported 100 000."
@@ -111,7 +114,7 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     # Only points layer in coordinate system `other`
     set_transformation(sdata.points[list(sdata.points.keys())[0]], Identity(), to_coordinate_system="other")
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, sdata)
+    widget = SdataWidget(viewer, EventedList([sdata]))
 
     # Click on `global` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
