@@ -239,6 +239,7 @@ def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tu
     ----------
     element: SpatialImage | MultiScaleSpatialImage
         Element in sdata.images
+
     Returns
     -------
     new_raster: DataArray

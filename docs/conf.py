@@ -138,7 +138,7 @@ nitpick_ignore = [
     # ("py:class", "igraph.Graph"),
 ]
 
-qt_documentation = "PyQt6"
+qt_documentation = "PyQt5"
 
 suppress_warnings = [
     "myst.header",  # https://github.com/executablebooks/MyST-Parser/issues/262
