@@ -25,9 +25,13 @@ def main() -> None:
     help="Run napari in headless mode. Used for testing.",
 )
 def view(path: tuple[str], headless: bool) -> None:
-    """Interactive visualization of SpatialData datasets with napari.
+    """
+    Interactive visualization of SpatialData datasets with napari.
 
-    :param path: Path to one or more SpatialData datasets.
+    Parameters
+    ----------
+    path
+        Path to one or more SpatialData datasets.
     """
     assert type(path) == tuple
 
