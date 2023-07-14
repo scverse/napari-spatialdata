@@ -25,15 +25,23 @@ def main() -> None:
     help="Run napari in headless mode. Used for testing.",
 )
 def view(path: tuple[str], headless: bool) -> None:
-    """Interactive visualization of SpatialData datasets with napari.
+    """
+    Interactive visualization of SpatialData datasets with napari.
 
-    :param path: Path to the SpatialData dataset
+    Parameters
+    ----------
+    path
+        Path to one or more SpatialData datasets.
     """
     assert type(path) == tuple
 
     import spatialdata as sd
 
     from napari_spatialdata import Interactive
+
+    # TODO: remove when multiple datasets are supported
+    if len(path) > 1:
+        logger.warning("More than one path provided. Only the first path will be used.")
 
     sdatas = []
     for p_str in path:
@@ -50,8 +58,10 @@ def view(path: tuple[str], headless: bool) -> None:
             return
         sdata = sd.SpatialData.read(p)
         sdatas.append(sdata)
+        # TODO: remove when multiple datasets are supported
+        break
 
-    # TODO: support multiple spatial data
+    # TODO: remove [0] when multiple datasets are supported
     interactive = Interactive(sdata=sdatas[0])
     if not headless:
         interactive.run()
