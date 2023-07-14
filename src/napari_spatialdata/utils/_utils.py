@@ -24,6 +24,7 @@ from pandas.core.dtypes.common import (
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
+from spatialdata import SpatialData
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -33,6 +34,7 @@ from napari_spatialdata.utils._categoricals_utils import (
 )
 
 if TYPE_CHECKING:
+    from napari.utils.events import EventedList
     from xarray import DataArray
 
 try:
@@ -278,3 +280,29 @@ def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tu
         new_raster = list_of_xdata
 
     return new_raster, rgb
+
+
+def _get_sdata_key(sdata: EventedList, elements: dict[str, dict[str, str | int]], key: str) -> tuple[SpatialData, bool]:
+    """
+    Get the index of SpatialData object and key of SpatialElement.
+
+    Parameters
+    ----------
+    sdata: EventedList
+        EventedList containing the SpatialData objects currently associated with the viewer.
+    elements
+    key: str
+        The name of the item in the element widget.
+
+    Returns
+    -------
+    tuple[int, str]
+        The index of the SpatialData object in the EventedList and the name of the element in the
+        SpatialData object.
+    """
+    sdata_index = elements[key]["sdata_index"]
+    multi = False
+    if key != elements[key]["original_name"]:
+        multi = True
+
+    return sdata[sdata_index], multi

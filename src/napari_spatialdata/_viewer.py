@@ -8,17 +8,17 @@ from loguru import logger
 from napari import Viewer
 from napari.layers import Labels, Points, Shapes
 from napari.utils.notifications import show_info
+from spatialdata import SpatialData
 
 from napari_spatialdata.utils._utils import _adjust_channels_order, _get_transform, _swap_coordinates
 
 if TYPE_CHECKING:
     from napari.layers import Layer
-    from napari.utils.events import EventedSet
-    from spatialdata import SpatialData
+    from napari.utils.events import EventedList
 
 
 class SpatialDataViewer:
-    def __init__(self, viewer: Viewer, sdata: EventedSet) -> None:
+    def __init__(self, viewer: Viewer, sdata: EventedList) -> None:
         self.viewer = viewer
         self.sdata = sdata
         self.viewer.bind_key("Shift-L", self._inherit_metadata)
@@ -67,9 +67,13 @@ class SpatialDataViewer:
 
         show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
-    def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        affine = _get_transform(sdata.images[key], selected_cs)
-        rgb_image, rgb = _adjust_channels_order(element=sdata.images[key])
+    def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
+        affine = _get_transform(sdata.images[original_name], selected_cs)
+        rgb_image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 
         # TODO: type check
         self.viewer.add_image(
@@ -77,11 +81,20 @@ class SpatialDataViewer:
             rgb=rgb,
             name=key,
             affine=affine,
-            metadata={"sdata": sdata, "_active_in_cs": {selected_cs}, "_current_cs": selected_cs},
+            metadata={
+                "sdata": sdata,
+                "name": original_name,
+                "_active_in_cs": {selected_cs},
+                "_current_cs": selected_cs,
+            },
         )
 
-    def add_sdata_circles(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        df = sdata.shapes[key]
+    def add_sdata_circles(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
+        df = sdata.shapes[original_name]
         affine = _get_transform(sdata.shapes[key], selected_cs)
 
         xy = np.array([df.geometry.x, df.geometry.y]).T
@@ -98,16 +111,20 @@ class SpatialDataViewer:
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
                 "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "name": key,
+                "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
         )
 
-    def add_sdata_shapes(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
+    def add_sdata_shapes(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
         polygons = []
-        df = sdata.shapes[key]
-        affine = _get_transform(sdata.shapes[key], selected_cs)
+        df = sdata.shapes[original_name]
+        affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
         # when mulitpolygons are present, we select the largest ones
         if "MultiPolygon" in np.unique(df.geometry.type):
@@ -137,16 +154,19 @@ class SpatialDataViewer:
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
                 "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "name": key,
+                "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
         )
 
-    def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        affine = _get_transform(sdata.labels[key], selected_cs)
+    def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
 
-        rgb_labels, _ = _adjust_channels_order(element=sdata.labels[key])
+        affine = _get_transform(sdata.labels[original_name], selected_cs)
+        rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
 
         self.viewer.add_labels(
             rgb_labels,
@@ -156,15 +176,19 @@ class SpatialDataViewer:
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
                 "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
-                "name": key,
+                "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
         )
 
-    def add_sdata_points(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        points = sdata.points[key].compute()
-        affine = _get_transform(sdata.points[key], selected_cs)
+    def add_sdata_points(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
+        points = sdata.points[original_name].compute()
+        affine = _get_transform(sdata.points[original_name], selected_cs)
         if len(points) < 100000:
             subsample = np.arange(len(points))
         else:
@@ -181,11 +205,8 @@ class SpatialDataViewer:
             metadata={
                 "sdata": sdata,
                 "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
-                "name": key,
+                "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
         )
-
-    def add_sdata(self, sdata: SpatialData) -> None:
-        self.sdata.add(sdata)
