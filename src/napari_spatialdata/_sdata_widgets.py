@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from typing import TYPE_CHECKING, Iterable
 
 import shapely
@@ -24,36 +25,27 @@ class ElementWidget(QListWidget):
         self.clear()
 
         elements = {}
-        element_names = set()
+        element_names = [element_name for sdata in self._sdata for _, element_name, _ in sdata._gen_elements()]
+        element_names = [element for element, count in Counter(element_names).items() if count > 1]
 
         for index, sdata in enumerate(self._sdata):
             for element_type, element_name, _ in sdata.filter_by_coordinate_system(
                 selected_coordinate_system
             )._gen_elements():
                 # This allows us to handle SpatialElement with the same name in different SpatialData objects
-
                 if element_name not in element_names:
-                    element_names.add(element_name)
                     elements[element_name] = {
                         "element_type": element_type,
                         "sdata_index": index,
                         "original_name": element_name,
                     }
                 else:
-                    if element_name in elements:
-                        sdata_index = elements[element_name]["sdata_index"]
-                        new_name = element_name + f"_{sdata_index}"
-                        elements[new_name] = elements[element_name]
-                        element_names.add(new_name)
-                        del elements[element_name]
-
                     new_name = element_name + f"_{index}"
                     elements[new_name] = {
                         "element_type": element_type,
                         "sdata_index": index,
                         "original_name": element_name,
                     }
-                    element_names.add(new_name)
 
         self.addItems(elements.keys())
         self._elements = elements
