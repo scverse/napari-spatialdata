@@ -8,13 +8,13 @@ from loguru import logger
 from napari import Viewer
 from napari.layers import Labels, Points, Shapes
 from napari.utils.notifications import show_info
-from spatialdata import SpatialData
 
 from napari_spatialdata.utils._utils import _adjust_channels_order, _get_transform, _swap_coordinates
 
 if TYPE_CHECKING:
     from napari.layers import Layer
     from napari.utils.events import EventedList
+    from spatialdata import SpatialData
 
 
 class SpatialDataViewer:
