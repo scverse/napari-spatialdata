@@ -169,3 +169,42 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
 
     assert points.visible
     assert points.metadata["_active_in_cs"] == {"global", "space", "other"}
+
+
+def test_multiple_sdata(qtbot, make_napari_viewer: Any):
+    # Create additional sdata with one extra element that is unique
+    sdata_mock = blobs(extra_coord_system="test")
+    sdata_mock.points["extra"] = from_dask_array(randint(0, 10, [5, 2], dtype=int64), columns=["x", "y"])
+    set_transformation(sdata_mock.points["extra"], {"global": Identity()}, set_all=True)
+
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, EventedList([sdata, sdata_mock]))
+
+    # Click on `global` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    # _0 suffix for sdata and _1 for sdata_mock as it is based on index.
+    widget._onClick(list(sdata.images.keys())[0] + "_0")
+    widget._onClick(list(sdata_mock.images.keys())[0] + "_1")
+
+    # Extra is unique and thus should not have suffix
+    assert viewer.layers[0].metadata["sdata"] is sdata
+    assert viewer.layers[1].metadata["sdata"] is sdata_mock
+    assert "extra" in widget.elements_widget._elements
+
+    # Only elements of sdata present in space
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "space")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+    assert all(element_name.endswith("0") for element_name in list(widget.elements_widget._elements.keys()))
+
+    widget._onClick(list(sdata.labels.keys())[0] + "_0")
+    assert viewer.layers[-1].metadata["sdata"] is sdata
+
+    # Only elements of sdata present in test
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "test")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+    assert all(element_name.endswith("1") for element_name in list(widget.elements_widget._elements.keys()))
+
+    widget._onClick(list(sdata_mock.labels.keys())[0] + "_1")
+    assert viewer.layers[-1].metadata["sdata"] is sdata_mock
