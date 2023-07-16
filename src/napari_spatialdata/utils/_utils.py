@@ -291,13 +291,15 @@ def _get_sdata_key(sdata: EventedList, elements: dict[str, dict[str, str | int]]
     ----------
     sdata: EventedList
         EventedList containing the SpatialData objects currently associated with the viewer.
-    elements
+    elements: dict[str, dict[str, str | int]]
+        Dictionary from elements widget containing the keyname as keys and a dictionary with the type of element, index
+        of the SpatialData object and the original name in the SpatialData object.
     key: str
         The name of the item in the element widget.
 
     Returns
     -------
-    tuple[int, str]
+    tuple[SpatialData, bool]
         The index of the SpatialData object in the EventedList and the name of the element in the
         SpatialData object.
     """
