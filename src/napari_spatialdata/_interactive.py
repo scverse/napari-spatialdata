@@ -33,7 +33,7 @@ class Interactive:
             self._sdata = EventedList(data=sdata)
         else:
             self._sdata = EventedList(data=[sdata])
-        self._sdata_widget = SdataWidget(self._viewer, sdata)
+        self._sdata_widget = SdataWidget(self._viewer, self._sdata)
         self._list_widget = self._viewer.window.add_dock_widget(
             self._sdata_widget, name="SpatialData", area="left", menu=self._viewer.window.window_menu
         )
