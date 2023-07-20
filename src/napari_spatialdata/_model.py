@@ -265,12 +265,12 @@ class ImageModel:
         self._point_diameter = point_diameter
 
     @property
-    def labels_key(self) -> Optional[str]:  # noqa: D102
-        return self._labels_key
+    def region_key(self) -> Optional[str]:  # noqa: D102
+        return self._region_key
 
-    @labels_key.setter
-    def labels_key(self, labels_key: str) -> None:
-        self._labels_key = labels_key
+    @region_key.setter
+    def region_key(self, region_key: str) -> None:
+        self._region_key = region_key
 
     @property
     def palette(self) -> Optional[str]:  # noqa: D102
