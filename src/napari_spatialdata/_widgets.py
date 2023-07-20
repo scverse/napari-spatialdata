@@ -208,7 +208,7 @@ class AListWidget(ListWidget):
             color_vec = cmap(norm_vec)
 
             return {
-                "color": dict(zip(self.model.adata.obs[self.model._labels_key].values, color_vec)),
+                "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, color_vec)),
                 "properties": {"value": vec},
                 "text": None,
             }
@@ -236,7 +236,10 @@ class AListWidget(ListWidget):
         )
 
         if layer is not None and isinstance(layer, Labels):
-            return {"color": dict(zip(self.model.adata.obs[self.model._labels_key].values, face_color)), "text": None}
+            return {
+                "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color)),
+                "text": None,
+            }
 
         if layer is not None and isinstance(layer, Shapes):
             return {"face_color": face_color, "metadata": None, "text": None}
