@@ -65,7 +65,7 @@ def test_model(
     assert widget.model.adata is adata_labels
     assert widget.model.coordinates.shape[0] == adata_labels.shape[0]
     assert widget.model.coordinates.ndim == 2
-    assert widget.model._labels_key == "cell_id"
+    assert widget.model.labels_key == "cell_id"
     viewer.layers.selection.events.changed.disconnect()
 
 
