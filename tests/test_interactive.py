@@ -55,7 +55,7 @@ def test_model(
     viewer.add_labels(
         labels,
         name="labels",
-        metadata={"adata": adata_labels, "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
 
     widget = widget(viewer)
@@ -89,7 +89,7 @@ def test_change_layer(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
 
     widget = widget(viewer)
@@ -157,7 +157,7 @@ def test_scatterlistwidget(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
 
     widget = widget(viewer)
@@ -195,7 +195,7 @@ def test_categorical_and_error(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
 
     widget = widget(viewer)
@@ -231,7 +231,7 @@ def test_component_widget(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
 
     widget = widget(viewer)
@@ -274,7 +274,7 @@ def test_layer_selection(
     viewer.add_labels(
         image,
         name="labels",
-        metadata={"adata": adata_labels, "labels_key": "cell_id"},
+        metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
     widget = widget(viewer)
     assert widget.model.adata is adata_labels
