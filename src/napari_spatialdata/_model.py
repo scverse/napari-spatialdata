@@ -266,11 +266,11 @@ class ImageModel:
 
     @property
     def labels_key(self) -> Optional[str]:  # noqa: D102
-        return self._label_key
+        return self._labels_key
 
     @labels_key.setter
     def labels_key(self, region_key: str) -> None:
-        self._label_key = region_key
+        self._labels_key = region_key
 
     @property
     def palette(self) -> Optional[str]:  # noqa: D102
