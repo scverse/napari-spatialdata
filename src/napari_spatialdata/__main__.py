@@ -62,9 +62,7 @@ def view(path: tuple[str], headless: bool) -> None:
         break
 
     # TODO: remove [0] when multiple datasets are supported
-    interactive = Interactive(sdata=sdatas[0])
-    if not headless:
-        interactive.run()
+    Interactive(sdata=sdatas[0], headless=headless)
 
 
 if __name__ == "__main__":
