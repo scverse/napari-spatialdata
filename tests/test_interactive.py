@@ -16,4 +16,4 @@ def test_interactive_add_image():
     image = Image.open("tests/plots/plot_image.tiff")
     presaved_screenshot = np.array(image)
 
-    assert np.allclose(screenshot, presaved_screenshot, equal_nan=True)
+    assert np.array_equal(screenshot, presaved_screenshot)
