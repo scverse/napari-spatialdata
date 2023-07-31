@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from qtpy.QtCore import Qt
 
@@ -8,6 +8,12 @@ if TYPE_CHECKING:
     from pytestqt.qtbot import QtBot
     from qtpy.QtCore import QPoint
     from qtpy.QtWidgets import QListWidget
+
+from loguru import logger
+from PIL import Image
+
+from napari_spatialdata._interactive import Interactive
+from napari_spatialdata.utils._utils import NDArrayA
 
 
 def get_center_pos_listitem(widget: QListWidget, text: str) -> QPoint:
@@ -52,3 +58,33 @@ def click_list_widget_item(qtbot: QtBot, widget: QListWidget, position: QPoint, 
             Qt.KeyboardModifier.NoModifier,
             pos=position,
         )
+
+
+def take_screenshot(interactive: Interactive) -> NDArrayA | Any:
+    """Take screenshot of interactive viewer.
+
+    Parameters
+    ----------
+    interactive: Interactive
+        Interactive object containing the viewer.
+    """
+    logger.info("Taking screenshot of viewer")
+    # to distinguish between the black of the image background and the black of the napari background (now white)
+    interactive._viewer.theme = "light"
+    interactive_screenshot = interactive._viewer.screenshot(canvas_only=False)
+    interactive._viewer.theme = "dark"
+    interactive._viewer.close()
+
+    return interactive_screenshot
+
+
+def save_image(image_np: NDArrayA) -> None:
+    """Save image to file. This was used to generate tests/plots/plot_image.png.
+
+    Parameters
+    ----------
+    image_np: NDArrayA
+        Image as numpy array.
+    """
+    im = Image.fromarray(image_np)
+    im.save("plot_image.tiff")  # Saving in lossless format
