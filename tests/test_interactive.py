@@ -13,7 +13,7 @@ def test_interactive_add_image():
     screenshot = take_screenshot(i)
 
     # Load presaved image and compare with screenshoted image
-    image = Image.open("tests/plots/plot_image.tiff")
+    image = Image.open("tests/plots/plot_image.png")
     presaved_screenshot = np.array(image)
 
     assert np.array_equal(screenshot, presaved_screenshot)

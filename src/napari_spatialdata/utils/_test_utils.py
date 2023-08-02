@@ -78,7 +78,7 @@ def take_screenshot(interactive: Interactive) -> NDArrayA | Any:
     return interactive_screenshot
 
 
-def save_image(image_np: NDArrayA) -> None:
+def save_image(image_np: NDArrayA, file_name: str) -> None:
     """Save image to file. This was used to generate tests/plots/plot_image.png.
 
     Parameters
@@ -87,4 +87,4 @@ def save_image(image_np: NDArrayA) -> None:
         Image as numpy array.
     """
     im = Image.fromarray(image_np)
-    im.save("plot_image.tiff")  # Saving in lossless format
+    im.save(file_name)  # Saving in lossless format
