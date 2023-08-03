@@ -32,11 +32,11 @@ class ElementWidget(QListWidget):
             for element_type, element_name, _ in sdata.filter_by_coordinate_system(
                 selected_coordinate_system
             )._gen_elements():
-            	elements_metadata = {
-                        "element_type": element_type,
-                        "sdata_index": index,
-                        "original_name": element_name,
-                    }
+                elements_metadata = {
+                    "element_type": element_type,
+                    "sdata_index": index,
+                    "original_name": element_name,
+                }
                 name = element_name if element_name not in duplicate_element_names else element_name + f"_{index}"
                 elements[name] = elements_metadata
 
