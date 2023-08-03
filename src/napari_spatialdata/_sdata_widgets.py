@@ -32,20 +32,13 @@ class ElementWidget(QListWidget):
             for element_type, element_name, _ in sdata.filter_by_coordinate_system(
                 selected_coordinate_system
             )._gen_elements():
-                # This allows us to handle SpatialElement with the same name in different SpatialData objects
-                if element_name not in duplicate_element_names:
-                    elements[element_name] = {
+            	elements_metadata = {
                         "element_type": element_type,
                         "sdata_index": index,
                         "original_name": element_name,
                     }
-                else:
-                    new_name = element_name + f"_{index}"
-                    elements[new_name] = {
-                        "element_type": element_type,
-                        "sdata_index": index,
-                        "original_name": element_name,
-                    }
+                name = element_name if element_name not in duplicate_element_names else element_name + f"_{index}"
+                elements[name] = elements_metadata
 
         self.addItems(elements.keys())
         self._elements = elements
