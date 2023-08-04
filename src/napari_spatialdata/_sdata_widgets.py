@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import Counter
 from typing import TYPE_CHECKING, Iterable
 
 import shapely
@@ -9,7 +8,7 @@ from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QW
 from spatialdata import SpatialData
 
 from napari_spatialdata._viewer import SpatialDataViewer
-from napari_spatialdata.utils._utils import _get_sdata_key
+from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names
 
 if TYPE_CHECKING:
     from napari import Viewer
@@ -25,8 +24,7 @@ class ElementWidget(QListWidget):
         self.clear()
 
         elements = {}
-        element_names = [element_name for sdata in self._sdata for _, element_name, _ in sdata._gen_elements()]
-        duplicate_element_names = [element for element, count in Counter(element_names).items() if count > 1]
+        duplicate_element_names = get_duplicate_element_names(self._sdata)
 
         for index, sdata in enumerate(self._sdata):
             for element_type, element_name, _ in sdata.filter_by_coordinate_system(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 
@@ -309,3 +310,21 @@ def _get_sdata_key(sdata: EventedList, elements: dict[str, dict[str, str | int]]
         multi = True
 
     return sdata[sdata_index], multi
+
+
+def get_duplicate_element_names(sdata_ls: EventedList) -> list[str]:
+    """
+    Get duplicate element names of a list of SpatialData objects.
+
+    Parameters
+    ----------
+    sdata_ls: EventedList[SpatialData]
+        Evented list of SpatialData objects
+
+    Returns
+    -------
+    list[str]
+        The duplicate element names
+    """
+    element_names = [element_name for sdata in sdata_ls for _, element_name, _ in sdata._gen_elements()]
+    return [element for element, count in Counter(element_names).items() if count > 1]
