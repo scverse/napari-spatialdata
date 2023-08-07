@@ -29,19 +29,24 @@ class SpatialDataViewer:
         self.sdata = sdata
         self.viewer.bind_key("Shift-L", self._inherit_metadata)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
+        self.viewer.layers.events.removed.connect(self._on_layer_removed)
 
         # Used to check old layer name. This because event emitted does not contain this information.
-        self.layer_names: set[str] = set()
+        self.layer_names: set[str | None] = set()
 
     def _on_layer_insert(self, event: Event) -> None:
         layer = event.value
         self.layer_names.add(layer.name)
         layer.events.name.connect(self._validate_name)
 
+    def _on_layer_removed(self, event: Event) -> None:
+        layer = event.value
+        self.layer_names.remove(layer.name)
+
     def _validate_name(self, event: Event) -> None:
         _, element_names = get_duplicate_element_names(self.sdata)
         current_layer_names = [layer.name for layer in self.viewer.layers]
-        old_layer_name = self.layer_names.difference(current_layer_names)
+        old_layer_name = self.layer_names.difference(current_layer_names).pop()
 
         layer = event.source
         sdata = layer.metadata.get("sdata")
@@ -55,14 +60,17 @@ class SpatialDataViewer:
             if sdata:
                 sdata_names = [element_name for _, element_name, _ in sdata._gen_elements()]
                 if name_to_validate in sdata_names or duplicate_pattern_found:
-                    layer.name = old_layer_name.pop()
+                    layer.name = old_layer_name
                     show_info("New layer name causes name conflicts. Reverting to old layer name")
                 elif name_to_validate in element_names:
                     sdata_index = self.sdata.index(sdata)
                     layer.name = name_to_validate + f"_{sdata_index}"
             elif duplicate_pattern_found or name_to_validate in element_names:
-                layer.name = old_layer_name.pop()
+                layer.name = old_layer_name
                 show_info("Layer name potentially causes naming conflicts with SpatialData elements. Reverting.")
+
+        self.layer_names.remove(old_layer_name)
+        self.layer_names.add(layer.name)
 
     def _inherit_metadata(self, viewer: Viewer) -> None:
         layers = list(viewer.layers.selection)
