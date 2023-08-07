@@ -56,7 +56,7 @@ class SpatialDataViewer:
         name_to_validate = re.sub(pattern, "", layer.name) if duplicate_pattern_found else layer.name
 
         # Ensures that the callback does not get called a second time when changing layer.name here.
-        with layer.events.name.blocker():
+        with layer.events.name.blocker(self._validate_name):
             if sdata:
                 sdata_names = [element_name for _, element_name, _ in sdata._gen_elements()]
                 if name_to_validate in sdata_names or duplicate_pattern_found:
