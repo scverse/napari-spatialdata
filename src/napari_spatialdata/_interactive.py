@@ -27,8 +27,8 @@ class Interactive:
     -------
     None
     """
-    def __init__(self, sdata: SpatialData | list[SpatialData], headless: bool = False):
 
+    def __init__(self, sdata: SpatialData | list[SpatialData], headless: bool = False):
         viewer = napari.current_viewer()
         self._viewer = viewer if viewer else napari.Viewer()
         if isinstance(sdata, list):
