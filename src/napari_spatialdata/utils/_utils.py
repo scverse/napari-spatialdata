@@ -312,7 +312,7 @@ def _get_sdata_key(sdata: EventedList, elements: dict[str, dict[str, str | int]]
     return sdata[sdata_index], multi
 
 
-def get_duplicate_element_names(sdata_ls: EventedList) -> list[str]:
+def get_duplicate_element_names(sdata_ls: EventedList) -> tuple[list[str], list[str]]:
     """
     Get duplicate element names of a list of SpatialData objects.
 
@@ -323,8 +323,8 @@ def get_duplicate_element_names(sdata_ls: EventedList) -> list[str]:
 
     Returns
     -------
-    list[str]
-        The duplicate element names
+    tuple[list[str], list[str]]
+        The duplicate element names and the full list of element names
     """
     element_names = [element_name for sdata in sdata_ls for _, element_name, _ in sdata._gen_elements()]
-    return [element for element, count in Counter(element_names).items() if count > 1]
+    return [element for element, count in Counter(element_names).items() if count > 1], element_names

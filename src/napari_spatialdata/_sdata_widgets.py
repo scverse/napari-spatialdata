@@ -24,7 +24,7 @@ class ElementWidget(QListWidget):
         self.clear()
 
         elements = {}
-        duplicate_element_names = get_duplicate_element_names(self._sdata)
+        duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
 
         for index, sdata in enumerate(self._sdata):
             for element_type, element_name, _ in sdata.filter_by_coordinate_system(

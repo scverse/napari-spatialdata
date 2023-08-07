@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -9,11 +10,16 @@ from napari import Viewer
 from napari.layers import Labels, Points, Shapes
 from napari.utils.notifications import show_info
 
-from napari_spatialdata.utils._utils import _adjust_channels_order, _get_transform, _swap_coordinates
+from napari_spatialdata.utils._utils import (
+    _adjust_channels_order,
+    _get_transform,
+    _swap_coordinates,
+    get_duplicate_element_names,
+)
 
 if TYPE_CHECKING:
     from napari.layers import Layer
-    from napari.utils.events import EventedList
+    from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
 
 
@@ -22,6 +28,41 @@ class SpatialDataViewer:
         self.viewer = viewer
         self.sdata = sdata
         self.viewer.bind_key("Shift-L", self._inherit_metadata)
+        self.viewer.layers.events.inserted.connect(self._on_layer_insert)
+
+        # Used to check old layer name. This because event emitted does not contain this information.
+        self.layer_names: set[str] = set()
+
+    def _on_layer_insert(self, event: Event) -> None:
+        layer = event.value
+        self.layer_names.add(layer.name)
+        layer.events.name.connect(self._validate_name)
+
+    def _validate_name(self, event: Event) -> None:
+        _, element_names = get_duplicate_element_names(self.sdata)
+        current_layer_names = [layer.name for layer in self.viewer.layers]
+        old_layer_name = self.layer_names.difference(current_layer_names)
+
+        layer = event.source
+        sdata = layer.metadata.get("sdata")
+
+        pattern = r" \[\d+\]$"
+        duplicate_pattern_found = re.search(pattern, layer.name)
+        name_to_validate = re.sub(pattern, "", layer.name) if duplicate_pattern_found else layer.name
+
+        # Ensures that the callback does not get called a second time when changing layer.name here.
+        with layer.events.name.blocker():
+            if sdata:
+                sdata_names = [element_name for _, element_name, _ in sdata._gen_elements()]
+                if name_to_validate in sdata_names or duplicate_pattern_found:
+                    layer.name = old_layer_name.pop()
+                    show_info("New layer name causes name conflicts. Reverting to old layer name")
+                elif name_to_validate in element_names:
+                    sdata_index = self.sdata.index(sdata)
+                    layer.name = name_to_validate + f"_{sdata_index}"
+            elif duplicate_pattern_found or name_to_validate in element_names:
+                layer.name = old_layer_name.pop()
+                show_info("Layer name potentially causes naming conflicts with SpatialData elements. Reverting.")
 
     def _inherit_metadata(self, viewer: Viewer) -> None:
         layers = list(viewer.layers.selection)
