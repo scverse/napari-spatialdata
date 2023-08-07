@@ -61,10 +61,7 @@ def view(path: tuple[str], headless: bool) -> None:
         # TODO: remove when multiple datasets are supported
         break
 
-    # TODO: support multiple spatial data
-    interactive = Interactive(sdata=sdatas)
-    if not headless:
-        interactive.run()
+    Interactive(sdata=sdatas, headless=headless)
 
 
 if __name__ == "__main__":

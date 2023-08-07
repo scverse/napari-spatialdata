@@ -20,13 +20,15 @@ class Interactive:
     ----------
     sdata
         SpatialData object.
+    headless
+        Run napari in headless mode, default False.
 
     Returns
     -------
     None
     """
 
-    def __init__(self, sdata: SpatialData | list[SpatialData]):
+    def __init__(self, sdata: SpatialData | list[SpatialData], headless: bool = False):
         viewer = napari.current_viewer()
         self._viewer = viewer if viewer else napari.Viewer()
         if isinstance(sdata, list):
@@ -37,6 +39,9 @@ class Interactive:
         self._list_widget = self._viewer.window.add_dock_widget(
             self._sdata_widget, name="SpatialData", area="left", menu=self._viewer.window.window_menu
         )
+        self._viewer.window.add_plugin_dock_widget("napari-spatialdata", "View")
+        if not headless:
+            self.run()
 
     def run(self) -> None:
         napari.run()
