@@ -85,12 +85,13 @@ class SdataWidget(QWidget):
 
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
         """Toggle active in the coordinate system metadata when changing visibility of layer."""
-        layer = event.source
-        layer_active = layer.metadata["_active_in_cs"]
+        metadata = event.source.metadata
+        layer_active = metadata.get("_active_in_cs")
         selected_coordinate_system = self.coordinate_system_widget._system
 
         elements = self.elements_widget._elements
-        if layer.name in elements:
+        element_name = metadata.get("name")
+        if element_name and element_name in elements:
             if selected_coordinate_system not in layer_active:
                 layer_active.add(selected_coordinate_system)
             else:
