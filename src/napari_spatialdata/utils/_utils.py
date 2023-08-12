@@ -179,8 +179,6 @@ def _swap_coordinates(data: list[Any]) -> list[Any]:
 
 
 def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | NDArrayA:
-    affine: NDArrayA
-
     if not isinstance(element, (SpatialImage, MultiscaleSpatialImage, AnnData, DaskDataFrame, GeoDataFrame)):
         raise RuntimeError("Cannot get transform for {type(element)}")
 
@@ -188,9 +186,8 @@ def _get_transform(element: SpatialElement, coordinate_system_name: str | None =
     cs = transformations.keys().__iter__().__next__() if coordinate_system_name is None else coordinate_system_name
     ct = transformations.get(cs)
     if ct:
-        affine = ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
-
-    return affine
+        return ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))  # type: ignore
+    return None
 
 
 @njit(cache=True, fastmath=True)
