@@ -107,7 +107,7 @@ class SdataWidget(QWidget):
             for layer in self.viewer_model.viewer.layers:
                 element_name = layer.metadata.get("name")
                 if element_name:
-                    if layer.name not in elements:
+                    if element_name not in elements:
                         layer.visible = False
                     elif layer.metadata["_active_in_cs"]:
                         layer.visible = True
