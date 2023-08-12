@@ -105,13 +105,15 @@ class SdataWidget(QWidget):
         # No layer selected on first time coordinate system selection
         if self.viewer_model.viewer.layers:
             for layer in self.viewer_model.viewer.layers:
-                if layer.name not in elements:
-                    layer.visible = False
-                elif layer.metadata["_active_in_cs"]:
-                    layer.visible = True
-                    # Prevent _update_visible_in_coordinate_system of invalid removal of coordinate system
-                    layer.metadata["_active_in_cs"].add(coordinate_system)
-                    layer.metadata["_current_cs"] = coordinate_system
+                element_name = layer.metadata.get("name")
+                if element_name:
+                    if layer.name not in elements:
+                        layer.visible = False
+                    elif layer.metadata["_active_in_cs"]:
+                        layer.visible = True
+                        # Prevent _update_visible_in_coordinate_system of invalid removal of coordinate system
+                        layer.metadata["_active_in_cs"].add(coordinate_system)
+                        layer.metadata["_current_cs"] = coordinate_system
 
     def _add_circles(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
