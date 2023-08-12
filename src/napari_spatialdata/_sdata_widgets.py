@@ -64,6 +64,9 @@ class SdataWidget(QWidget):
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
         self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
+        self.coordinate_system_widget.itemClicked.connect(
+            lambda item: self.viewer_model._affine_transform_layers(item.text())
+        )
         self.viewer_model.viewer.layers.events.inserted.connect(self._on_insert_layer)
 
     def _on_insert_layer(self, event: Event) -> None:
