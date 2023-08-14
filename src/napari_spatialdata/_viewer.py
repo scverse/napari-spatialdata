@@ -144,11 +144,11 @@ class SpatialDataViewer:
             original_name = original_name[: original_name.rfind("_")]
 
         df = sdata.shapes[original_name]
-        affine = _get_transform(sdata.shapes[key], selected_cs)
+        affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
-        radii = np.array([df.radius[i] for i in range(0, len(df))])
+        radii = df.radius.to_numpy()
 
         self.viewer.add_points(
             xy,
@@ -243,17 +243,19 @@ class SpatialDataViewer:
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
-            subsample = gen.choice(len(points), size=100000, replace=False)
+            subsample = np.sort(gen.choice(len(points), size=100000, replace=False))
 
+        xy = points[["y", "x"]].values[subsample]
+        np.fliplr(xy)
         self.viewer.add_points(
-            points[["y", "x"]].values[subsample],
+            xy,
             name=key,
             size=20,
             affine=affine,
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
+                "adata": AnnData(obs=points.iloc[subsample, :], obsm={"spatial": xy}),
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
