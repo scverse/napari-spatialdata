@@ -179,7 +179,7 @@ def _swap_coordinates(data: list[Any]) -> list[Any]:
 
 
 def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | NDArrayA:
-    if not isinstance(element, (SpatialImage, MultiscaleSpatialImage, AnnData, DaskDataFrame, GeoDataFrame)):
+    if not isinstance(element, (SpatialImage, MultiscaleSpatialImage, DaskDataFrame, GeoDataFrame)):
         raise RuntimeError("Cannot get transform for {type(element)}")
 
     transformations = get_transformation(element, get_all=True)
