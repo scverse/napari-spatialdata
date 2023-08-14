@@ -1,19 +1,20 @@
-import numpy as np
 from napari_spatialdata._interactive import Interactive
-from napari_spatialdata.utils._test_utils import take_screenshot
-from PIL import Image
-from spatialdata.datasets import blobs
+from spatialdata import SpatialData
+
+from tests.conftest import PlotTester, PlotTesterMeta
 
 
-def test_interactive_add_image():
-    sdata_blobs = blobs()
+class TestImages(PlotTester, metaclass=PlotTesterMeta):
+    def test_plot_can_add_element_image(self, sdata_blobs: SpatialData):
+        i = Interactive(sdata=sdata_blobs, headless=True)
+        i.add_element(coordinate_system_name="global", elements="blobs_image")
 
-    i = Interactive(sdata=sdata_blobs, headless=True)
-    i.add_element(coordinate_system_name="global", elements="blobs_image")
-    screenshot = take_screenshot(i)
+    def test_plot_can_add_element_label(self, sdata_blobs: SpatialData):
+        i = Interactive(sdata=sdata_blobs, headless=True)
+        i.add_element(coordinate_system_name="global", elements="blobs_labels")
 
-    # Load presaved image and compare with screenshoted image
-    image = Image.open("tests/plots/groundtruth/plot_image.png")
-    presaved_screenshot = np.array(image)
-
-    assert np.array_equal(screenshot, presaved_screenshot)
+    def test_plot_can_add_element_multiple(self, sdata_blobs: SpatialData):
+        i = Interactive(sdata=sdata_blobs, headless=True)
+        i.add_element(coordinate_system_name="global", elements="blobs_image")
+        i.add_element(coordinate_system_name="global", elements="blobs_labels")
+        i.add_element(coordinate_system_name="global", elements="blobs_circles")

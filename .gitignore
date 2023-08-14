@@ -110,3 +110,6 @@ docs/notebooks/tutorial_data/
 
 # Other data
 spatialdata-sandbox
+
+# Plots for testing
+tests/plots/generated

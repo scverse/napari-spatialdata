@@ -9,10 +9,10 @@ if TYPE_CHECKING:
     from qtpy.QtCore import QPoint
     from qtpy.QtWidgets import QListWidget
 
+import napari
 from loguru import logger
 from PIL import Image
 
-from napari_spatialdata._interactive import Interactive
 from napari_spatialdata.utils._utils import NDArrayA
 
 
@@ -60,7 +60,7 @@ def click_list_widget_item(qtbot: QtBot, widget: QListWidget, position: QPoint, 
         )
 
 
-def take_screenshot(interactive: Interactive) -> NDArrayA | Any:
+def take_screenshot(viewer: napari.Viewer) -> NDArrayA | Any:
     """Take screenshot of interactive viewer.
 
     Parameters
@@ -70,10 +70,10 @@ def take_screenshot(interactive: Interactive) -> NDArrayA | Any:
     """
     logger.info("Taking screenshot of viewer")
     # to distinguish between the black of the image background and the black of the napari background (now white)
-    interactive._viewer.theme = "light"
-    interactive_screenshot = interactive._viewer.screenshot(canvas_only=False)
-    interactive._viewer.theme = "dark"
-    interactive._viewer.close()
+    viewer.theme = "light"
+    interactive_screenshot = viewer.screenshot(canvas_only=False)
+    viewer.theme = "dark"
+    viewer.close()
 
     return interactive_screenshot
 

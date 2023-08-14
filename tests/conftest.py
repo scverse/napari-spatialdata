@@ -3,23 +3,26 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Dict, Optional, Tuple
 
-import matplotlib.pyplot as plt
+import napari
 import numpy as np
 import pandas as pd
 import pytest
 from anndata import AnnData
 from loguru import logger
 from matplotlib.testing.compare import compare_images
+from napari_spatialdata.utils._test_utils import save_image, take_screenshot
 from napari_spatialdata.utils._utils import NDArrayA
 from scipy import ndimage as ndi
 from skimage import data
+from spatialdata import SpatialData
+from spatialdata.datasets import blobs
 
 HERE: Path = Path(__file__).parent
 
 SEED = 42
 
-EXPECTED = HERE / "_images"
-ACTUAL = HERE / "figures"
+EXPECTED = HERE / "plots/groundtruth"
+ACTUAL = HERE / "plots/generated"
 TOL = 50
 DPI = 40
 
@@ -91,6 +94,11 @@ def adata_shapes() -> AnnData:
     )
 
 
+@pytest.fixture()
+def sdata_blobs() -> SpatialData:
+    return blobs()
+
+
 @pytest.fixture
 def image():
     _, image = _get_blobs_galaxy()
@@ -136,8 +144,8 @@ class PlotTester(ABC):
         ACTUAL.mkdir(parents=True, exist_ok=True)
         out_path = ACTUAL / f"{basename}.png"
 
-        plt.savefig(out_path, dpi=DPI)
-        plt.close()
+        viewer = napari.current_viewer()
+        save_image(take_screenshot(viewer), out_path)
 
         if tolerance is None:
             # see https://github.com/theislab/squidpy/pull/302
