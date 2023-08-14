@@ -144,7 +144,7 @@ class SpatialDataViewer:
             original_name = original_name[: original_name.rfind("_")]
 
         df = sdata.shapes[original_name]
-        affine = _get_transform(sdata.shapes[key], selected_cs)
+        affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
