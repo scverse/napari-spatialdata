@@ -60,31 +60,38 @@ def click_list_widget_item(qtbot: QtBot, widget: QListWidget, position: QPoint, 
         )
 
 
-def take_screenshot(viewer: napari.Viewer) -> NDArrayA | Any:
-    """Take screenshot of interactive viewer.
+def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> NDArrayA | Any:
+    """Take screenshot of the Napari viewer.
 
     Parameters
     ----------
-    interactive: Interactive
-        Interactive object containing the viewer.
+    viewer
+        Instance of napari Viewer.
+
+    canvas_only
+        If True, only the canvas is saved, not the viewer window.
     """
     logger.info("Taking screenshot of viewer")
     # to distinguish between the black of the image background and the black of the napari background (now white)
+    # TODO (melonora): remove when napari allows for getting rid of margins.
     viewer.theme = "light"
-    interactive_screenshot = viewer.screenshot(canvas_only=False)
+    interactive_screenshot = viewer.screenshot(canvas_only=canvas_only)
     viewer.theme = "dark"
     viewer.close()
 
     return interactive_screenshot
 
 
-def save_image(image_np: NDArrayA, file_name: str) -> None:
-    """Save image to file. This was used to generate tests/plots/plot_image.png.
+def save_image(image_np: NDArrayA, file_path: str) -> None:
+    """Save image to file.
 
     Parameters
     ----------
-    image_np: NDArrayA
+    image_np
         Image as numpy array.
+
+    file_path
+        File path of the image.
     """
     im = Image.fromarray(image_np)
-    im.save(file_name)  # Saving in lossless format
+    im.save(file_path)
