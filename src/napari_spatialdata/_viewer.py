@@ -158,7 +158,9 @@ class SpatialDataViewer:
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
+                "adata": sdata.table[
+                    sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == original_name
+                ],
                 "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
