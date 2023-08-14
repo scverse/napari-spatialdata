@@ -39,10 +39,6 @@ def view(path: tuple[str], headless: bool) -> None:
 
     from napari_spatialdata import Interactive
 
-    # TODO: remove when multiple datasets are supported
-    if len(path) > 1:
-        logger.warning("More than one path provided. Only the first path will be used.")
-
     sdatas = []
     for p_str in path:
         p = Path(p_str).resolve()
@@ -58,8 +54,6 @@ def view(path: tuple[str], headless: bool) -> None:
             return
         sdata = sd.SpatialData.read(p)
         sdatas.append(sdata)
-        # TODO: remove when multiple datasets are supported
-        break
 
     Interactive(sdata=sdatas, headless=headless)
 

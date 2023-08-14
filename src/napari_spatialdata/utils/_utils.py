@@ -301,8 +301,8 @@ def _get_sdata_key(sdata: EventedList, elements: dict[str, dict[str, str | int]]
     Returns
     -------
     tuple[SpatialData, bool]
-        The index of the SpatialData object in the EventedList and the name of the element in the
-        SpatialData object.
+        The SpatialData object which contains the element and a boolean indicating whether the element has duplicate
+        name with other elements in other SpatialData objects.
     """
     sdata_index = elements[key]["sdata_index"]
     multi = False
