@@ -74,9 +74,10 @@ def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> NDArray
     logger.info("Taking screenshot of viewer")
     # to distinguish between the black of the image background and the black of the napari background (now white)
     # TODO (melonora): remove when napari allows for getting rid of margins.
+    old_theme = viewer.theme
     viewer.theme = "light"
-    interactive_screenshot = viewer.screenshot(canvas_only=canvas_only, size=(203, 284))
-    viewer.theme = "dark"
+    interactive_screenshot = viewer.screenshot(canvas_only=canvas_only, size=(202, 284))
+    viewer.theme = old_theme
     viewer.close()
 
     return interactive_screenshot
