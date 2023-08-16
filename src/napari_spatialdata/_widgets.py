@@ -140,7 +140,7 @@ class AListWidget(ListWidget):
 
                 if isinstance(self.model.layer, (Points, Shapes)):
                     self.model.layer.name = (
-                        "" if self.model.system_name is None else self.model.system_name + ":"
+                        "" if self.model.system_name is None else self.model.layer.name + ":"
                     ) + item
                     self.model.layer.text = None  # needed because of the text-feature order of updates
                     self.model.layer.features = properties.get("features", None)
@@ -148,7 +148,7 @@ class AListWidget(ListWidget):
                     self.model.layer.text = properties["text"]
                 elif isinstance(self.model.layer, Labels):
                     self.model.layer.name = (
-                        "" if self.model.system_name is None else self.model.system_name + ":"
+                        "" if self.model.system_name is None else self.model.layer.name + ":"
                     ) + item
                     self.model.layer.color = properties["color"]
                     self.model.layer.properties = properties.get("properties", None)
