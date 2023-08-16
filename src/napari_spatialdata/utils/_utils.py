@@ -181,25 +181,16 @@ def _swap_coordinates(data: list[Any]) -> list[Any]:
     return [[(y, x) for x, y in sublist] for sublist in data]
 
 
-def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> NDArrayA:
-    affine: NDArrayA
+def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | NDArrayA:
+    if not isinstance(element, (SpatialImage, MultiscaleSpatialImage, DaskDataFrame, GeoDataFrame)):
+        raise RuntimeError("Cannot get transform for {type(element)}")
+
     transformations = get_transformation(element, get_all=True)
     cs = transformations.keys().__iter__().__next__() if coordinate_system_name is None else coordinate_system_name
-    ct = transformations[cs]
-    affine = ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
-
-    if not isinstance(element, (SpatialImage, MultiscaleSpatialImage, AnnData, DaskDataFrame, GeoDataFrame)):
-        raise RuntimeError("Cannot get transform for {type(element)}")
-    # elif isinstance(element, (AnnData, DaskDataFrame, GeoDataFrame)):
-    #    return affine
-    #    from spatialdata.transformations import Affine, Sequence, MapAxis
-    #    new_affine = Sequence(
-    #        [MapAxis({"x": "y", "y": "x"}), Affine(affine, input_axes=("y", "x"), output_axes=("y", "x"))]
-    #    )
-    #    new_matrix = new_affine.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
-
-    #    return new_matrix
-    return affine
+    ct = transformations.get(cs)
+    if ct:
+        return ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))  # type: ignore
+    return None
 
 
 @njit(cache=True, fastmath=True)

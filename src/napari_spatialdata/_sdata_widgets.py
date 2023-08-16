@@ -76,6 +76,9 @@ class SdataWidget(QWidget):
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
         self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
+        self.coordinate_system_widget.itemClicked.connect(
+            lambda item: self.viewer_model._affine_transform_layers(item.text())
+        )
         self.viewer_model.viewer.layers.events.inserted.connect(self._on_insert_layer)
 
     def _on_insert_layer(self, event: Event) -> None:
@@ -94,12 +97,13 @@ class SdataWidget(QWidget):
 
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
         """Toggle active in the coordinate system metadata when changing visibility of layer."""
-        layer = event.source
-        layer_active = layer.metadata["_active_in_cs"]
+        metadata = event.source.metadata
+        layer_active = metadata.get("_active_in_cs")
         selected_coordinate_system = self.coordinate_system_widget._system
 
         elements = self.elements_widget._elements
-        if layer.name in elements:
+        element_name = metadata.get("name")
+        if element_name and element_name in elements:
             if selected_coordinate_system not in layer_active:
                 layer_active.add(selected_coordinate_system)
             else:
@@ -112,8 +116,9 @@ class SdataWidget(QWidget):
         # No layer selected on first time coordinate system selection
         if self.viewer_model.viewer.layers:
             for layer in self.viewer_model.viewer.layers:
-                if "sdata" in layer.metadata:
-                    if layer.name not in elements:
+                element_name = layer.metadata.get("name")
+                if element_name:
+                    if element_name not in elements:
                         layer.visible = False
                     elif layer.metadata["_active_in_cs"]:
                         layer.visible = True

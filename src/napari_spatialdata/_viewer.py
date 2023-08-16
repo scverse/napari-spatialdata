@@ -263,3 +263,14 @@ class SpatialDataViewer:
                 "_current_cs": selected_cs,
             },
         )
+
+    def _affine_transform_layers(self, coordinate_system: str) -> None:
+        for layer in self.viewer.layers:
+            metadata = layer.metadata
+            if metadata.get("sdata"):
+                sdata = metadata["sdata"]
+                element_name = metadata["name"]
+                element_data = sdata[element_name]
+                affine = _get_transform(element_data, coordinate_system)
+                if affine is not None:
+                    layer.affine = affine
