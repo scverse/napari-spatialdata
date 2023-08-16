@@ -60,20 +60,6 @@ jobs:
         env:
           PLATFORM: ${{ matrix.platform }}
 
-      - name: Generate GH action "groundtruth" figures as artifacts, uncomment if needed
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: groundtruth-figures
-          path: /home/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/groundtruth/*
-
-      - name: Archive figures generated during testing
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: plotting-results
-          path: /home/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/generated/*
-
       - name: Coverage
         uses: codecov/codecov-action@v3
 
