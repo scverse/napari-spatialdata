@@ -1,3 +1,4 @@
+import pytest
 from napari_spatialdata._interactive import Interactive
 from spatialdata import SpatialData
 
@@ -18,3 +19,9 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         i.add_element(coordinate_system_name="global", element="blobs_image")
         i.add_element(coordinate_system_name="global", element="blobs_labels")
         i.add_element(coordinate_system_name="global", element="blobs_circles")
+
+
+def test_add_element_incorrect_name(sdata_blobs: SpatialData):
+    with pytest.raises(ValueError):
+        i = Interactive(sdata=sdata_blobs, headless=True)
+        i.add_element(coordinate_system_name="global", element="incorrect_element_name")

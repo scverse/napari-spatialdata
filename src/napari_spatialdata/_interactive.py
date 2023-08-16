@@ -48,6 +48,8 @@ class Interactive:
                         self._sdata_widget.viewer_model.add_sdata_shapes(self._sdata, coordinate_system_name, element)
 
                 break
+        else:
+            raise ValueError("Element {element_name} not found in coordinate system {coordinate_system_name}.")
 
     def __init__(self, sdata: SpatialData, headless: bool = False) -> None:
         viewer = napari.current_viewer()
