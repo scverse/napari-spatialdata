@@ -62,6 +62,7 @@ def test_layer_transform(qtbot, make_napari_viewer: any):
         sdata["blobs_image"], transformation=Translation([25, 50], axes=("y", "x")), to_coordinate_system="translate"
     )
     viewer = make_napari_viewer()
+
     widget = SdataWidget(viewer, EventedList([sdata]))
 
     # Click on `global` coordinate system
