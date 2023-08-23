@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import napari
+import shapely
 
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata.utils._utils import NDArrayA
@@ -26,6 +27,29 @@ class Interactive:
     -------
     None
     """
+
+    def add_element(self, coordinate_system_name: str, element: str) -> SpatialData:
+        for element_type, element_name, _ in self._sdata.filter_by_coordinate_system(
+            coordinate_system_name
+        )._gen_elements():
+            if element_name == element:
+                if element_type == "images":
+                    self._sdata_widget.viewer_model.add_sdata_image(self._sdata, coordinate_system_name, element)
+                elif element_type == "labels":
+                    self._sdata_widget.viewer_model.add_sdata_labels(self._sdata, coordinate_system_name, element)
+                elif element_type == "points":
+                    self._sdata_widget.viewer_model.add_sdata_points(self._sdata, coordinate_system_name, element)
+                elif element_type == "shapes":
+                    if type(self._sdata.shapes[element].iloc[0][0]) == shapely.geometry.point.Point:
+                        self._sdata_widget.viewer_model.add_sdata_circles(self._sdata, coordinate_system_name, element)
+                    elif (type(self._sdata.shapes[element].iloc[0][0]) == shapely.geometry.polygon.Polygon) or (
+                        type(self._sdata.shapes[element].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon
+                    ):
+                        self._sdata_widget.viewer_model.add_sdata_shapes(self._sdata, coordinate_system_name, element)
+
+                break
+        else:
+            raise ValueError("Element {element_name} not found in coordinate system {coordinate_system_name}.")
 
     def __init__(self, sdata: SpatialData, headless: bool = False) -> None:
         viewer = napari.current_viewer()
