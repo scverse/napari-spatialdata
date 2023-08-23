@@ -72,7 +72,7 @@ class SdataWidget(QWidget):
         self.layout().addWidget(self.elements_widget)
         self.elements_widget.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
         self.coordinate_system_widget.currentItemChanged.connect(
-            lambda item: self.elements_widget._onClickChange(item.text())
+            lambda item: self.elements_widget._onItemChange(item.text())
         )
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
