@@ -20,7 +20,7 @@ class ElementWidget(QListWidget):
         super().__init__()
         self._sdata = sdata
 
-    def _onClickChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
+    def _onItemChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self.clear()
 
         elements = {}
@@ -71,12 +71,14 @@ class SdataWidget(QWidget):
         self.layout().addWidget(QLabel("Elements:"))
         self.layout().addWidget(self.elements_widget)
         self.elements_widget.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
-        self.coordinate_system_widget.itemClicked.connect(lambda item: self.elements_widget._onClickChange(item.text()))
-        self.coordinate_system_widget.itemClicked.connect(
+        self.coordinate_system_widget.currentItemChanged.connect(
+            lambda item: self.elements_widget._onClickChange(item.text())
+        )
+        self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
-        self.coordinate_system_widget.itemClicked.connect(self._update_layers_visibility)
-        self.coordinate_system_widget.itemClicked.connect(
+        self.coordinate_system_widget.currentItemChanged.connect(self._update_layers_visibility)
+        self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.viewer_model._affine_transform_layers(item.text())
         )
         self.viewer_model.viewer.layers.events.inserted.connect(self._on_insert_layer)
