@@ -29,7 +29,6 @@ class Interactive:
     None
     """
 
-
     def add_element(self, coordinate_system_name: str, element: str) -> None:
         elements = {}
         duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
@@ -67,7 +66,6 @@ class Interactive:
                     self._sdata_widget.viewer_model.add_sdata_shapes(sdata, coordinate_system_name, name_to_add, multi)
         else:
             raise ValueError("Element {element_name} not found in coordinate system {coordinate_system_name}.")
-
 
     def __init__(self, sdata: SpatialData | list[SpatialData], headless: bool = False):
         viewer = napari.current_viewer()
