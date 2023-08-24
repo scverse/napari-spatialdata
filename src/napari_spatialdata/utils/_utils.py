@@ -241,17 +241,15 @@ def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tu
     if "c" in axes:
         assert axes.index("c") == 0
         if isinstance(element, SpatialImage):
-            n_channels = element.shape[0]
+            c_coords = element.coords.indexes["c"]
         elif isinstance(element, MultiscaleSpatialImage):
-            v = element["scale0"].values()
-            assert len(v) == 1
-            n_channels = v.__iter__().__next__().shape[0]
+            c_coords = element["scale0"].coords.indexes["c"]
         else:
             raise TypeError(f"Unsupported type for images or labels: {type(element)}")
     else:
-        n_channels = 0
+        c_coords = []
 
-    if n_channels in [3, 4]:
+    if {"r", "g", "b"} <= set(c_coords):
         rgb = True
         new_raster = element.transpose("y", "x", "c")
     else:
