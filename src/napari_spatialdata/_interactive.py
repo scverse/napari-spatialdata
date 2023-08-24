@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any
 
 import napari
 import shapely
-
 from napari.utils.events import EventedList
 
 from napari_spatialdata._sdata_widgets import SdataWidget
@@ -67,7 +66,6 @@ class Interactive:
                     self._sdata_widget.viewer_model.add_sdata_shapes(sdata, coordinate_system_name, name_to_add, multi)
         else:
             raise ValueError("Element {element_name} not found in coordinate system {coordinate_system_name}.")
-
 
     def __init__(self, sdata: SpatialData | list[SpatialData], headless: bool = False):
         viewer = napari.current_viewer()
