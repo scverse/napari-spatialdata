@@ -76,7 +76,6 @@ class Interactive:
         coordinate_system_name: str | None = None,
         headless: bool = False,
     ) -> None:
-
         viewer = napari.current_viewer()
         self._viewer = viewer if viewer else napari.Viewer()
         self._sdata = sdata
