@@ -29,7 +29,7 @@ class Interactive:
     None
     """
 
-    def add_element(self, coordinate_system_name: str, element: str) -> SpatialData:
+    def add_element(self, coordinate_system_name: str, element: str) -> None:
         elements = {}
         duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
 
