@@ -3,8 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import napari
-from napari.utils.events import EventedList
 import shapely
+from napari.utils.events import EventedList
 
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata.utils._utils import NDArrayA
