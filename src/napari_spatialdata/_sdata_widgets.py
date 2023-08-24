@@ -3,10 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable
 
 import shapely
+from napari.utils.events import EventedList
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
 from napari_spatialdata._viewer import SpatialDataViewer
+from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names
 
 if TYPE_CHECKING:
     from napari import Viewer
@@ -14,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class ElementWidget(QListWidget):
-    def __init__(self, sdata: SpatialData):
+    def __init__(self, sdata: EventedList):
         super().__init__()
         self._sdata = sdata
 
@@ -22,32 +24,42 @@ class ElementWidget(QListWidget):
         self.clear()
 
         elements = {}
-        for element_type, element_name, _ in self._sdata.filter_by_coordinate_system(
-            selected_coordinate_system
-        )._gen_elements():
-            elements[element_name] = element_type
+        duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
+
+        for index, sdata in enumerate(self._sdata):
+            for element_type, element_name, _ in sdata.filter_by_coordinate_system(
+                selected_coordinate_system
+            )._gen_elements():
+                elements_metadata = {
+                    "element_type": element_type,
+                    "sdata_index": index,
+                    "original_name": element_name,
+                }
+                name = element_name if element_name not in duplicate_element_names else element_name + f"_{index}"
+                elements[name] = elements_metadata
 
         self.addItems(elements.keys())
         self._elements = elements
 
 
 class CoordinateSystemWidget(QListWidget):
-    def __init__(self, sdata: SpatialData):
+    def __init__(self, sdata: EventedList):
         super().__init__()
 
         self._sdata = sdata
 
-        self.addItems(self._sdata.coordinate_systems)
+        coordinate_systems = {cs for sdata in self._sdata for cs in sdata.coordinate_systems}
+        self.addItems(coordinate_systems)
 
     def _select_coord_sys(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self._system = str(selected_coordinate_system)
 
 
 class SdataWidget(QWidget):
-    def __init__(self, viewer: Viewer, sdata: SpatialData):
+    def __init__(self, viewer: Viewer, sdata: EventedList):
         super().__init__()
         self._sdata = sdata
-        self.viewer_model = SpatialDataViewer(viewer)
+        self.viewer_model = SpatialDataViewer(viewer, self._sdata)
 
         self.setLayout(QVBoxLayout())
 
@@ -74,13 +86,13 @@ class SdataWidget(QWidget):
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _onClick(self, text: str) -> None:
-        if self.elements_widget._elements[text] == "labels":
+        if self.elements_widget._elements[text]["element_type"] == "labels":
             self._add_label(text)
-        elif self.elements_widget._elements[text] == "images":
+        elif self.elements_widget._elements[text]["element_type"] == "images":
             self._add_image(text)
-        elif self.elements_widget._elements[text] == "points":
+        elif self.elements_widget._elements[text]["element_type"] == "points":
             self._add_points(text)
-        elif self.elements_widget._elements[text] == "shapes":
+        elif self.elements_widget._elements[text]["element_type"] == "shapes":
             self._add_shapes(text)
 
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
@@ -101,7 +113,6 @@ class SdataWidget(QWidget):
         """Toggle layer visibility dependent on presence in currently selected coordinate system."""
         elements = self.elements_widget._elements
         coordinate_system = self.coordinate_system_widget._system
-
         # No layer selected on first time coordinate system selection
         if self.viewer_model.viewer.layers:
             for layer in self.viewer_model.viewer.layers:
@@ -115,21 +126,27 @@ class SdataWidget(QWidget):
                         layer.metadata["_active_in_cs"].add(coordinate_system)
                         layer.metadata["_current_cs"] = coordinate_system
 
-    def _add_circles(self, key: str) -> None:
+    def _add_circles(self, sdata: SpatialData, key: str, multi: bool) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self.viewer_model.add_sdata_circles(self._sdata, selected_cs, key)
+        self.viewer_model.add_sdata_circles(sdata, selected_cs, key, multi)
 
-    def _add_polygons(self, key: str) -> None:
+    def _add_polygons(self, sdata: SpatialData, key: str, multi: bool) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self.viewer_model.add_sdata_shapes(self._sdata, selected_cs, key)
+        self.viewer_model.add_sdata_shapes(sdata, selected_cs, key, multi)
 
     def _add_shapes(self, key: str) -> None:
-        if type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.point.Point:
-            self._add_circles(key)
-        elif (type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.polygon.Polygon) or (
-            type(self._sdata.shapes[key].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon
+        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
+
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
+        if type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.point.Point:
+            self._add_circles(sdata, key, multi)
+        elif (type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.polygon.Polygon) or (
+            type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon
         ):
-            self._add_polygons(key)
+            self._add_polygons(sdata, key, multi)
         else:
             raise TypeError(
                 "Incorrect data type passed for shapes (should be Shapely Point or Polygon or MultiPolygon)."
@@ -137,12 +154,15 @@ class SdataWidget(QWidget):
 
     def _add_label(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self.viewer_model.add_sdata_labels(self._sdata, selected_cs, key)
+        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
+        self.viewer_model.add_sdata_labels(sdata, selected_cs, key, multi)
 
     def _add_image(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self.viewer_model.add_sdata_image(self._sdata, selected_cs, key)
+        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
+        self.viewer_model.add_sdata_image(sdata, selected_cs, key, multi)
 
     def _add_points(self, key: str) -> None:
         selected_cs = self.coordinate_system_widget._system
-        self.viewer_model.add_sdata_points(self._sdata, selected_cs, key)
+        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
+        self.viewer_model.add_sdata_points(sdata, selected_cs, key, multi)
