@@ -22,7 +22,7 @@ def test_elementwidget(make_napari_viewer: Any):
     widget = ElementWidget(EventedList([sdata]))
     assert widget._sdata is not None
     assert not hasattr(widget, "_elements")
-    widget._onClickChange("global")
+    widget._onItemChange("global")
     assert hasattr(widget, "_elements")
     for name in sdata.images:
         assert widget._elements[name]["element_type"] == "images"
@@ -48,13 +48,13 @@ def test_sdatawidget_images(make_napari_viewer: Any):
     widget = SdataWidget(viewer, EventedList([sdata]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onClickChange("global")
+    widget.elements_widget._onItemChange("global")
     widget._onClick(list(sdata.images.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert isinstance(widget.viewer_model.viewer.layers[0], Image)
     assert widget.viewer_model.viewer.layers[0].name == list(sdata.images.keys())[0]
     sdata.images["image"] = to_multiscale(sdata.images["blobs_image"], [2, 4])
-    widget.elements_widget._onClickChange("global")
+    widget.elements_widget._onItemChange("global")
     widget._onClick("image")
 
     assert len(widget.viewer_model.viewer.layers) == 2
@@ -67,7 +67,7 @@ def test_sdatawidget_labels(make_napari_viewer: Any):
     widget = SdataWidget(viewer, EventedList([sdata]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onClickChange("global")
+    widget.elements_widget._onItemChange("global")
     widget._onClick(list(sdata.labels.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert widget.viewer_model.viewer.layers[0].name == list(sdata.labels.keys())[0]
@@ -88,7 +88,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
     widget = SdataWidget(viewer, EventedList([sdata]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onClickChange("global")
+    widget.elements_widget._onItemChange("global")
     widget._onClick(list(sdata.points.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert widget.viewer_model.viewer.layers[0].name == list(sdata.points.keys())[0]
