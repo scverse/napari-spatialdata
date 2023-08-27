@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -9,17 +10,67 @@ from napari import Viewer
 from napari.layers import Labels, Points, Shapes
 from napari.utils.notifications import show_info
 
-from napari_spatialdata.utils._utils import _adjust_channels_order, _get_transform, _swap_coordinates
+from napari_spatialdata.utils._utils import (
+    _adjust_channels_order,
+    _get_transform,
+    _swap_coordinates,
+    get_duplicate_element_names,
+)
 
 if TYPE_CHECKING:
     from napari.layers import Layer
+    from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
 
 
 class SpatialDataViewer:
-    def __init__(self, viewer: Viewer) -> None:
+    def __init__(self, viewer: Viewer, sdata: EventedList) -> None:
         self.viewer = viewer
+        self.sdata = sdata
         self.viewer.bind_key("Shift-L", self._inherit_metadata)
+        self.viewer.layers.events.inserted.connect(self._on_layer_insert)
+        self.viewer.layers.events.removed.connect(self._on_layer_removed)
+
+        # Used to check old layer name. This because event emitted does not contain this information.
+        self.layer_names: set[str | None] = set()
+
+    def _on_layer_insert(self, event: Event) -> None:
+        layer = event.value
+        self.layer_names.add(layer.name)
+        layer.events.name.connect(self._validate_name)
+
+    def _on_layer_removed(self, event: Event) -> None:
+        layer = event.value
+        self.layer_names.remove(layer.name)
+
+    def _validate_name(self, event: Event) -> None:
+        _, element_names = get_duplicate_element_names(self.sdata)
+        current_layer_names = [layer.name for layer in self.viewer.layers]
+        old_layer_name = self.layer_names.difference(current_layer_names).pop()
+
+        layer = event.source
+        sdata = layer.metadata.get("sdata")
+
+        pattern = r" \[\d+\]$"
+        duplicate_pattern_found = re.search(pattern, layer.name)
+        name_to_validate = re.sub(pattern, "", layer.name) if duplicate_pattern_found else layer.name
+
+        # Ensures that the callback does not get called a second time when changing layer.name here.
+        with layer.events.name.blocker(self._validate_name):
+            if sdata:
+                sdata_names = [element_name for _, element_name, _ in sdata._gen_elements()]
+                if name_to_validate in sdata_names or duplicate_pattern_found:
+                    layer.name = old_layer_name
+                    show_info("New layer name causes name conflicts. Reverting to old layer name")
+                elif name_to_validate in element_names:
+                    sdata_index = self.sdata.index(sdata)
+                    layer.name = name_to_validate + f"_{sdata_index}"
+            elif duplicate_pattern_found or name_to_validate in element_names:
+                layer.name = old_layer_name
+                show_info("Layer name potentially causes naming conflicts with SpatialData elements. Reverting.")
+
+        self.layer_names.remove(old_layer_name)
+        self.layer_names.add(layer.name)
 
     def _inherit_metadata(self, viewer: Viewer) -> None:
         layers = list(viewer.layers.selection)
@@ -65,9 +116,13 @@ class SpatialDataViewer:
 
         show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
-    def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        affine = _get_transform(sdata.images[key], selected_cs)
-        rgb_image, rgb = _adjust_channels_order(element=sdata.images[key])
+    def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
+        affine = _get_transform(sdata.images[original_name], selected_cs)
+        rgb_image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 
         # TODO: type check
         self.viewer.add_image(
@@ -75,16 +130,25 @@ class SpatialDataViewer:
             rgb=rgb,
             name=key,
             affine=affine,
-            metadata={"sdata": sdata, "name": key, "_active_in_cs": {selected_cs}, "_current_cs": selected_cs},
+            metadata={
+                "sdata": sdata,
+                "name": original_name,
+                "_active_in_cs": {selected_cs},
+                "_current_cs": selected_cs,
+            },
         )
 
-    def add_sdata_circles(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        df = sdata.shapes[key]
-        affine = _get_transform(sdata.shapes[key], selected_cs)
+    def add_sdata_circles(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
+        df = sdata.shapes[original_name]
+        affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
-        radii = np.array([df.radius[i] for i in range(0, len(df))])
+        radii = df.radius.to_numpy()
 
         self.viewer.add_points(
             xy,
@@ -94,18 +158,24 @@ class SpatialDataViewer:
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
+                "adata": sdata.table[
+                    sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == original_name
+                ],
                 "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "name": key,
+                "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
         )
 
-    def add_sdata_shapes(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
+    def add_sdata_shapes(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
         polygons = []
-        df = sdata.shapes[key]
-        affine = _get_transform(sdata.shapes[key], selected_cs)
+        df = sdata.shapes[original_name]
+        affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
         # when mulitpolygons are present, we select the largest ones
         if "MultiPolygon" in np.unique(df.geometry.type):
@@ -135,16 +205,19 @@ class SpatialDataViewer:
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
                 "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
-                "name": key,
+                "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
         )
 
-    def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        affine = _get_transform(sdata.labels[key], selected_cs)
+    def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
 
-        rgb_labels, _ = _adjust_channels_order(element=sdata.labels[key])
+        affine = _get_transform(sdata.labels[original_name], selected_cs)
+        rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
 
         self.viewer.add_labels(
             rgb_labels,
@@ -154,32 +227,38 @@ class SpatialDataViewer:
                 "sdata": sdata,
                 "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
                 "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
-                "name": key,
+                "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
         )
 
-    def add_sdata_points(self, sdata: SpatialData, selected_cs: str, key: str) -> None:
-        points = sdata.points[key].compute()
-        affine = _get_transform(sdata.points[key], selected_cs)
+    def add_sdata_points(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+        original_name = key
+        if multi:
+            original_name = original_name[: original_name.rfind("_")]
+
+        points = sdata.points[original_name].compute()
+        affine = _get_transform(sdata.points[original_name], selected_cs)
         if len(points) < 100000:
             subsample = np.arange(len(points))
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
-            subsample = gen.choice(len(points), size=100000, replace=False)
+            subsample = np.sort(gen.choice(len(points), size=100000, replace=False))
 
+        xy = points[["y", "x"]].values[subsample]
+        np.fliplr(xy)
         self.viewer.add_points(
-            points[["y", "x"]].values[subsample],
+            xy,
             name=key,
             size=20,
             affine=affine,
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": AnnData(obs=points.loc[subsample, :], obsm={"spatial": points[["x", "y"]].values[subsample]}),
-                "name": key,
+                "adata": AnnData(obs=points.iloc[subsample, :], obsm={"spatial": xy}),
+                "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },

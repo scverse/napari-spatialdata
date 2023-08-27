@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import Counter
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
 
@@ -24,6 +25,7 @@ from pandas.core.dtypes.common import (
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
+from spatialdata import SpatialData
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -33,6 +35,7 @@ from napari_spatialdata.utils._categoricals_utils import (
 )
 
 if TYPE_CHECKING:
+    from napari.utils.events import EventedList
     from xarray import DataArray
 
 try:
@@ -270,3 +273,49 @@ def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tu
         new_raster = list_of_xdata
 
     return new_raster, rgb
+
+
+def _get_sdata_key(sdata: EventedList, elements: dict[str, dict[str, str | int]], key: str) -> tuple[SpatialData, bool]:
+    """
+    Get the index of SpatialData object and key of SpatialElement.
+
+    Parameters
+    ----------
+    sdata: EventedList
+        EventedList containing the SpatialData objects currently associated with the viewer.
+    elements: dict[str, dict[str, str | int]]
+        Dictionary from elements widget containing the keyname as keys and a dictionary with the type of element, index
+        of the SpatialData object and the original name in the SpatialData object.
+    key: str
+        The name of the item in the element widget.
+
+    Returns
+    -------
+    tuple[SpatialData, bool]
+        The SpatialData object which contains the element and a boolean indicating whether the element has duplicate
+        name with other elements in other SpatialData objects.
+    """
+    sdata_index = elements[key]["sdata_index"]
+    multi = False
+    if key != elements[key]["original_name"]:
+        multi = True
+
+    return sdata[sdata_index], multi
+
+
+def get_duplicate_element_names(sdata_ls: EventedList) -> tuple[list[str], list[str]]:
+    """
+    Get duplicate element names of a list of SpatialData objects.
+
+    Parameters
+    ----------
+    sdata_ls: EventedList[SpatialData]
+        Evented list of SpatialData objects
+
+    Returns
+    -------
+    tuple[list[str], list[str]]
+        The duplicate element names and the full list of element names
+    """
+    element_names = [element_name for sdata in sdata_ls for _, element_name, _ in sdata._gen_elements()]
+    return [element for element, count in Counter(element_names).items() if count > 1], element_names
