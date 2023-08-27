@@ -58,9 +58,11 @@ class Interactive:
     def create_folders(self, tested_notebook: str, test_target: str) -> str:
         main_folder = os.getcwd()  # Get the current working directory
         tests_folder = os.path.join(main_folder, "tests")
-        notebook_folder = os.path.join(tests_folder, tested_notebook)
+        screenshots_folder = os.path.join(tests_folder, "screenshots")
+        notebook_folder = os.path.join(screenshots_folder, tested_notebook)
         cell_folder = os.path.join(notebook_folder, test_target)
 
+        os.makedirs(screenshots_folder, exist_ok=True)
         os.makedirs(tests_folder, exist_ok=True)
         os.makedirs(notebook_folder, exist_ok=True)
         os.makedirs(cell_folder, exist_ok=True)
@@ -70,11 +72,11 @@ class Interactive:
     def __init__(
         self,
         sdata: SpatialData,
-        tested_notebook: str | None = None,
-        test_target: str | None = None,
-        take_screenshot: str | None = None,
         coordinate_system_name: str | None = None,
         headless: bool = False,
+        _tested_notebook: str | None = None,
+        _test_target: str | None = None,
+        _take_screenshot: str | None = None,
     ) -> None:
         viewer = napari.current_viewer()
         self._viewer = viewer if viewer else napari.Viewer()
@@ -85,16 +87,16 @@ class Interactive:
         )
         self._viewer.window.add_plugin_dock_widget("napari-spatialdata", "View")
 
-        if tested_notebook is not None:
-            assert test_target is not None
+        if _tested_notebook is not None:
+            assert _test_target is not None
             assert coordinate_system_name is not None
 
-            filepath = self.create_folders(tested_notebook, test_target)
+            filepath = self.create_folders(_tested_notebook, _test_target)
 
             for _, element_name, _ in self._sdata.filter_by_coordinate_system(coordinate_system_name)._gen_elements():
                 self.add_element(coordinate_system_name=coordinate_system_name, element=element_name)
 
-                if take_screenshot:
+                if _take_screenshot:
                     save_image(self.screenshot(canvas_only=True), os.path.join(filepath, element_name + ".png"))
                 else:
                     plt.imshow(self.screenshot(canvas_only=True))
