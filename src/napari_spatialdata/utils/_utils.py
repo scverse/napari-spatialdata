@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from functools import wraps
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import pandas as pd
@@ -22,6 +22,7 @@ from pandas.core.dtypes.common import (
     is_object_dtype,
     is_string_dtype,
 )
+from qtpy.QtWidgets import QListWidgetItem
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
@@ -319,3 +320,20 @@ def get_duplicate_element_names(sdata_ls: EventedList) -> tuple[list[str], list[
     """
     element_names = [element_name for sdata in sdata_ls for _, element_name, _ in sdata._gen_elements()]
     return [element for element, count in Counter(element_names).items() if count > 1], element_names
+
+
+def get_elements_meta_mapping(
+    sdatas: EventedList, coordinate_system: QListWidgetItem | int | Iterable[str], duplicate_element_names: list[str]
+) -> dict[str, dict[str, str | int]]:
+    elements = {}
+
+    for index, sdata in enumerate(sdatas):
+        for element_type, element_name, _ in sdata.filter_by_coordinate_system(coordinate_system)._gen_elements():
+            elements_metadata = {
+                "element_type": element_type,
+                "sdata_index": index,
+                "original_name": element_name,
+            }
+            name = element_name if element_name not in duplicate_element_names else element_name + f"_{index}"
+            elements[name] = elements_metadata
+    return elements
