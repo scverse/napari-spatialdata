@@ -8,7 +8,7 @@ from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QW
 from spatialdata import SpatialData
 
 from napari_spatialdata._viewer import SpatialDataViewer
-from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names
+from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names, get_elements_meta_mapping
 
 if TYPE_CHECKING:
     from napari import Viewer
@@ -19,25 +19,12 @@ class ElementWidget(QListWidget):
     def __init__(self, sdata: EventedList):
         super().__init__()
         self._sdata = sdata
+        self._duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
+        self._elements: None | dict[str, dict[str, str | int]] = None
 
     def _onItemChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self.clear()
-
-        elements = {}
-        duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
-
-        for index, sdata in enumerate(self._sdata):
-            for element_type, element_name, _ in sdata.filter_by_coordinate_system(
-                selected_coordinate_system
-            )._gen_elements():
-                elements_metadata = {
-                    "element_type": element_type,
-                    "sdata_index": index,
-                    "original_name": element_name,
-                }
-                name = element_name if element_name not in duplicate_element_names else element_name + f"_{index}"
-                elements[name] = elements_metadata
-
+        elements, _ = get_elements_meta_mapping(self._sdata, selected_coordinate_system, self._duplicate_element_names)
         self.addItems(elements.keys())
         self._elements = elements
 
@@ -47,6 +34,7 @@ class CoordinateSystemWidget(QListWidget):
         super().__init__()
 
         self._sdata = sdata
+        self._system: None | str = None
 
         coordinate_systems = {cs for sdata in self._sdata for cs in sdata.coordinate_systems}
         self.addItems(coordinate_systems)
@@ -88,14 +76,16 @@ class SdataWidget(QWidget):
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
     def _onClick(self, text: str) -> None:
-        if self.elements_widget._elements[text]["element_type"] == "labels":
-            self._add_label(text)
-        elif self.elements_widget._elements[text]["element_type"] == "images":
-            self._add_image(text)
-        elif self.elements_widget._elements[text]["element_type"] == "points":
-            self._add_points(text)
-        elif self.elements_widget._elements[text]["element_type"] == "shapes":
-            self._add_shapes(text)
+        selected_cs = self.coordinate_system_widget._system
+        if selected_cs and self.elements_widget._elements:
+            if self.elements_widget._elements[text]["element_type"] == "labels":
+                self._add_label(text, selected_cs)
+            elif self.elements_widget._elements[text]["element_type"] == "images":
+                self._add_image(text, selected_cs)
+            elif self.elements_widget._elements[text]["element_type"] == "points":
+                self._add_points(text, selected_cs)
+            elif self.elements_widget._elements[text]["element_type"] == "shapes":
+                self._add_shapes(text, selected_cs)
 
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
         """Toggle active in the coordinate system metadata when changing visibility of layer."""
@@ -105,7 +95,7 @@ class SdataWidget(QWidget):
 
         elements = self.elements_widget._elements
         element_name = metadata.get("name")
-        if element_name and element_name in elements:
+        if elements and element_name and element_name in elements:
             if selected_coordinate_system not in layer_active:
                 layer_active.add(selected_coordinate_system)
             else:
@@ -120,7 +110,7 @@ class SdataWidget(QWidget):
             for layer in self.viewer_model.viewer.layers:
                 element_name = layer.metadata.get("name")
                 if element_name:
-                    if element_name not in elements:
+                    if elements and element_name not in elements:
                         layer.visible = False
                     elif layer.metadata["_active_in_cs"]:
                         layer.visible = True
@@ -128,43 +118,42 @@ class SdataWidget(QWidget):
                         layer.metadata["_active_in_cs"].add(coordinate_system)
                         layer.metadata["_current_cs"] = coordinate_system
 
-    def _add_circles(self, sdata: SpatialData, key: str, multi: bool) -> None:
-        selected_cs = self.coordinate_system_widget._system
+    def _add_circles(self, sdata: SpatialData, key: str, multi: bool, selected_cs: str) -> None:
         self.viewer_model.add_sdata_circles(sdata, selected_cs, key, multi)
 
-    def _add_polygons(self, sdata: SpatialData, key: str, multi: bool) -> None:
-        selected_cs = self.coordinate_system_widget._system
+    def _add_polygons(self, sdata: SpatialData, key: str, multi: bool, selected_cs: str) -> None:
         self.viewer_model.add_sdata_shapes(sdata, selected_cs, key, multi)
 
-    def _add_shapes(self, key: str) -> None:
-        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
+    def _add_shapes(self, key: str, selected_cs: str) -> None:
+        if self.elements_widget._elements:
+            sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
 
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
 
         if type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.point.Point:
-            self._add_circles(sdata, key, multi)
+            self._add_circles(sdata, key, multi, selected_cs)
         elif (type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.polygon.Polygon) or (
             type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon
         ):
-            self._add_polygons(sdata, key, multi)
+            self._add_polygons(sdata, key, multi, selected_cs)
         else:
             raise TypeError(
                 "Incorrect data type passed for shapes (should be Shapely Point or Polygon or MultiPolygon)."
             )
 
-    def _add_label(self, key: str) -> None:
-        selected_cs = self.coordinate_system_widget._system
-        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
+    def _add_label(self, key: str, selected_cs: str) -> None:
+        if self.elements_widget._elements:
+            sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
         self.viewer_model.add_sdata_labels(sdata, selected_cs, key, multi)
 
-    def _add_image(self, key: str) -> None:
-        selected_cs = self.coordinate_system_widget._system
-        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
+    def _add_image(self, key: str, selected_cs: str) -> None:
+        if self.elements_widget._elements:
+            sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
         self.viewer_model.add_sdata_image(sdata, selected_cs, key, multi)
 
-    def _add_points(self, key: str) -> None:
-        selected_cs = self.coordinate_system_widget._system
-        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
+    def _add_points(self, key: str, selected_cs: str) -> None:
+        if self.elements_widget._elements:
+            sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, key)
         self.viewer_model.add_sdata_points(sdata, selected_cs, key, multi)

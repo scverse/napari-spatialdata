@@ -326,9 +326,35 @@ def get_elements_meta_mapping(
     sdatas: EventedList,
     coordinate_system_name: QListWidgetItem | int | Iterable[str],
     duplicate_element_names: list[str],
-) -> dict[str, dict[str, str | int]]:
-    elements = {}
+    key: None | str = None,
+) -> tuple[dict[str, dict[str, str | int]], None | str]:
+    """
+    Get an element to metadata mapping and optionally retrieve the layer name to be added.
 
+    Elements are mapped to their metadata. The element_names dictionary keys are adjusted if duplicate element names
+    exist within the SpatialData objects. Optionally, the layer name to add can be retrieved for a particular element
+    if added with Interactive.add_element.
+
+    Parameters
+    ----------
+    sdatas: EventedList
+        Napari EventedList containing the SpatialData objects
+    coordinate_system_name: str
+        The coordinate system to filter on.
+    duplicate_element_names:
+        A list of elements with duplicate names in the SpatialData objects in sdatas.
+    key: None | str
+        The element name of the element to be added as layer.
+
+    Returns
+    -------
+    elements: dict[str, dict[str, str | int]]
+        The element name to metadata mapping.
+    name_to_add: None | str
+        The name of the layer to add.
+    """
+    elements = {}
+    name_to_add = None
     for index, sdata in enumerate(sdatas):
         for element_type, element_name, _ in sdata.filter_by_coordinate_system(coordinate_system_name)._gen_elements():
             elements_metadata = {
@@ -337,5 +363,7 @@ def get_elements_meta_mapping(
                 "original_name": element_name,
             }
             name = element_name if element_name not in duplicate_element_names else element_name + f"_{index}"
+            if key and element_name == key:
+                name_to_add = name
             elements[name] = elements_metadata
-    return elements
+    return elements, name_to_add
