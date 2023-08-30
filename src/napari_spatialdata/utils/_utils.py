@@ -323,12 +323,14 @@ def get_duplicate_element_names(sdata_ls: EventedList) -> tuple[list[str], list[
 
 
 def get_elements_meta_mapping(
-    sdatas: EventedList, coordinate_system: QListWidgetItem | int | Iterable[str], duplicate_element_names: list[str]
+    sdatas: EventedList,
+    coordinate_system_name: QListWidgetItem | int | Iterable[str],
+    duplicate_element_names: list[str],
 ) -> dict[str, dict[str, str | int]]:
     elements = {}
 
     for index, sdata in enumerate(sdatas):
-        for element_type, element_name, _ in sdata.filter_by_coordinate_system(coordinate_system)._gen_elements():
+        for element_type, element_name, _ in sdata.filter_by_coordinate_system(coordinate_system_name)._gen_elements():
             elements_metadata = {
                 "element_type": element_type,
                 "sdata_index": index,
