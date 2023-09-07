@@ -4,6 +4,7 @@ import os
 from typing import TYPE_CHECKING, Any
 
 import napari
+import pandas as pd
 import shapely
 from napari.utils.events import EventedList
 
@@ -13,6 +14,8 @@ from napari_spatialdata.utils._utils import NDArrayA, _get_sdata_key, get_duplic
 if TYPE_CHECKING:
     from spatialdata import SpatialData
 import matplotlib.pyplot as plt
+from spatialdata._core.query.relational_query import get_values
+from spatialdata.models import TableModel
 
 from napari_spatialdata.utils._test_utils import save_image
 
@@ -32,6 +35,27 @@ class Interactive:
     -------
     None
     """
+
+    def get_random_subset_of_columns(self, coordinate_system_name: str) -> pd.Dataframe:
+        annotation_element = self._sdata.table.uns[TableModel.ATTRS_KEY][TableModel.REGION_KEY]
+        annotation_key = self._sdata.table.uns[TableModel.ATTRS_KEY][TableModel.REGION_KEY_KEY]
+
+        for element_type, element_name, _ in self._sdata.filter_by_coordinat_system(
+            coordinate_system_name
+        )._gen_elements():
+            if element_name == annotation_element:
+                if element_type == "images":
+                    # No annotation
+                    return None
+                if element_type == "labels":
+                    # Retrieve table annotation
+                    pass
+                elif element_type == "points" or element_type == "shapes":
+                    v = get_values(value_key=annotation_key, sdata=self._sdata, element_name=annotation_element)
+
+            return v
+
+        return None
 
     def add_element(self, coordinate_system_name: str, element: str) -> None:
         elements = {}
@@ -112,7 +136,9 @@ class Interactive:
 
             filepath = self.create_folders(_tested_notebook, _test_target)
 
-            for _, element_name, _ in self._sdata.filter_by_coordinate_system(coordinate_system_name)._gen_elements():
+            for _, element_name, _ in (
+                self._sdata[0].filter_by_coordinate_system(coordinate_system_name)._gen_elements()
+            ):
                 self.add_element(coordinate_system_name=coordinate_system_name, element=element_name)
 
                 if _take_screenshot:
