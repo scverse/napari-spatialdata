@@ -324,7 +324,7 @@ def get_duplicate_element_names(sdata_ls: EventedList) -> tuple[list[str], list[
 
 def get_elements_meta_mapping(
     sdatas: EventedList,
-    coordinate_system_name: QListWidgetItem | int | Iterable[str],
+    coordinate_system_name: QListWidgetItem | Iterable[str],
     duplicate_element_names: list[str],
     key: None | str = None,
 ) -> tuple[dict[str, dict[str, str | int]], None | str]:
