@@ -116,7 +116,7 @@ class SpatialDataViewer:
 
         show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
-    def add_sdata_image(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+    def add_sdata_image(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -138,7 +138,7 @@ class SpatialDataViewer:
             },
         )
 
-    def add_sdata_circles(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+    def add_sdata_circles(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -168,7 +168,7 @@ class SpatialDataViewer:
             },
         )
 
-    def add_sdata_shapes(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+    def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -211,7 +211,7 @@ class SpatialDataViewer:
             },
         )
 
-    def add_sdata_labels(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+    def add_sdata_labels(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -233,7 +233,7 @@ class SpatialDataViewer:
             },
         )
 
-    def add_sdata_points(self, sdata: SpatialData, selected_cs: str, key: str, multi: bool) -> None:
+    def add_sdata_points(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]

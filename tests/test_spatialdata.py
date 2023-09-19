@@ -21,9 +21,9 @@ def test_elementwidget(make_napari_viewer: Any):
     _ = make_napari_viewer()
     widget = ElementWidget(EventedList([sdata]))
     assert widget._sdata is not None
-    assert not hasattr(widget, "_elements")
+    assert not widget._elements
     widget._onItemChange("global")
-    assert hasattr(widget, "_elements")
+    assert widget._elements
     for name in sdata.images:
         assert widget._elements[name]["element_type"] == "images"
     for name in sdata.labels:
