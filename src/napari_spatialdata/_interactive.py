@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 import napari
 import pandas as pd
 import shapely
+from loguru import logger
 from napari.utils.events import EventedList
 
 from napari_spatialdata._sdata_widgets import SdataWidget
@@ -98,12 +99,12 @@ class Interactive:
     def create_folders(self, tested_notebook: str, test_target: str) -> str:
         main_folder = os.getcwd()  # Get the current working directory
         tests_folder = os.path.join(main_folder, "tests")
-        screenshots_folder = os.path.join(tests_folder, "screenshots")
+        screenshots_folder = os.path.join(tests_folder, "generated_screenshots")
         notebook_folder = os.path.join(screenshots_folder, tested_notebook)
         cell_folder = os.path.join(notebook_folder, test_target)
 
-        os.makedirs(screenshots_folder, exist_ok=True)
         os.makedirs(tests_folder, exist_ok=True)
+        os.makedirs(screenshots_folder, exist_ok=True)
         os.makedirs(notebook_folder, exist_ok=True)
         os.makedirs(cell_folder, exist_ok=True)
 
@@ -132,14 +133,18 @@ class Interactive:
 
         if _tested_notebook is not None:
             assert _test_target is not None
-            assert coordinate_system_name is not None
 
-            filepath = self.create_folders(_tested_notebook, _test_target)
+            # Select the first coordiante system only
+            coordinate_system_name = str(self._sdata[0].coordinate_systems[0])
+            logger.debug(f"Coordinate system selected for testing: {coordinate_system_name}")
 
             for _, element_name, _ in (
                 self._sdata[0].filter_by_coordinate_system(coordinate_system_name)._gen_elements()
             ):
                 self.add_element(coordinate_system_name=coordinate_system_name, element=element_name)
+                # self.get_random_subset_of_columns(coordinate_system_name=coordinate_system_name)
+
+                filepath = self.create_folders(_tested_notebook, _test_target)
 
                 if _take_screenshot:
                     save_image(self.screenshot(canvas_only=True), os.path.join(filepath, element_name + ".png"))
