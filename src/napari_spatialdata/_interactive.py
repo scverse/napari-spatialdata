@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from spatialdata._core.query.relational_query import get_values
 from spatialdata.models import TableModel
 
-from napari_spatialdata.utils._test_utils import save_image
+from napari_spatialdata.utils._test_utils import create_generated_screenshots_folder, save_image
 
 
 class Interactive:
@@ -96,28 +96,14 @@ class Interactive:
         else:
             raise ValueError("Element {element_name} not found in coordinate system {coordinate_system_name}.")
 
-    def create_folders(self, tested_notebook: str, test_target: str) -> str:
-        main_folder = os.getcwd()  # Get the current working directory
-        tests_folder = os.path.join(main_folder, "tests")
-        screenshots_folder = os.path.join(tests_folder, "generated_screenshots")
-        notebook_folder = os.path.join(screenshots_folder, tested_notebook)
-        cell_folder = os.path.join(notebook_folder, test_target)
-
-        os.makedirs(tests_folder, exist_ok=True)
-        os.makedirs(screenshots_folder, exist_ok=True)
-        os.makedirs(notebook_folder, exist_ok=True)
-        os.makedirs(cell_folder, exist_ok=True)
-
-        return cell_folder
-
     def __init__(
         self,
         sdata: SpatialData,
         coordinate_system_name: str | None = None,
         headless: bool = False,
-        _tested_notebook: str | None = None,
-        _test_target: str | None = None,
-        _take_screenshot: str | None = None,
+        _test_notebook_name: str | None = None,
+        _notebook_cell_id: str | None = None,
+        _generate_screenshots: str | None = None,
     ) -> None:
         viewer = napari.current_viewer()
         self._viewer = viewer if viewer else napari.Viewer()
@@ -131,8 +117,8 @@ class Interactive:
         )
         self._viewer.window.add_plugin_dock_widget("napari-spatialdata", "View")
 
-        if _tested_notebook is not None:
-            assert _test_target is not None
+        if _test_notebook_name is not None:
+            assert _notebook_cell_id is not None
 
             # Select the first coordiante system only
             coordinate_system_name = str(self._sdata[0].coordinate_systems[0])
@@ -144,9 +130,9 @@ class Interactive:
                 self.add_element(coordinate_system_name=coordinate_system_name, element=element_name)
                 # self.get_random_subset_of_columns(coordinate_system_name=coordinate_system_name)
 
-                filepath = self.create_folders(_tested_notebook, _test_target)
+                filepath = create_generated_screenshots_folder(_test_notebook_name, _notebook_cell_id)
 
-                if _take_screenshot:
+                if _generate_screenshots:
                     save_image(self.screenshot(canvas_only=True), os.path.join(filepath, element_name + ".png"))
                 else:
                     plt.imshow(self.screenshot(canvas_only=True))
