@@ -6,8 +6,8 @@ from typing import TYPE_CHECKING, Any
 import napari
 import pandas as pd
 from loguru import logger
-
 from napari.utils.events import EventedList
+
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata.utils._utils import (
     NDArrayA,
