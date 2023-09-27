@@ -18,8 +18,8 @@ def test_metadata_inheritance(qtbot, make_napari_viewer: any):
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
-    widget._add_image(list(sdata.images.keys())[0])
-    widget._add_image(list(sdata.images.keys())[1])
+    widget._onClick(list(sdata.images.keys())[0])
+    widget._onClick(list(sdata.images.keys())[1])
     widget.viewer_model.viewer.add_shapes()
 
     # Two layers have the same spatialdata object. So we should count 1 spatialdata object.
@@ -68,7 +68,7 @@ def test_layer_transform(qtbot, make_napari_viewer: any):
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
-    widget._add_image(list(sdata.images.keys())[0])
+    widget._onClick(list(sdata.images.keys())[0])
     viewer.add_image(viewer.layers[0].data)
 
     no_transform = np.array([[1, 0, 0], [0, 1, 0], [0, 0, 1]])
