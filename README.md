@@ -9,6 +9,7 @@
 [![codecov](https://codecov.io/gh/scverse/napari-spatialdata/branch/main/graph/badge.svg?token=ASqlOKnOj7)](https://codecov.io/gh/scverse/napari-spatialdata)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/scverse/napari-spatialdata/main.svg)](https://results.pre-commit.ci/latest/github/scverse/napari-spatialdata/main)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatialdata)](https://napari-hub.org/plugins/napari-spatialdata)
+[![DOI](https://zenodo.org/badge/477021400.svg)](https://zenodo.org/badge/latestdoi/477021400)
 
 This repository contains a napari plugin for interactively exploring and annotating SpatialData objects. `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [documentation](https://spatialdata.scverse.org/).
 
