@@ -186,6 +186,7 @@ class SpatialDataViewer:
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
+                "_n_indices": len(df),
             },
             properties=properties,
         )
@@ -225,6 +226,7 @@ class SpatialDataViewer:
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
+                "_n_indices": len(df),
             },
             properties=properties,
         )
@@ -280,6 +282,7 @@ class SpatialDataViewer:
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
+                "_n_indices": len(points),
             },
             properties=properties,
         )
