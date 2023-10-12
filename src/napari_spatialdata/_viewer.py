@@ -44,6 +44,7 @@ class SpatialDataViewer:
 
     def _on_layer_removed(self, event: Event) -> None:
         layer = event.value
+        del self._layer_action_caches[layer.name]
         self.layer_names.remove(layer.name)
 
     def _validate_name(self, event: Event) -> None:
