@@ -16,6 +16,7 @@ from napari_spatialdata.utils._utils import (
     _swap_coordinates,
     get_duplicate_element_names,
 )
+from napari_spatialdata.utils._viewer_utils import _get_polygons_properties
 
 if TYPE_CHECKING:
     from napari.layers import Layer
@@ -168,6 +169,7 @@ class SpatialDataViewer:
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
         radii = df.radius.to_numpy()
+        properties = {"indices": df.index.to_list()}
 
         self.viewer.add_points(
             xy,
@@ -185,6 +187,7 @@ class SpatialDataViewer:
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
+            properties=properties,
         )
 
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
@@ -192,7 +195,6 @@ class SpatialDataViewer:
         if multi:
             original_name = original_name[: original_name.rfind("_")]
 
-        polygons = []
         df = sdata.shapes[original_name]
         affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
@@ -204,14 +206,10 @@ class SpatialDataViewer:
             df = df.sort_values(by="area", ascending=False)  # sort by area
             df = df[~df.index.duplicated(keep="first")]  # only keep the largest area
             df = df.sort_index()  # reset the index to the first order
-        if len(df) < 100:
-            for i in range(0, len(df)):
-                polygons.append(list(df.geometry.iloc[i].exterior.coords))
-        else:
-            for i in range(
-                0, len(df)
-            ):  # This can be removed once napari is sped up in the plotting. It changes the shapes only very slightly
-                polygons.append(list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords))
+
+        simplify = len(df) > 100
+        polygons, properties = _get_polygons_properties(df, simplify)
+
         # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
 
@@ -228,6 +226,7 @@ class SpatialDataViewer:
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
+            properties=properties,
         )
 
     def add_sdata_labels(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
@@ -266,6 +265,7 @@ class SpatialDataViewer:
             gen = np.random.default_rng()
             subsample = np.sort(gen.choice(len(points), size=100000, replace=False))
 
+        properties = {"indices": subsample}
         xy = points[["y", "x"]].values[subsample]
         np.fliplr(xy)
         self.viewer.add_points(
@@ -281,6 +281,7 @@ class SpatialDataViewer:
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
             },
+            properties=properties,
         )
 
     def _affine_transform_layers(self, coordinate_system: str) -> None:
