@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from anndata import AnnData
@@ -27,6 +27,7 @@ class SpatialDataViewer:
     def __init__(self, viewer: Viewer, sdata: EventedList) -> None:
         self.viewer = viewer
         self.sdata = sdata
+        self._layer_action_caches: dict[str, list[dict[str, Any]]] = {}
         self.viewer.bind_key("Shift-L", self._inherit_metadata)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
         self.viewer.layers.events.removed.connect(self._on_layer_removed)
@@ -37,6 +38,8 @@ class SpatialDataViewer:
     def _on_layer_insert(self, event: Event) -> None:
         layer = event.value
         self.layer_names.add(layer.name)
+        self._layer_action_caches[layer.name] = []
+        layer.events.data.connect(self._update_cache)
         layer.events.name.connect(self._validate_name)
 
     def _on_layer_removed(self, event: Event) -> None:
@@ -71,6 +74,15 @@ class SpatialDataViewer:
 
         self.layer_names.remove(old_layer_name)
         self.layer_names.add(layer.name)
+
+    def _update_cache(self, event: Event) -> None:
+        event_info = {
+            "data_indices": event.data_indices,
+            "vertex_indices": event.vertex_indices,
+            "action": event.action,
+        }
+        layer_name = event.source.name
+        self._layer_action_caches[layer_name].append(event_info)
 
     def _inherit_metadata(self, viewer: Viewer) -> None:
         layers = list(viewer.layers.selection)
