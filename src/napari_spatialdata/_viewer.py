@@ -29,6 +29,7 @@ class SpatialDataViewer:
         self.sdata = sdata
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
         self.viewer.bind_key("Shift-L", self._inherit_metadata)
+        self.viewer.bind_key("Shift-S", self._save_to_sdata)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
         self.viewer.layers.events.removed.connect(self._on_layer_removed)
 
@@ -80,6 +81,15 @@ class SpatialDataViewer:
         del event.value
         layer_name = event.source.name
         self._layer_event_caches[layer_name].append(event)
+
+    def _save_to_sdata(self, viewer: Viewer) -> None:
+        layer_selection = list(viewer.layers.selection)
+        self.save_to_sdata(layer_selection)
+
+    def save_to_sdata(self, layers: list[Layer]) -> None:
+        for layer in layers:
+            if self._layer_event_caches[layer.name]:
+                pass
 
     def _inherit_metadata(self, viewer: Viewer) -> None:
         layers = list(viewer.layers.selection)
