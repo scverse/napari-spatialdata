@@ -8,6 +8,7 @@ from anndata import AnnData
 from loguru import logger
 from napari import Viewer
 from napari.layers import Labels, Points, Shapes
+from napari.layers.base import ActionType
 from napari.utils.notifications import show_info
 
 from napari_spatialdata.utils._utils import (
@@ -41,7 +42,7 @@ class SpatialDataViewer:
         layer = event.value
         self.layer_names.add(layer.name)
         self._layer_event_caches[layer.name] = []
-        layer.events.data.connect(self._update_cache)
+        layer.events.data.connect(self._update_cache_indices)
         layer.events.name.connect(self._validate_name)
 
     def _on_layer_removed(self, event: Event) -> None:
@@ -78,8 +79,28 @@ class SpatialDataViewer:
         self.layer_names.remove(old_layer_name)
         self.layer_names.add(layer.name)
 
-    def _update_cache(self, event: Event) -> None:
+    def _update_cache_indices(self, event: Event) -> None:
         del event.value
+        # This needs to be changed when we switch to napari 0.4.19
+        if event.action == ActionType.REMOVE or (type(event.source) != Points and event.action == ActionType.CHANGE):
+            # We overwrite the indices so they correspond to indices in the dataframe
+            napari_indices = sorted(event.data_indices, reverse=True)
+            event.indices = tuple(event.source.metadata["indices"][i] for i in napari_indices)
+            if event.action == ActionType.REMOVE:
+                for i in napari_indices:
+                    del event.source.metadata["indices"][i]
+        elif type(event.source) == Points and event.action == ActionType.CHANGE:
+            logger.warn(
+                "Moving events of Points in napari can't be saved back due to a bug in napari 0.4.18. This will"
+                "be available in napari 0.4.19"
+            )
+        if event.action == ActionType.ADD:
+            # we need to add based on the indices of the dataframe, which can be subsampled in case of points
+            n_indices = event.source.metadata["_n_indices"]
+            event.data_indices = tuple(n_indices + 1 for i in range(len(event.data_indices)))
+            event.source.metadata["_n_indices"] = event.data_indices[-1]
+            event.source.metadata["indices"].extend(event.data_indices)
+
         layer_name = event.source.name
         self._layer_event_caches[layer_name].append(event)
 
@@ -169,7 +190,6 @@ class SpatialDataViewer:
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
         radii = df.radius.to_numpy()
-        properties = {"indices": df.index.to_list()}
 
         self.viewer.add_points(
             xy,
@@ -187,8 +207,8 @@ class SpatialDataViewer:
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
                 "_n_indices": len(df),
+                "indices": df.index.to_list(),
             },
-            properties=properties,
         )
 
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
@@ -209,7 +229,7 @@ class SpatialDataViewer:
             df = df.sort_index()  # reset the index to the first order
 
         simplify = len(df) > 100
-        polygons, properties = _get_polygons_properties(df, simplify)
+        polygons, indices = _get_polygons_properties(df, simplify)
 
         # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
@@ -227,8 +247,8 @@ class SpatialDataViewer:
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
                 "_n_indices": len(df),
+                "indices": indices,
             },
-            properties=properties,
         )
 
     def add_sdata_labels(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
@@ -265,9 +285,8 @@ class SpatialDataViewer:
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
-            subsample = np.sort(gen.choice(len(points), size=100000, replace=False))
+            subsample = np.sort(gen.choice(len(points), size=100000, replace=False))  # same as indices
 
-        properties = {"indices": subsample}
         xy = points[["y", "x"]].values[subsample]
         np.fliplr(xy)
         self.viewer.add_points(
@@ -283,8 +302,8 @@ class SpatialDataViewer:
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
                 "_n_indices": len(points),
+                "indices": subsample.tolist(),
             },
-            properties=properties,
         )
 
     def _affine_transform_layers(self, coordinate_system: str) -> None:
