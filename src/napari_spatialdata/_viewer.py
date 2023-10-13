@@ -40,10 +40,11 @@ class SpatialDataViewer:
 
     def _on_layer_insert(self, event: Event) -> None:
         layer = event.value
-        self.layer_names.add(layer.name)
-        self._layer_event_caches[layer.name] = []
-        layer.events.data.connect(self._update_cache_indices)
-        layer.events.name.connect(self._validate_name)
+        if layer.metadata.get("sdata"):
+            self.layer_names.add(layer.name)
+            self._layer_event_caches[layer.name] = []
+            layer.events.data.connect(self._update_cache_indices)
+            layer.events.name.connect(self._validate_name)
 
     def _on_layer_removed(self, event: Event) -> None:
         layer = event.value
