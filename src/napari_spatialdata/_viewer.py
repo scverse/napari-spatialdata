@@ -94,10 +94,11 @@ class SpatialDataViewer:
                 "Moving events of Points in napari can't be saved back due to a bug in napari 0.4.18. This will"
                 "be available in napari 0.4.19"
             )
+            return
         if event.action == ActionType.ADD:
             # we need to add based on the indices of the dataframe, which can be subsampled in case of points
             n_indices = event.source.metadata["_n_indices"]
-            event.data_indices = tuple(n_indices + 1 for i in range(len(event.data_indices)))
+            event.indices = tuple(n_indices + 1 for i in range(len(event.data_indices)))
             event.source.metadata["_n_indices"] = event.data_indices[-1]
             event.source.metadata["indices"].extend(event.data_indices)
 
