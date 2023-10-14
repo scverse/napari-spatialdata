@@ -156,6 +156,9 @@ class SpatialDataViewer:
             layer.metadata["adata"] = None
             if isinstance(layer, (Shapes, Labels)):
                 layer.metadata["region_key"] = None
+            if isinstance(layer, (Shapes, Points)):
+                layer.metadata["_n_indices"] = (len(layer.data),)
+                layer.metadata["indices"] = [i for i in range(len(layer.data))]  # noqa: C416
 
         show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
