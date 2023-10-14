@@ -10,6 +10,8 @@ from napari import Viewer
 from napari.layers import Labels, Points, Shapes
 from napari.layers.base import ActionType
 from napari.utils.notifications import show_info
+from spatialdata.models import PointsModel
+from spatialdata.transformations import Identity
 
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
@@ -20,6 +22,8 @@ from napari_spatialdata.utils._utils import (
 from napari_spatialdata.utils._viewer_utils import _get_polygons_properties
 
 if TYPE_CHECKING:
+    import numpy.typing as npt
+    from dask.dataframe.core import DataFrame as DaskDataFrame
     from napari.layers import Layer
     from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
@@ -112,8 +116,27 @@ class SpatialDataViewer:
 
     def save_to_sdata(self, layers: list[Layer]) -> None:
         for layer in layers:
-            if self._layer_event_caches[layer.name]:
-                pass
+            if not layer.metadata["name"] and layer.metadata["sdata"]:
+                sdata = layer.metadata["sdata"]
+                coordinate_system = layer.metadata["_current_cs"]
+                if type(layer) == Points:
+                    swap_data = np.fliplr(layer.data)
+                    model = PointsModel.parse(swap_data, transformations={coordinate_system: Identity()})
+                    sdata.points[layer.name] = model
+
+                self.layer_names.add(layer.name)
+                self._layer_event_caches[layer.name] = []
+                self._update_metadata(layer, model, swap_data)
+                layer.events.data.connect(self._update_cache_indices)
+                layer.events.name.connect(self._validate_name)
+                # elif type(layer) == Shapes:
+
+    def _update_metadata(self, layer: Layer, model: DaskDataFrame, data: npt.ArrayLike) -> None:
+        layer.metadata["name"] = layer.name
+        layer.metadata["_n_indices"] = len(layer.data)
+        layer.metadata["indices"] = list(i for i in range(len(layer.data)))  # noqa: C400
+        if type(layer) == Points:
+            layer.metadata["adata"] = AnnData(obs=model, obsm={"spatial": data})
 
     def _inherit_metadata(self, viewer: Viewer) -> None:
         layers = list(viewer.layers.selection)
@@ -157,8 +180,8 @@ class SpatialDataViewer:
             if isinstance(layer, (Shapes, Labels)):
                 layer.metadata["region_key"] = None
             if isinstance(layer, (Shapes, Points)):
-                layer.metadata["_n_indices"] = (len(layer.data),)
-                layer.metadata["indices"] = [i for i in range(len(layer.data))]  # noqa: C416
+                layer.metadata["_n_indices"] = None
+                layer.metadata["indices"] = None
 
         show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
 
