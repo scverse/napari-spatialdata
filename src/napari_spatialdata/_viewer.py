@@ -52,8 +52,9 @@ class SpatialDataViewer:
 
     def _on_layer_removed(self, event: Event) -> None:
         layer = event.value
-        del self._layer_event_caches[layer.name]
-        self.layer_names.remove(layer.name)
+        if layer.metadata["name"]:
+            del self._layer_event_caches[layer.name]
+            self.layer_names.remove(layer.name)
 
     def _validate_name(self, event: Event) -> None:
         _, element_names = get_duplicate_element_names(self.sdata)
