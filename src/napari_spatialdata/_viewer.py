@@ -96,7 +96,7 @@ class SpatialDataViewer:
                     del event.source.metadata["indices"][i]
         elif type(event.source) == Points and event.action == ActionType.CHANGE:
             logger.warning(
-                "Moving events of Points in napari can't be saved back due to a bug in napari 0.4.18. This will"
+                "Moving events of Points in napari can't be cached due to a bug in napari 0.4.18. This will"
                 "be available in napari 0.4.19"
             )
             return
