@@ -26,3 +26,4 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         i.switch_coordinate_system("global")
         assert i._sdata_widget.coordinate_system_widget._system == "global"
         assert i._sdata_widget.elements_widget._elements
+        i._viewer.close()
