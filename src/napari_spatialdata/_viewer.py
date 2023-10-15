@@ -105,8 +105,8 @@ class SpatialDataViewer:
             # we need to add based on the indices of the dataframe, which can be subsampled in case of points
             n_indices = event.source.metadata["_n_indices"]
             event.indices = tuple(n_indices + i for i in range(len(event.data_indices)))
-            event.source.metadata["_n_indices"] = event.data_indices[-1]
-            event.source.metadata["indices"].extend(event.data_indices)
+            event.source.metadata["_n_indices"] = event.indices[-1]
+            event.source.metadata["indices"].extend(event.indices)
 
         layer_name = event.source.name
         self._layer_event_caches[layer_name].append(event)
