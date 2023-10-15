@@ -5,12 +5,14 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from anndata import AnnData
+from geopandas import GeoDataFrame
 from loguru import logger
 from napari import Viewer
-from napari.layers import Labels, Points, Shapes
+from napari.layers import Image, Labels, Points, Shapes
 from napari.layers.base import ActionType
 from napari.utils.notifications import show_info
-from spatialdata.models import PointsModel
+from shapely import Polygon
+from spatialdata.models import PointsModel, ShapesModel
 from spatialdata.transformations import Identity
 
 from napari_spatialdata.utils._utils import (
@@ -120,19 +122,32 @@ class SpatialDataViewer:
             if not layer.metadata["name"] and layer.metadata["sdata"]:
                 sdata = layer.metadata["sdata"]
                 coordinate_system = layer.metadata["_current_cs"]
+                transformation = {coordinate_system: Identity()}
+                swap_data: None | npt.ArrayLike
                 if type(layer) == Points:
                     swap_data = np.fliplr(layer.data)
-                    model = PointsModel.parse(swap_data, transformations={coordinate_system: Identity()})
+                    model = PointsModel.parse(swap_data, transformations=transformation)
                     sdata.points[layer.name] = model
+                if type(layer) == Shapes:
+                    if len(layer.data) == 0:
+                        raise ValueError("Cannot save a shapes layer with no shapes")
+                    polygons: list[Polygon] = [Polygon(i) for i in _swap_coordinates(layer.data)]
+                    gdf = GeoDataFrame({"geometry": polygons})
+                    model = ShapesModel.parse(gdf, transformations=transformation)
+                    sdata.shapes[layer.name] = model
+                    swap_data = None
+                if type(layer) == Image or type(layer) == Labels:
+                    raise NotImplementedError
 
                 self.layer_names.add(layer.name)
                 self._layer_event_caches[layer.name] = []
                 self._update_metadata(layer, model, swap_data)
                 layer.events.data.connect(self._update_cache_indices)
                 layer.events.name.connect(self._validate_name)
-                # elif type(layer) == Shapes:
+            else:
+                raise NotImplementedError("updating existing elements will soon be supported")
 
-    def _update_metadata(self, layer: Layer, model: DaskDataFrame, data: npt.ArrayLike) -> None:
+    def _update_metadata(self, layer: Layer, model: DaskDataFrame, data: None | npt.ArrayLike = None) -> None:
         layer.metadata["name"] = layer.name
         layer.metadata["_n_indices"] = len(layer.data)
         layer.metadata["indices"] = list(i for i in range(len(layer.data)))  # noqa: C400
