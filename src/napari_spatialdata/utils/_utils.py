@@ -22,7 +22,6 @@ from pandas.core.dtypes.common import (
     is_object_dtype,
     is_string_dtype,
 )
-from qtpy.QtWidgets import QListWidgetItem
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
@@ -37,7 +36,10 @@ from napari_spatialdata.utils._categoricals_utils import (
 
 if TYPE_CHECKING:
     from napari.utils.events import EventedList
+    from qtpy.QtWidgets import QListWidgetItem
     from xarray import DataArray
+
+    from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget
 
 try:
     from numpy.typing import NDArray
@@ -367,3 +369,14 @@ def get_elements_meta_mapping(
                 name_to_add = name
             elements[name] = elements_metadata
     return elements, name_to_add
+
+
+def get_itemindex_by_text(
+    list_widget: CoordinateSystemWidget | ElementWidget, item_text: str
+) -> None | QListWidgetItem:
+    widget_item = None
+    for index in range(list_widget.count()):
+        widget_item_text = list_widget.item(index).text()
+        if widget_item_text == item_text:
+            widget_item = list_widget.item(index)
+    return widget_item
