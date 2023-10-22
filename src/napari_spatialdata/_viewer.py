@@ -74,9 +74,24 @@ class SpatialDataViewer:
 
     def _inherit_metadata(self, viewer: Viewer) -> None:
         layers = list(viewer.layers.selection)
-        self.inherit_metadata(layers)
+        # Layer.metadata.get would yield a default value which is not what we want.
+        sdatas = [(layer, layer.metadata["sdata"]) for layer in viewer.layers if "sdata" in layer.metadata]
+        ref_layer = sdatas[0][0]
 
-    def inherit_metadata(self, layers: list[Layer]) -> None:
+        # If more than 1 sdata object, check whether all are the same. If not check layer selection
+        if len(sdatas) > 1 and not all(sdatas[0][1] is sdata[1] for sdata in sdatas[1:]):
+            sdatas = [(layer, layer.metadata["sdata"]) for layer in layers if "sdata" in layer.metadata]
+            if len(sdatas) > 1 and not all(sdatas[0][1] is sdata[1] for sdata in sdatas[1:]):
+                raise ValueError("Multiple different spatialdata object found in selected layers. One is required.")
+            if sdatas:
+                ref_layer = sdatas[0][0]
+            else:
+                raise ValueError("Multiple SpatialData objects, but no layer with sdata in layer selection.")
+        if len(sdatas) < 1:
+            raise ValueError("No SpatialData layers found in the viewer. Layer cannot be linked to SpatialData object.")
+        self.inherit_metadata(layers, ref_layer)
+
+    def inherit_metadata(self, layers: list[Layer], ref_layer: Layer) -> None:
         """
         Inherit metadata from active layer.
 
@@ -88,18 +103,11 @@ class SpatialDataViewer:
         layers: list[Layer]
             A list of napari layers of which only 1 should have a spatialdata object from which the other layers inherit
             metadata.
+        ref_layer: Layer
+            The layer containing the SpatialData object in the metadata to which the layers will be linked
         """
-        # Layer.metadata.get would yield a default value which is not what we want.
-        sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
-
-        # If more than 1 sdata object, ensure all are the same.
-        if len(sdatas) > 1 and not all(sdatas[0] is sdata for sdata in sdatas[1:]):
-            raise ValueError("Multiple different spatialdata object found in selected layers. One is required.")
-
-        if len(sdatas) < 1:
-            raise ValueError("No Spatialdata objects associated with selected layers.")
-
-        ref_layer = next(layer for layer in layers if "sdata" in layer.metadata)
+        if not ref_layer.metadata.get("sdata"):
+            raise ValueError(f"{ref_layer} does not contain a SpatialData object in the metadata. Can't link layers.")
 
         for layer in (
             layer
