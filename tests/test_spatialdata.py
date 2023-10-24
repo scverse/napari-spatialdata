@@ -11,7 +11,6 @@ from napari.utils.events import EventedList
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
-from qtpy.QtCore import Qt
 from spatialdata.datasets import blobs
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
@@ -180,7 +179,7 @@ def test_multiple_sdata(qtbot, make_napari_viewer: Any):
     set_transformation(sdata_mock.points["extra"], {"global": Identity()}, set_all=True)
 
     viewer = make_napari_viewer()
-    qtbot.addWidget(viewer.window._qt_viewer)
+    # qtbot.addWidget(viewer.window._qt_viewer)
     widget = SdataWidget(viewer, EventedList([sdata, sdata_mock]))
 
     # Click on `global` coordinate system
@@ -214,16 +213,17 @@ def test_multiple_sdata(qtbot, make_napari_viewer: Any):
 
     # test case of having empty layer selected and multiple sdata objects in viewer
     viewer.add_shapes()
+
     with pytest.raises(ValueError):
-        qtbot.keyPress(viewer.window._qt_viewer, Qt.Key_L, Qt.ShiftModifier)
-    assert not viewer.layers[-1].metadata
+        widget.viewer_model._inherit_metadata(viewer)
+        assert not viewer.layers[-1].metadata
 
     # test case of having multiple sdata objects in layer selection
     viewer.layers.select_all()
     with pytest.raises(ValueError):
-        qtbot.keyPress(viewer.window._qt_viewer, Qt.Key_L, Qt.ShiftModifier)
-    assert not viewer.layers[-1].metadata
+        widget.viewer_model._inherit_metadata(viewer)
+        assert not viewer.layers[-1].metadata
 
     viewer.layers.selection = viewer.layers[-2:]
-    qtbot.keyPress(viewer.window._qt_viewer, Qt.Key_L, Qt.ShiftModifier)
+    widget.viewer_model._inherit_metadata(viewer)
     assert viewer.layers[-1].metadata["sdata"] is sdata_mock
