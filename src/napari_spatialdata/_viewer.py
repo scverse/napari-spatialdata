@@ -12,6 +12,7 @@ from napari.utils.notifications import show_info
 
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
+    _get_metadata_adata,
     _get_transform,
     _swap_coordinates,
     get_duplicate_element_names,
@@ -152,6 +153,7 @@ class SpatialDataViewer:
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
         radii = df.radius.to_numpy()
+        adata = _get_metadata_adata(sdata, original_name)
 
         self.viewer.add_points(
             xy,
@@ -161,9 +163,7 @@ class SpatialDataViewer:
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[
-                    sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == original_name
-                ],
+                "adata": adata,
                 "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
@@ -198,6 +198,7 @@ class SpatialDataViewer:
                 polygons.append(list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords))
         # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
+        adata = _get_metadata_adata(sdata, key)
 
         self.viewer.add_shapes(
             polygons,
@@ -206,7 +207,7 @@ class SpatialDataViewer:
             shape_type="polygon",
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
+                "adata": adata,
                 "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
@@ -221,6 +222,7 @@ class SpatialDataViewer:
 
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
+        adata = _get_metadata_adata(sdata, key)
 
         self.viewer.add_labels(
             rgb_labels,
@@ -228,7 +230,7 @@ class SpatialDataViewer:
             affine=affine,
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
+                "adata": adata,
                 "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
