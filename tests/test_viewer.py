@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from napari.utils.events import EventedList
+from napari_spatialdata import QtAdataViewWidget
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from napari_spatialdata.utils._utils import _get_transform
@@ -87,6 +88,7 @@ def test_layer_transform(qtbot, make_napari_viewer: any):
 def test_adata_metadata(qtbot, make_napari_viewer: any):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([sdata]))
+    view_widget = QtAdataViewWidget(viewer)
 
     # Click on `global` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
@@ -94,7 +96,9 @@ def test_adata_metadata(qtbot, make_napari_viewer: any):
 
     widget._onClick("blobs_labels")
     assert viewer.layers[-1].metadata["adata"]
+    assert view_widget.obs_widget.item(0)
 
     # Filtering adata leads to 0 rows so adata should be set to None
     widget._onClick("blobs_polygons")
     assert not viewer.layers[-1].metadata["adata"]
+    assert not view_widget.obs_widget.item(0)
