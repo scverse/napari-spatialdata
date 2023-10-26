@@ -82,3 +82,19 @@ def test_layer_transform(qtbot, make_napari_viewer: any):
 
     assert np.array_equal(viewer.layers[0].affine.affine_matrix, affine_transform)
     assert np.array_equal(viewer.layers[1].affine.affine_matrix, no_transform)
+
+
+def test_adata_metadata(qtbot, make_napari_viewer: any):
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, EventedList([sdata]))
+
+    # Click on `global` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    widget._onClick("blobs_labels")
+    assert viewer.layers[-1].metadata["adata"]
+
+    # Filtering adata leads to 0 rows so adata should be set to None
+    widget._onClick("blobs_polygons")
+    assert not viewer.layers[-1].metadata["adata"]
