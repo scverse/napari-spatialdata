@@ -38,3 +38,4 @@ def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     i.add_element(element="blobs_image", element_coordinate_system="global", view_element_system=True)
     assert i._sdata_widget.coordinate_system_widget._system == "global"
     assert i._viewer.layers[-1].visible
+    i._viewer.close()
