@@ -18,8 +18,9 @@ and this project adheres to [Semantic Versioning][].
 
 ### Fixed
 
-- Updated installation instructions since napari conda-forge no longer installs Qt backend.
-- Allow for viewing SpatialData object with no annotations.
+- Updated dependencies
+- Updated installation instructions since napari conda-forge no longer installs Qt backend. @psobolewskiPhD
+- Allow for viewing SpatialData object with no annotations. @aeisenbarth
 
 ## [0.2.7] - 2023-10-02
 
