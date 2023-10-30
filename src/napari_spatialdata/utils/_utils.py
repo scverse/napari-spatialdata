@@ -249,7 +249,7 @@ def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tu
     else:
         c_coords = []
 
-    if set(c_coords) - {"r", "g", "b"} <= {"a"}:
+    if len(c_coords) != 0 and set(c_coords) - {"r", "g", "b"} <= {"a"}:
         rgb = True
         new_raster = element.transpose("y", "x", "c").reindex(c=["r", "g", "b", "a"][: len(c_coords)])
     else:
