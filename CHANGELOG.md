@@ -8,7 +8,18 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [0.2.8] - tbd
+## [0.2.9] - TBD
+
+## [0.2.8] - 2023-10-30
+
+### Added
+
+- Global parameters POINT_THRESHOLD and POLYGON_THRESHOLD added to allow users to adjust these parameters.
+
+### Fixed
+
+- Updated installation instructions since napari conda-forge no longer installs Qt backend.
+- Allow for viewing SpatialData object with no annotations.
 
 ## [0.2.7] - 2023-10-02
 
