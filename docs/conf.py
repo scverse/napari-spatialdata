@@ -14,6 +14,9 @@ HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 
 print("oooo")  # noqa: T201
+import napari_spatialdata
+
+print(napari_spatialdata.__path__)  # noqa: T201
 
 
 # -- Project information -----------------------------------------------------
