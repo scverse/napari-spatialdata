@@ -8,7 +8,7 @@ sphinx:
   configuration: docs/conf.py
   fail_on_warning: false
 apt_packages:
-    - libgl-dev
+  - libgl-dev
 python:
   install:
     - method: pip
