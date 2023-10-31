@@ -375,7 +375,10 @@ def _get_metadata_adata(sdata: SpatialData, key: str) -> None | AnnData:
 
     Get the AnnData table in the SpatialData object based on the element
     """
-    adata = sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
-    if adata.shape[0] == 0:
+    if sdata.table:
+        adata = sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
+        if adata.shape[0] == 0:
+            return None
+    else:
         return None
     return adata
