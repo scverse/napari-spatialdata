@@ -22,6 +22,9 @@ if TYPE_CHECKING:
     from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
 
+POLYGON_THRESHOLD = 100
+POINT_THRESHOLD = 100000
+
 
 class SpatialDataViewer:
     def __init__(self, viewer: Viewer, sdata: EventedList) -> None:
@@ -160,8 +163,10 @@ class SpatialDataViewer:
                 "sdata": sdata,
                 "adata": sdata.table[
                     sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == original_name
-                ],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                ]
+                if sdata.table
+                else None,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -185,7 +190,7 @@ class SpatialDataViewer:
             df = df.sort_values(by="area", ascending=False)  # sort by area
             df = df[~df.index.duplicated(keep="first")]  # only keep the largest area
             df = df.sort_index()  # reset the index to the first order
-        if len(df) < 100:
+        if len(df) < POLYGON_THRESHOLD:
             for i in range(0, len(df)):
                 polygons.append(list(df.geometry.iloc[i].exterior.coords))
         else:
@@ -203,8 +208,10 @@ class SpatialDataViewer:
             shape_type="polygon",
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
+                if sdata.table
+                else None,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -225,8 +232,10 @@ class SpatialDataViewer:
             affine=affine,
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
+                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
+                if sdata.table
+                else None,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -240,7 +249,7 @@ class SpatialDataViewer:
 
         points = sdata.points[original_name].compute()
         affine = _get_transform(sdata.points[original_name], selected_cs)
-        if len(points) < 100000:
+        if len(points) < POINT_THRESHOLD:
             subsample = np.arange(len(points))
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")

@@ -24,7 +24,7 @@ The `extra` command will install the qt bindings `PyQt5`.
 Note: if you have an M1/M2 Mac then you may get an error when installing `PyQt5` via `pip`. A solution is to first install `napari` via conda (which will correctly install `PyQt5`), using
 
 ```
-mamba install -c conda-forge napari
+mamba install -c conda-forge napari pyqt
 ```
 
 and then install `napari-spatialdata` via `pip`, but without the `extra` option:
