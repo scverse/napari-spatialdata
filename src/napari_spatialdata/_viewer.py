@@ -164,7 +164,7 @@ class SpatialDataViewer:
             metadata={
                 "sdata": sdata,
                 "adata": adata,
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -208,7 +208,7 @@ class SpatialDataViewer:
             metadata={
                 "sdata": sdata,
                 "adata": adata,
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -231,7 +231,7 @@ class SpatialDataViewer:
             metadata={
                 "sdata": sdata,
                 "adata": adata,
-                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
+                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
