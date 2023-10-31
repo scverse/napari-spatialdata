@@ -171,8 +171,10 @@ class SpatialDataViewer:
                 "sdata": sdata,
                 "adata": sdata.table[
                     sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == original_name
-                ],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                ]
+                if sdata.table
+                else None,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -214,8 +216,10 @@ class SpatialDataViewer:
             shape_type="polygon",
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
+                if sdata.table
+                else None,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -236,8 +240,10 @@ class SpatialDataViewer:
             affine=affine,
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
+                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
+                if sdata.table
+                else None,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
