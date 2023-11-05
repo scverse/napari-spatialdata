@@ -75,7 +75,6 @@ class SpatialDataViewer:
         self.layer_names.remove(old_layer_name)
         self.layer_names.add(layer.name)
 
-
     def _get_layer_for_unique_sdata(self, viewer: Viewer) -> Layer:
         # If there is only one sdata object across all the layers, any layer containing the sdata object will be the ref_layer.
         # Otherwise, if multiple sdata object are available, the search will be restricted to the selected layers.
@@ -99,7 +98,6 @@ class SpatialDataViewer:
             ref_layer = sdatas[0][0]
         return ref_layer
 
-
     def _inherit_metadata(self, viewer: Viewer) -> None:
         # This function calls inherit_metadata by setting a default value for ref_layer.
         ref_layer = self._get_layer_for_unique_sdata(viewer)
@@ -115,7 +113,7 @@ class SpatialDataViewer:
         Parameters
         ----------
         layers: list[Layer]
-            A list of napari layers. Layers already containing a `SpatialData` object in the metadata will be ignored; 
+            A list of napari layers. Layers already containing a `SpatialData` object in the metadata will be ignored;
             layers not containing it will inherit the metadata from the layer specified by the `ref_layer` argument.
         ref_layer: Layer
             The layer containing the `SpatialData` object in the metadata to which the layers will be linked
