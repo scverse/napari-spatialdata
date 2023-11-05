@@ -76,10 +76,10 @@ class SpatialDataViewer:
         self.layer_names.add(layer.name)
 
     def _get_layer_for_unique_sdata(self, viewer: Viewer) -> Layer:
-        # If there is only one sdata object across all the layers, any layer containing the sdata object will be the ref_layer.
-        # Otherwise, if multiple sdata object are available, the search will be restricted to the selected layers.
-        # In all the other cases, i.e. multipe sdata objects in the selected layers, or zero sdata objects, an exception will be raised.
-        layers = list(viewer.layers.selection)
+        # If there is only one sdata object across all the layers, any layer containing the sdata object will be the
+        # ref_layer. Otherwise, if multiple sdata object are available, the search will be restricted to the selected
+        # layers. In all the other cases, i.e. multipe sdata objects in the selected layers, or zero sdata objects,
+        # an exception will be raised.
         # check all layers
         sdatas = [(layer, layer.metadata["sdata"]) for layer in viewer.layers if "sdata" in layer.metadata]
         if len(sdatas) < 1:
@@ -87,6 +87,7 @@ class SpatialDataViewer:
         # If more than 1 sdata object, check whether all are the same. If not check layer selection
         if len(sdatas) > 1 and not all(sdatas[0][1] is sdata[1] for sdata in sdatas[1:]):
             # check only the selected layers
+            layers = list(viewer.layers.selection)
             sdatas = [(layer, layer.metadata["sdata"]) for layer in layers if "sdata" in layer.metadata]
             if len(sdatas) > 1 and not all(sdatas[0][1] is sdata[1] for sdata in sdatas[1:]):
                 raise ValueError("Multiple different spatialdata object found in selected layers. One is required.")
@@ -100,6 +101,7 @@ class SpatialDataViewer:
 
     def _inherit_metadata(self, viewer: Viewer) -> None:
         # This function calls inherit_metadata by setting a default value for ref_layer.
+        layers = list(viewer.layers.selection)
         ref_layer = self._get_layer_for_unique_sdata(viewer)
         self.inherit_metadata(layers, ref_layer)
 
