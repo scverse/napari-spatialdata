@@ -122,6 +122,23 @@ class SpatialDataViewer:
         self.save_to_sdata(layer_selection)
 
     def save_to_sdata(self, layers: list[Layer]) -> None:
+        """
+        Add the current napari layer to the SpatialData object.
+
+        Notes
+        -----
+        Usage:
+
+        - you can invoke this function by pressing Shift+E;
+        - the selected layer (needs to be exactly one) can be saved at a time;
+        - if more than one SpatialData object is being shown with napari, before saving the layer you need to link it
+          to a layer with a SpatialData object. This can be done by selecting both layers and pressing Shift+L.
+
+        Limitations:
+
+        - for the moment, replacing existing or previously saved layers is not allowed.
+        """
+        # TODO: change the logic to match the new docstring
         for layer in layers:
             if not layer.metadata["name"] and layer.metadata["sdata"]:
                 sdata = layer.metadata["sdata"]
@@ -263,7 +280,7 @@ class SpatialDataViewer:
             xy,
             name=key,
             affine=affine,
-            size=2 * radii,
+            size=radii * 2,
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
