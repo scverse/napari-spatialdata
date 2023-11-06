@@ -64,16 +64,6 @@ class Interactive:
         else:
             raise ValueError(f"{coordinate_system} not present as coordinate system in any of the spatialdata objects")
 
-    def switch_coordinate_system(self, coordinate_system: str) -> None:
-        coordinate_systems = {cs for sdata in self._sdata for cs in sdata.coordinate_systems}
-        if coordinate_system not in coordinate_systems:
-            raise ValueError(f"{coordinate_system} not present as coordinate system in any of the spatialdata objects")
-        for index, cs in enumerate(coordinate_systems):
-            widget_item_text = self._sdata_widget.coordinate_system_widget.item(index).text()
-            if widget_item_text == cs:
-                widget_item = self._sdata_widget.coordinate_system_widget.item(index)
-                self._sdata_widget.coordinate_system_widget.setCurrentItem(widget_item)
-
     def __init__(self, sdata: SpatialData | list[SpatialData], headless: bool = False):
         viewer = napari.current_viewer()
         self._viewer = viewer if viewer else napari.Viewer()
