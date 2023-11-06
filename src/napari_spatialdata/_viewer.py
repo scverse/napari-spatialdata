@@ -17,6 +17,7 @@ from spatialdata.transformations import Identity
 
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
+    _get_metadata_adata,
     _get_transform,
     _swap_coordinates,
     get_duplicate_element_names,
@@ -29,6 +30,9 @@ if TYPE_CHECKING:
     from napari.layers import Layer
     from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
+
+POLYGON_THRESHOLD = 100
+POINT_THRESHOLD = 100000
 
 
 class SpatialDataViewer:
@@ -154,34 +158,53 @@ class SpatialDataViewer:
         if type(layer) == Points:
             layer.metadata["adata"] = AnnData(obs=model, obsm={"spatial": data})
 
-    def _inherit_metadata(self, viewer: Viewer) -> None:
-        layers = list(viewer.layers.selection)
-        self.inherit_metadata(layers)
+    def _get_layer_for_unique_sdata(self, viewer: Viewer) -> Layer:
+        # If there is only one sdata object across all the layers, any layer containing the sdata object will be the
+        # ref_layer. Otherwise, if multiple sdata object are available, the search will be restricted to the selected
+        # layers. In all the other cases, i.e. multipe sdata objects in the selected layers, or zero sdata objects,
+        # an exception will be raised.
+        # check all layers
+        sdatas = [(layer, layer.metadata["sdata"]) for layer in viewer.layers if "sdata" in layer.metadata]
+        if len(sdatas) < 1:
+            raise ValueError("No SpatialData layers found in the viewer. Layer cannot be linked to SpatialData object.")
+        # If more than 1 sdata object, check whether all are the same. If not check layer selection
+        if len(sdatas) > 1 and not all(sdatas[0][1] is sdata[1] for sdata in sdatas[1:]):
+            # check only the selected layers
+            layers = list(viewer.layers.selection)
+            sdatas = [(layer, layer.metadata["sdata"]) for layer in layers if "sdata" in layer.metadata]
+            if len(sdatas) > 1 and not all(sdatas[0][1] is sdata[1] for sdata in sdatas[1:]):
+                raise ValueError("Multiple different spatialdata object found in selected layers. One is required.")
+            if sdatas:
+                ref_layer = sdatas[0][0]
+            else:
+                raise ValueError("Multiple SpatialData objects, but no layer with sdata in layer selection.")
+        else:
+            ref_layer = sdatas[0][0]
+        return ref_layer
 
-    def inherit_metadata(self, layers: list[Layer]) -> None:
+    def _inherit_metadata(self, viewer: Viewer) -> None:
+        # This function calls inherit_metadata by setting a default value for ref_layer.
+        layers = list(viewer.layers.selection)
+        ref_layer = self._get_layer_for_unique_sdata(viewer)
+        self.inherit_metadata(layers, ref_layer)
+
+    def inherit_metadata(self, layers: list[Layer], ref_layer: Layer) -> None:
         """
         Inherit metadata from active layer.
 
         A new layer that is added will inherit from the layer that is active when its added, ensuring proper association
-        with a spatialdata object and coordinate space.
+        with a spatialdata object and coordinate system.
 
         Parameters
         ----------
         layers: list[Layer]
-            A list of napari layers of which only 1 should have a spatialdata object from which the other layers inherit
-            metadata.
+            A list of napari layers. Layers already containing a `SpatialData` object in the metadata will be ignored;
+            layers not containing it will inherit the metadata from the layer specified by the `ref_layer` argument.
+        ref_layer: Layer
+            The layer containing the `SpatialData` object in the metadata to which the layers will be linked
         """
-        # Layer.metadata.get would yield a default value which is not what we want.
-        sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
-
-        # If more than 1 sdata object, ensure all are the same.
-        if len(sdatas) > 1 and not all(sdatas[0] is sdata for sdata in sdatas[1:]):
-            raise ValueError("Multiple different spatialdata object found in selected layers. One is required.")
-
-        if len(sdatas) < 1:
-            raise ValueError("No Spatialdata objects associated with selected layers.")
-
-        ref_layer = next(layer for layer in layers if "sdata" in layer.metadata)
+        if not ref_layer.metadata.get("sdata"):
+            raise ValueError(f"{ref_layer} does not contain a SpatialData object in the metadata. Can't link layers.")
 
         for layer in (
             layer
@@ -234,6 +257,7 @@ class SpatialDataViewer:
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
         radii = df.radius.to_numpy()
+        adata = _get_metadata_adata(sdata, original_name)
 
         self.viewer.add_points(
             xy,
@@ -243,10 +267,8 @@ class SpatialDataViewer:
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[
-                    sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == original_name
-                ],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "adata": adata,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -272,11 +294,12 @@ class SpatialDataViewer:
             df = df[~df.index.duplicated(keep="first")]  # only keep the largest area
             df = df.sort_index()  # reset the index to the first order
 
-        simplify = len(df) > 100
+        simplify = len(df) > POLYGON_THRESHOLD
         polygons, indices = _get_polygons_properties(df, simplify)
 
         # this will only work for polygons and not for multipolygons
         polygons = _swap_coordinates(polygons)
+        adata = _get_metadata_adata(sdata, key)
 
         self.viewer.add_shapes(
             polygons,
@@ -285,8 +308,8 @@ class SpatialDataViewer:
             shape_type="polygon",
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"],
+                "adata": adata,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -302,6 +325,7 @@ class SpatialDataViewer:
 
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
+        adata = _get_metadata_adata(sdata, key)
 
         self.viewer.add_labels(
             rgb_labels,
@@ -309,8 +333,8 @@ class SpatialDataViewer:
             affine=affine,
             metadata={
                 "sdata": sdata,
-                "adata": sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key],
-                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"],
+                "adata": adata,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -324,7 +348,7 @@ class SpatialDataViewer:
 
         points = sdata.points[original_name].compute()
         affine = _get_transform(sdata.points[original_name], selected_cs)
-        if len(points) < 100000:
+        if len(points) < POINT_THRESHOLD:
             subsample = np.arange(len(points))
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
