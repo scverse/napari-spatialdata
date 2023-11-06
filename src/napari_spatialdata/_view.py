@@ -2,7 +2,6 @@ from typing import Any, FrozenSet, Optional, Sequence
 
 import napari
 import numpy as np
-import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
@@ -27,11 +26,6 @@ from napari_spatialdata._widgets import (
     CBarWidget,
     ComponentWidget,
     RangeSliderWidget,
-)
-from napari_spatialdata.utils._utils import (
-    NDArrayA,
-    _get_categorical,
-    _points_inside_triangles,
 )
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
@@ -213,7 +207,6 @@ class QtAdataViewWidget(QWidget):
         self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
         self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
 
-        self.viewer.bind_key("Shift-E", self.export)
         self.model.events.adata.connect(self._on_layer_update)
 
     def _on_layer_update(self, event: Optional[Any] = None) -> None:
@@ -268,43 +261,6 @@ class QtAdataViewWidget(QWidget):
         if len(adata_layers):
             return adata_layers
         return [None]
-
-    def export(self, _: napari.viewer.Viewer) -> None:
-        """Export shapes into :class:`anndata.AnnData` object."""
-        for layer in self.viewer.layers:
-            if not isinstance(layer, napari.layers.Shapes) or layer not in self.viewer.layers.selection:
-                continue
-            if not len(layer.data):
-                logger.warning(f"Shape layer `{layer.name}` has no visible shapes.")
-                continue
-
-            key = f"{layer.name}_{self.model.layer.name}"  # type:ignore[union-attr]
-
-            logger.info(f"Adding `adata.obs[{key!r}]`\n       `adata.uns[{key!r}]['mesh']`.")
-            self._save_shapes(layer, key=key)
-            self._update_obs_items(key)
-
-    def _save_shapes(self, layer: napari.layers.Shapes, key: str) -> None:
-        shape_list = layer._data_view
-        triangles = shape_list._mesh.vertices[shape_list._mesh.displayed_triangles]
-
-        # TODO(giovp): check if view and save accordingly
-        points_mask: NDArrayA = _points_inside_triangles(self.model.coordinates[:, 1:], triangles)
-
-        if self._model._adata is not None:
-            logger.info("Saving layer shapes.")
-
-            self._model._adata.obs[key] = pd.Categorical(points_mask)
-            self._model._adata.uns[key] = {"meshes": layer.data.copy()}
-
-    def _update_obs_items(self, key: str) -> None:
-        self.obs_widget.addItems(key)
-        if key in self.layernames:
-            # update already present layer
-            layer = self.viewer.layers[key]
-            layer.face_color = _get_categorical(self.model.adata, key)
-            layer._update_thumbnail()
-            layer.refresh_colors()
 
     @property
     def viewer(self) -> napari.Viewer:
