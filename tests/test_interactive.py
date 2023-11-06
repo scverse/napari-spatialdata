@@ -15,6 +15,7 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
 
     def test_plot_can_add_element_multiple(self, sdata_blobs: SpatialData):
         i = Interactive(sdata=sdata_blobs, headless=True)
+
         i.add_element(element="blobs_image", element_coordinate_system="global")
         i.add_element(element="blobs_labels", element_coordinate_system="global")
         i.add_element(element="blobs_circles", element_coordinate_system="global")
