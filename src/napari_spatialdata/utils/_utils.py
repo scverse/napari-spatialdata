@@ -371,6 +371,21 @@ def get_elements_meta_mapping(
     return elements, name_to_add
 
 
+def _get_metadata_adata(sdata: SpatialData, key: str) -> None | AnnData:
+    """
+    Retrieve AnnData to be used in layer metadata.
+
+    Get the AnnData table in the SpatialData object based on the element
+    """
+    if sdata.table:
+        adata = sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
+        if adata.shape[0] == 0:
+            return None
+    else:
+        return None
+    return adata
+
+
 def get_itemindex_by_text(
     list_widget: CoordinateSystemWidget | ElementWidget, item_text: str
 ) -> None | QListWidgetItem:
