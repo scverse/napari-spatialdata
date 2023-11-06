@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+import pytest
 from anndata import AnnData
 from dask.array.random import randint
 from dask.dataframe import from_dask_array
@@ -178,6 +179,7 @@ def test_multiple_sdata(qtbot, make_napari_viewer: Any):
     set_transformation(sdata_mock.points["extra"], {"global": Identity()}, set_all=True)
 
     viewer = make_napari_viewer()
+    # qtbot.addWidget(viewer.window._qt_viewer)
     widget = SdataWidget(viewer, EventedList([sdata, sdata_mock]))
 
     # Click on `global` coordinate system
@@ -207,4 +209,21 @@ def test_multiple_sdata(qtbot, make_napari_viewer: Any):
     assert all(element_name.endswith("1") for element_name in list(widget.elements_widget._elements.keys()))
 
     widget._onClick(list(sdata_mock.labels.keys())[0] + "_1")
+    assert viewer.layers[-1].metadata["sdata"] is sdata_mock
+
+    # test case of having empty layer selected and multiple sdata objects in viewer
+    viewer.add_shapes()
+
+    with pytest.raises(ValueError):
+        widget.viewer_model._inherit_metadata(viewer)
+        assert not viewer.layers[-1].metadata
+
+    # test case of having multiple sdata objects in layer selection
+    viewer.layers.select_all()
+    with pytest.raises(ValueError):
+        widget.viewer_model._inherit_metadata(viewer)
+        assert not viewer.layers[-1].metadata
+
+    viewer.layers.selection = viewer.layers[-2:]
+    widget.viewer_model._inherit_metadata(viewer)
     assert viewer.layers[-1].metadata["sdata"] is sdata_mock
