@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from qtpy.QtCore import QPoint
     from qtpy.QtWidgets import QListWidget
 
+import os
+
 import napari
 from loguru import logger
 from PIL import Image
@@ -81,6 +83,21 @@ def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> NDArray
     viewer.close()
 
     return interactive_screenshot
+
+
+def create_generated_screenshots_folder(notebook_name: str, notebook_cell_id: str) -> str:
+    main_folder = os.getcwd()  # Get the current working directory
+    tests_folder = os.path.join(main_folder, "tests")
+    screenshots_folder = os.path.join(tests_folder, "generated_screenshots")
+    notebook_folder = os.path.join(screenshots_folder, notebook_name)
+    cell_folder = os.path.join(notebook_folder, notebook_cell_id)
+
+    os.makedirs(tests_folder, exist_ok=True)
+    os.makedirs(screenshots_folder, exist_ok=True)
+    os.makedirs(notebook_folder, exist_ok=True)
+    os.makedirs(cell_folder, exist_ok=True)
+
+    return cell_folder
 
 
 def save_image(image_np: NDArrayA, file_path: str) -> None:
