@@ -9,7 +9,6 @@ from geopandas import GeoDataFrame
 from loguru import logger
 from napari import Viewer
 from napari.layers import Image, Labels, Points, Shapes
-from napari.layers.base import ActionType
 from napari.utils.notifications import show_info
 from shapely import Polygon
 from spatialdata.models import PointsModel, ShapesModel
@@ -94,20 +93,20 @@ class SpatialDataViewer:
     def _update_cache_indices(self, event: Event) -> None:
         del event.value
         # This needs to be changed when we switch to napari 0.4.19
-        if event.action == ActionType.REMOVE or (type(event.source) != Points and event.action == ActionType.CHANGE):
+        if event.action == "remove" or (type(event.source) != Points and event.action == "change"):
             # We overwrite the indices so they correspond to indices in the dataframe
             napari_indices = sorted(event.data_indices, reverse=True)
             event.indices = tuple(event.source.metadata["indices"][i] for i in napari_indices)
-            if event.action == ActionType.REMOVE:
+            if event.action == "remove":
                 for i in napari_indices:
                     del event.source.metadata["indices"][i]
-        elif type(event.source) == Points and event.action == ActionType.CHANGE:
+        elif type(event.source) == Points and event.action == "change":
             logger.warning(
                 "Moving events of Points in napari can't be cached due to a bug in napari 0.4.18. This will"
                 "be available in napari 0.4.19"
             )
             return
-        if event.action == ActionType.ADD:
+        if event.action == "add":
             # we need to add based on the indices of the dataframe, which can be subsampled in case of points
             n_indices = event.source.metadata["_n_indices"]
             event.indices = tuple(n_indices + i for i in range(len(event.data_indices)))
