@@ -146,13 +146,13 @@ class SpatialDataViewer:
                 swap_data: None | npt.ArrayLike
                 if type(layer) == Points:
                     if len(layer.data) == 0:
-                        raise ValueError("Cannot save a points layer with no points")
+                        raise ValueError("Cannot export a points layer with no points")
                     swap_data = np.fliplr(layer.data)
                     model = PointsModel.parse(swap_data, transformations=transformation)
                     sdata.points[layer.name] = model
                 if type(layer) == Shapes:
                     if len(layer.data) == 0:
-                        raise ValueError("Cannot save a shapes layer with no shapes")
+                        raise ValueError("Cannot export a shapes layer with no shapes")
                     polygons: list[Polygon] = [Polygon(i) for i in _swap_coordinates(layer.data)]
                     gdf = GeoDataFrame({"geometry": polygons})
                     model = ShapesModel.parse(gdf, transformations=transformation)
@@ -166,8 +166,10 @@ class SpatialDataViewer:
                 self._update_metadata(layer, model, swap_data)
                 layer.events.data.connect(self._update_cache_indices)
                 layer.events.name.connect(self._validate_name)
+            elif layer.metadata["name"]:
+                raise NotImplementedError("updating existing elements in place will soon be supported")
             else:
-                raise NotImplementedError("updating existing elements will soon be supported")
+                raise OSError("No associated SpatialData object to export to.")
 
     def _update_metadata(self, layer: Layer, model: DaskDataFrame, data: None | npt.ArrayLike = None) -> None:
         layer.metadata["name"] = layer.name
