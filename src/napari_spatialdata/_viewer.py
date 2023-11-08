@@ -145,6 +145,8 @@ class SpatialDataViewer:
                 transformation = {coordinate_system: Identity()}
                 swap_data: None | npt.ArrayLike
                 if type(layer) == Points:
+                    if len(layer.data) == 0:
+                        raise ValueError("Cannot save a points layer with no points")
                     swap_data = np.fliplr(layer.data)
                     model = PointsModel.parse(swap_data, transformations=transformation)
                     sdata.points[layer.name] = model
