@@ -8,7 +8,21 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [0.2.9] - TBD
+## [0.3.1] - TBD
+
+## [0.3.0] - TBD
+
+### Added
+
+- New APIs for changing coordinate systems #169
+- New APIs for adding single elements #170
+- Improved code to link new layers to layers with a `SpatialData` object #173
+
+### Fixed
+
+- Enabled saving annotations #168
+- Added safeguard when table is None #177 @aeisenbarth
+- Fix plotting annotations when changing element #175
 
 ## [0.2.8] - 2023-10-30
 
