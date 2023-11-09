@@ -65,6 +65,7 @@ class SdataWidget(QWidget):
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
+        self.viewer_model.layer_saved.connect(self.elements_widget._onItemChange)
         self.coordinate_system_widget.currentItemChanged.connect(self._update_layers_visibility)
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.viewer_model._affine_transform_layers(item.text())
