@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning][].
 
 ## [0.3.1] - TBD
 
-## [0.3.0] - TBD
+## [0.3.0] - 2023-11-09
 
 ### Added
 
@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning][].
 - Enabled saving annotations #168
 - Added safeguard when table is None #177 @aeisenbarth
 - Fix plotting annotations when changing element #175
+- Fixed installation requirements #185 @goanpeca
 
 ## [0.2.8] - 2023-10-30
 
