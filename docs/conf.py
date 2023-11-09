@@ -15,6 +15,7 @@ sys.path.insert(0, str(HERE / "extensions"))
 
 import napari_spatialdata  # noqa: E402
 
+# Provides better error message in case of some doc build fails
 _ = napari_spatialdata  # noqa: F401
 print(napari_spatialdata.__file__)  # noqa: T201
 
