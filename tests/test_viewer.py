@@ -7,7 +7,7 @@ from napari_spatialdata.utils._test_utils import click_list_widget_item, get_cen
 from napari_spatialdata.utils._utils import _get_transform
 from qtpy.QtCore import Qt
 from spatialdata.datasets import blobs
-from spatialdata.transformations import Translation, set_transformation
+from spatialdata.transformations import Scale, Translation, set_transformation
 
 sdata = blobs(extra_coord_system="space")
 
@@ -101,3 +101,88 @@ def test_adata_metadata(qtbot, make_napari_viewer: any):
     widget._onClick("blobs_polygons")
     assert not viewer.layers[-1].metadata["adata"]
     assert not view_widget.obs_widget.item(0)
+
+
+def test_save_layer(qtbot, make_napari_viewer: any):
+    sdata = blobs()
+    first_shapes = list(sdata.shapes.keys())[0]
+    # I transform to a different coordinate system to reproduce and test the bug described here:
+    # https://github.com/scverse/napari-spatialdata/pull/168#issuecomment-1803080280
+    set_transformation(
+        sdata.shapes[first_shapes], transformation=Scale([2, 2], axes=("y", "x")), to_coordinate_system="global"
+    )
+
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, EventedList([sdata]))
+
+    # Click on `global` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    # Add an image layer
+    widget._onClick(first_shapes)
+
+    # --- test the shapes layer ---
+    # Create a new shapes layer
+    viewer.add_shapes()
+    shapes_layer = viewer.layers[-1]
+
+    with pytest.raises(ValueError, match="Cannot export a shapes element with no shapes"):
+        widget.viewer_model._save_to_sdata(viewer)
+
+    # add a polygon to the shapes layer
+    shapes_layer.add([[[0, 0], [0, 1], [1, 1], [1, 0]]])
+
+    # save the shapes layer to the sdata
+    widget.viewer_model._save_to_sdata(viewer)
+    assert "Shapes" in sdata.shapes
+
+    # --- test the points layer ---
+    viewer.add_points()
+    points_layer = viewer.layers[-1]
+
+    with pytest.raises(ValueError, match="Cannot export a points element with no points"):
+        widget.viewer_model._save_to_sdata(viewer)
+
+    # add a point to the points layer
+    points_layer.add([0, 0])
+
+    # save the points layer to the sdata
+    widget.viewer_model._save_to_sdata(viewer)
+    assert "Points" in sdata.points
+
+    # --- check that in-place update is not allowed ---
+    # check that we can't overwrite the shapes layer (for the time being)
+    with pytest.raises(NotImplementedError, match="updating existing elements in-place will soon be supported"):
+        widget.viewer_model._save_to_sdata(viewer)
+
+    # --- check the shapes and points layers got correctly saved ---
+    # check that the elements widget got update with the new shapes and points elements
+    n = len(widget.elements_widget)
+    # I would have expected Shapes to be in position -2 and Points in position -1, but we have the following order
+    # because elements of the same type are grouped together
+    assert widget.elements_widget.item(n - 1).text() == "Shapes"
+    assert widget.elements_widget.item(n - 5).text() == "Points"
+
+    # add a new layer to the viewer with the newly saved shapes element
+    widget._onClick("Shapes")
+    new_shapes_layer = viewer.layers[-1]
+    assert new_shapes_layer.name == "Shapes [1]"
+    # I added this assert below to test against this bug here:
+    # https://github.com/scverse/napari-spatialdata/pull/168#issuecomment-1803080280
+    # which has been fixed by adding data_to_world() in save_to_sata().
+    # In theory one would expect the following to fail if data_to_world() is removed from the lambda function called in
+    # save_to_sdata(), but this doesn't happen, so this test is not covering that case.
+    # In case the bug reappears let's try to make this test cover it, but for the moment let's not worry about it.
+    assert np.array_equal(new_shapes_layer.data, [np.array([[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]])])
+
+    # note that the added data doesn't close the polygon, this is ok
+    assert shapes_layer.name == "Shapes"
+    assert np.array_equal(shapes_layer.data, [np.array([[0, 0], [0, 1], [1, 1], [1, 0]])])
+
+    # add a new layer to the viewer with the newly saved points element
+    widget._onClick("Points")
+    new_points_layer = viewer.layers[-1]
+    assert new_points_layer.name == "Points [1]"
+    assert np.array_equal(new_points_layer.data, [np.array([0, 0])])
+    pass

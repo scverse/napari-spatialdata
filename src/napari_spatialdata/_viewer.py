@@ -180,8 +180,7 @@ class SpatialDataViewer(QObject):
                 if len(selected.data) == 0:
                     raise ValueError("Cannot export a shapes element with no shapes")
                 polygons: list[Polygon] = [
-                    Polygon(i)
-                    for i in _transform_coordinates(selected.data, f=lambda x: selected.data_to_world(x)[::-1])
+                    Polygon(i) for i in _transform_coordinates(selected.data, f=lambda x: x[::-1])
                 ]
                 gdf = GeoDataFrame({"geometry": polygons})
                 model = ShapesModel.parse(gdf, transformations=transformation)
@@ -198,7 +197,7 @@ class SpatialDataViewer(QObject):
             self.layer_saved.emit(coordinate_system)
             show_info("Layer added to the SpatialData object")
         else:
-            raise NotImplementedError("updating existing elements in place will soon be supported")
+            raise NotImplementedError("updating existing elements in-place will soon be supported")
 
     def _update_metadata(self, layer: Layer, model: DaskDataFrame, data: None | npt.ArrayLike = None) -> None:
         layer.metadata["name"] = layer.name
