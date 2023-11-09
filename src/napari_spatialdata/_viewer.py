@@ -177,8 +177,7 @@ class SpatialDataViewer:
                     raise ValueError("Cannot export a shapes element with no shapes")
                 polygons: list[Polygon] = [
                     Polygon(i)
-                    # for i in _transform_coordinates(selected.data, f=lambda x: selected.data_to_world(x)[::-1])
-                    for i in _transform_coordinates(selected.data, f=lambda x: x[::-1])
+                    for i in _transform_coordinates(selected.data, f=lambda x: selected.data_to_world(x)[::-1])
                 ]
                 gdf = GeoDataFrame({"geometry": polygons})
                 model = ShapesModel.parse(gdf, transformations=transformation)
