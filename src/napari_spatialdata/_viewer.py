@@ -10,6 +10,7 @@ from loguru import logger
 from napari import Viewer
 from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.notifications import show_info
+from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
 from spatialdata.models import PointsModel, ShapesModel
 from spatialdata.transformations import Identity
@@ -34,8 +35,11 @@ POLYGON_THRESHOLD = 100
 POINT_THRESHOLD = 100000
 
 
-class SpatialDataViewer:
+class SpatialDataViewer(QObject):
+    layer_saved = Signal(object)
+
     def __init__(self, viewer: Viewer, sdata: EventedList) -> None:
+        super().__init__()
         self.viewer = viewer
         self.sdata = sdata
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
@@ -191,7 +195,7 @@ class SpatialDataViewer:
             self._update_metadata(selected, model, swap_data)
             selected.events.data.connect(self._update_cache_indices)
             selected.events.name.connect(self._validate_name)
-            # TODO: call sdata_widget.coordinate_system_widget._select_coord_sys(coordinate_system) to update the viewer
+            self.layer_saved.emit(coordinate_system)
             show_info("Layer added to the SpatialData object")
         else:
             raise NotImplementedError("updating existing elements in place will soon be supported")
