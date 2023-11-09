@@ -180,8 +180,8 @@ def _min_max_norm(vec: spmatrix | NDArrayA) -> NDArrayA:
     )
 
 
-def _swap_coordinates(data: list[Any]) -> list[Any]:
-    return [[(y, x) for x, y in sublist] for sublist in data]
+def _transform_coordinates(data: list[Any], f: Callable[..., Any]) -> list[Any]:
+    return [[f(xy) for xy in sublist] for sublist in data]
 
 
 def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | NDArrayA:

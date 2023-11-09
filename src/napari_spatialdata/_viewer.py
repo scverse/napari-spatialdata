@@ -18,7 +18,7 @@ from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _get_metadata_adata,
     _get_transform,
-    _swap_coordinates,
+    _transform_coordinates,
     get_duplicate_element_names,
 )
 from napari_spatialdata.utils._viewer_utils import _get_polygons_properties
@@ -128,48 +128,74 @@ class SpatialDataViewer:
         -----
         Usage:
 
-        - you can invoke this function by pressing Shift+E;
-        - the selected layer (needs to be exactly one) can be saved at a time;
-        - if more than one SpatialData object is being shown with napari, before saving the layer you need to link it
-          to a layer with a SpatialData object. This can be done by selecting both layers and pressing Shift+L.
+            - you can invoke this function by pressing Shift+E;
+            - the selected layer (needs to be exactly one) will be saved;
+            - if more than one SpatialData object is being shown with napari, before saving the layer you need to link
+              it to a layer with a SpatialData object. This can be done by selecting both layers and pressing Shift+L.
 
         Limitations:
 
-        - for the moment, replacing existing or previously saved layers is not allowed.
+            - with the current implementation replacing existing or previously saved layers is not allowed.
         """
         # TODO: change the logic to match the new docstring
-        for layer in layers:
-            if not layer.metadata["name"] and layer.metadata["sdata"]:
-                sdata = layer.metadata["sdata"]
-                coordinate_system = layer.metadata["_current_cs"]
-                transformation = {coordinate_system: Identity()}
-                swap_data: None | npt.ArrayLike
-                if type(layer) == Points:
-                    if len(layer.data) == 0:
-                        raise ValueError("Cannot export a points layer with no points")
-                    swap_data = np.fliplr(layer.data)
-                    model = PointsModel.parse(swap_data, transformations=transformation)
-                    sdata.points[layer.name] = model
-                if type(layer) == Shapes:
-                    if len(layer.data) == 0:
-                        raise ValueError("Cannot export a shapes layer with no shapes")
-                    polygons: list[Polygon] = [Polygon(i) for i in _swap_coordinates(layer.data)]
-                    gdf = GeoDataFrame({"geometry": polygons})
-                    model = ShapesModel.parse(gdf, transformations=transformation)
-                    sdata.shapes[layer.name] = model
-                    swap_data = None
-                if type(layer) == Image or type(layer) == Labels:
-                    raise NotImplementedError
 
-                self.layer_names.add(layer.name)
-                self._layer_event_caches[layer.name] = []
-                self._update_metadata(layer, model, swap_data)
-                layer.events.data.connect(self._update_cache_indices)
-                layer.events.name.connect(self._validate_name)
-            elif layer.metadata["name"]:
-                raise NotImplementedError("updating existing elements in place will soon be supported")
-            else:
-                raise OSError("No associated SpatialData object to export to.")
+        selected_layers = self.viewer.layers.selection
+        if len(selected_layers) != 1:
+            raise ValueError("Only one layer can be saved at a time.")
+        selected = list(selected_layers)[0]
+        if "sdata" not in selected.metadata:
+            sdatas = [(layer, layer.metadata["sdata"]) for layer in self.viewer.layers if "sdata" in layer.metadata]
+            if len(sdatas) < 1:
+                raise ValueError(
+                    "No SpatialData layers found in the viewer. Layer cannot be linked to SpatialData object."
+                )
+            if len(sdatas) > 1 and not all(sdatas[0][1] is sdata[1] for sdata in sdatas[1:]):
+                raise ValueError(
+                    "Multiple different spatialdata object found in the viewer. Please link the layer to "
+                    "one of them by selecting both the layer to save and the layer containing the SpatialData object "
+                    "and then pressing Shift+L. Then select the layer to save and press Shift+E again."
+                )
+            # link the layer to the only sdata object
+            self._inherit_metadata(self.viewer)
+        assert selected.metadata["sdata"]
+
+        # now we can save the layer since it is linked to a SpatialData object
+        if not selected.metadata["name"]:
+            sdata = selected.metadata["sdata"]
+            coordinate_system = selected.metadata["_current_cs"]
+            transformation = {coordinate_system: Identity()}
+            swap_data: None | npt.ArrayLike
+            if type(selected) == Points:
+                if len(selected.data) == 0:
+                    raise ValueError("Cannot export a points element with no points")
+                transformed_data = np.array([selected.data_to_world(xy) for xy in selected.data])
+                swap_data = np.fliplr(transformed_data)
+                model = PointsModel.parse(swap_data, transformations=transformation)
+                sdata.points[selected.name] = model
+            if type(selected) == Shapes:
+                if len(selected.data) == 0:
+                    raise ValueError("Cannot export a shapes element with no shapes")
+                polygons: list[Polygon] = [
+                    Polygon(i)
+                    # for i in _transform_coordinates(selected.data, f=lambda x: selected.data_to_world(x)[::-1])
+                    for i in _transform_coordinates(selected.data, f=lambda x: x[::-1])
+                ]
+                gdf = GeoDataFrame({"geometry": polygons})
+                model = ShapesModel.parse(gdf, transformations=transformation)
+                sdata.shapes[selected.name] = model
+                swap_data = None
+            if type(selected) == Image or type(selected) == Labels:
+                raise NotImplementedError
+
+            self.layer_names.add(selected.name)
+            self._layer_event_caches[selected.name] = []
+            self._update_metadata(selected, model, swap_data)
+            selected.events.data.connect(self._update_cache_indices)
+            selected.events.name.connect(self._validate_name)
+            # TODO: call sdata_widget.coordinate_system_widget._select_coord_sys(coordinate_system) to update the viewer
+            show_info("Layer added to the SpatialData object")
+        else:
+            raise NotImplementedError("updating existing elements in place will soon be supported")
 
     def _update_metadata(self, layer: Layer, model: DaskDataFrame, data: None | npt.ArrayLike = None) -> None:
         layer.metadata["name"] = layer.name
@@ -202,13 +228,13 @@ class SpatialDataViewer:
             ref_layer = sdatas[0][0]
         return ref_layer
 
-    def _inherit_metadata(self, viewer: Viewer) -> None:
+    def _inherit_metadata(self, viewer: Viewer, show_tooltip: bool = False) -> None:
         # This function calls inherit_metadata by setting a default value for ref_layer.
         layers = list(viewer.layers.selection)
         ref_layer = self._get_layer_for_unique_sdata(viewer)
-        self.inherit_metadata(layers, ref_layer)
+        self.inherit_metadata(layers, ref_layer, show_tooltip=show_tooltip)
 
-    def inherit_metadata(self, layers: list[Layer], ref_layer: Layer) -> None:
+    def inherit_metadata(self, layers: list[Layer], ref_layer: Layer, show_tooltip: bool = True) -> None:
         """
         Inherit metadata from active layer.
 
@@ -242,7 +268,7 @@ class SpatialDataViewer:
                 layer.metadata["_n_indices"] = None
                 layer.metadata["indices"] = None
 
-        show_info(f"Layer(s) without associated SpatialData object inherited SpatialData metadata of {ref_layer}")
+        show_info(f"Layer(s) inherited info from {ref_layer}")
 
     def add_sdata_image(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
@@ -318,7 +344,7 @@ class SpatialDataViewer:
         polygons, indices = _get_polygons_properties(df, simplify)
 
         # this will only work for polygons and not for multipolygons
-        polygons = _swap_coordinates(polygons)
+        polygons = _transform_coordinates(polygons, f=lambda x: x[::-1])
         adata = _get_metadata_adata(sdata, key)
 
         self.viewer.add_shapes(
