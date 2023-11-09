@@ -1,3 +1,5 @@
+import re
+
 import numpy as np
 import pytest
 from napari.utils.events import EventedList
@@ -168,7 +170,7 @@ def test_save_layer(qtbot, make_napari_viewer: any):
     widget._onClick("Shapes")
     new_shapes_layer = viewer.layers[-1]
     assert new_shapes_layer.name == "Shapes [1]"
-    # I added this assert below to test against this bug here:
+    # I added the assert below to test against this bug here:
     # https://github.com/scverse/napari-spatialdata/pull/168#issuecomment-1803080280
     # which has been fixed by adding data_to_world() in save_to_sata().
     # In theory one would expect the following to fail if data_to_world() is removed from the lambda function called in
@@ -185,4 +187,62 @@ def test_save_layer(qtbot, make_napari_viewer: any):
     new_points_layer = viewer.layers[-1]
     assert new_points_layer.name == "Points [1]"
     assert np.array_equal(new_points_layer.data, [np.array([0, 0])])
-    pass
+
+
+def test_save_layer_no_sdata(qtbot, make_napari_viewer: any):
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, EventedList([]))
+
+    viewer.add_shapes()
+    shapes_layer = viewer.layers[-1]
+    shapes_layer.add([[[0, 0], [0, 1], [1, 1], [1, 0]]])
+
+    with pytest.raises(
+        ValueError, match="No SpatialData layers found in the viewer. Layer cannot be linked to SpatialData object."
+    ):
+        widget.viewer_model._save_to_sdata(viewer)
+
+
+def test_save_layer_multiple_selection(qtbot, make_napari_viewer: any):
+    sdata2 = blobs()
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, EventedList([sdata, sdata2]))
+
+    # Click on `global` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    widget._onClick("blobs_image_0")
+    widget._onClick("blobs_image_1")
+
+    viewer.layers.selection.update({viewer.layers[0], viewer.layers[1]})
+
+    viewer.add_shapes()
+    shapes_layer = viewer.layers[-1]
+    shapes_layer.add([[[0, 0], [0, 1], [1, 1], [1, 0]]])
+
+    with pytest.raises(
+        ValueError,
+        match=(
+            re.escape(
+                "Multiple different spatialdata object found in the viewer. Please link the layer to one of them by "
+                "selecting both the layer to save and the layer containing the SpatialData object and then pressing "
+                "Shift+L. Then select the layer to save and press Shift+E again."
+            )
+        ),
+    ):
+        widget.viewer_model._save_to_sdata(viewer)
+
+    # select the first image layer and the shapes layer and link them
+    viewer.layers.selection.update({viewer.layers[0], viewer.layers[2]})
+    qtbot.keyPress(viewer.window._qt_viewer, Qt.Key_L, Qt.ShiftModifier)
+
+    with pytest.raises(ValueError, match="Only one layer can be saved at a time."):
+        widget.viewer_model._save_to_sdata(viewer)
+
+    # select the layer to save
+    viewer.layers.selection = {viewer.layers[2]}
+    # let's actually try the shortcut
+    qtbot.keyPress(viewer.window._qt_viewer, Qt.Key_E, Qt.ShiftModifier)
+    assert "Shapes" not in sdata2.shapes
+    assert "Shapes" in sdata.shapes
