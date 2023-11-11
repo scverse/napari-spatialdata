@@ -35,6 +35,11 @@ pip install napari-spatialdata
 
 You can find more details on this in the [installation instructions](https://spatialdata.scverse.org/en/latest/installation.html).
 
+## Using napari-spatialdata as default zarr reader
+
+If you would like to use the plugin as the default zarr reader, in napari please go to `File` -> `Preferences`
+-> `Plugins` and follow the instructions under `File extension readers`.
+
 ## Development Version
 
 You can install `napari-spatialdata` from Github with:
