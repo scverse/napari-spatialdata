@@ -304,79 +304,10 @@ class QtAdataAnnotationWidget(QWidget):
             self.quit_button_widget.setStyleSheet("background-color: red")
             self.quit_button_widget.setFixedSize(QSize(100, 25))
             self.layout().addWidget(self.quit_button_widget, 0, 2, 1, 1, Qt.AlignRight)
-
-        # Matplotlib
-
-        # self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
-        # self.layout().addWidget(self.matplotlib_widget, 1, 0, 1, 3)
-
-        # self.x_widget = AxisWidgets(self.model, "X-axis")
-        # self.layout().addWidget(self.x_widget, 2, 0, 6, 1)
-
-        # self.y_widget = AxisWidgets(self.model, "Y-axis")
-        # self.layout().addWidget(self.y_widget, 2, 1, 6, 1)
-
-        # self.color_widget = AxisWidgets(self.model, "Color", True)
-        # self.layout().addWidget(self.color_widget, 2, 2, 6, 1)
-
-        # self.plot_button_widget = QPushButton("Plot")
-        # self.plot_button_widget.clicked.connect(
-        #     lambda: self.matplotlib_widget._onClick(
-        #         self.x_widget.widget.data,
-        #         self.y_widget.widget.data,
-        #         self.color_widget.widget.data,  # type:ignore[arg-type]
-        #         self.x_widget.getFormattedLabel(),
-        #         self.y_widget.getFormattedLabel(),
-        #         self.color_widget.getFormattedLabel(),
-        #     )
-        # )
-
-        # self.export_button_widget = QPushButton("Export")
-        # self.export_button_widget.clicked.connect(self.export)
-
-        # self.layout().addWidget(self.plot_button_widget, 8, 0, 1, 2)
-        # self.layout().addWidget(self.export_button_widget, 8, 2, 1, 2)
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
 
         self.model.events.adata.connect(self._on_selection)
-
-    def export(self) -> None:
-        """Export shapes."""
-        if (self.matplotlib_widget.selector) is None or (self.matplotlib_widget.selector.exported_data is None):
-            raise ValueError("Data points haven't been selected from the matplotlib visualisation.")
-
-        self.matplotlib_widget.selector.export(self.model.adata)
-
-    def _on_selection(self, event: Optional[Any] = None) -> None:
-        self.x_widget.widget.clear()
-        self.y_widget.widget.clear()
-        self.color_widget.widget.clear()
-
-        self.x_widget.widget._onChange()
-        self.x_widget.component_widget._onChange()
-        self.y_widget.widget._onChange()
-        self.y_widget.component_widget._onChange()
-        self.color_widget.widget._onChange()
-        self.color_widget.component_widget._onChange()
-
-    def _select_layer(self) -> None:
-        """Napari layers."""
-        layer = self._viewer.layers.selection.active
-
-        self.model.layer = layer
-        if not hasattr(layer, "metadata") or not isinstance(layer.metadata.get("adata", None), AnnData):
-            if hasattr(self, "x_widget"):
-                self.x_widget.clear()
-                self.y_widget.clear()
-                self.color_widget.clear()
-            return
-
-        # if layer is not None and "adata" in layer.metadata:
-        self.model.adata = layer.metadata["adata"]
-
-    def screenshot(self) -> Any:
-        return QImg2array(self.grab().toImage())
 
     @property
     def viewer(self) -> napari.Viewer:
