@@ -38,7 +38,7 @@ class MainWindow(QWidget):
         tree_view.setColumnWidth(4, 50)
 
         tree_view.setFixedWidth(400)
-        self.addGroup(model, tree_view, color="white", name="undefined", shape="")
+        self.addGroup(model, tree_view, color="white", name="undefined", shape="Polygon")
 
         layout.addWidget(tree_view)
 

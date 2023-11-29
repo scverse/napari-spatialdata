@@ -285,36 +285,12 @@ class QtAdataAnnotationWidget(QWidget):
     def __init__(self, input: Viewer):
         super().__init__()
 
-        self._model = ImageModel()
-
         self.setLayout(QGridLayout())
 
-        if isinstance(input, Viewer):
-            self._viewer = input
-            self._select_layer()
-            self._viewer.layers.selection.events.changed.connect(self._select_layer)
-            self._viewer.layers.selection.events.changed.connect(self._on_selection)
-
-        elif isinstance(input, AnnData):
-            self._viewer = None
-            self.model.adata = input
-            self.setStyleSheet(get_stylesheet("dark"))
-            self.quit_button_widget = QPushButton("Close")
-            self.quit_button_widget.clicked.connect(self.close)
-            self.quit_button_widget.setStyleSheet("background-color: red")
-            self.quit_button_widget.setFixedSize(QSize(100, 25))
-            self.layout().addWidget(self.quit_button_widget, 0, 2, 1, 1, Qt.AlignRight)
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
-
-        self.model.events.adata.connect(self._on_selection)
 
     @property
     def viewer(self) -> napari.Viewer:
         """:mod:`napari` viewer."""
         return self._viewer
-
-    @property
-    def model(self) -> ImageModel:
-        """:mod:`napari` viewer."""
-        return self._model
