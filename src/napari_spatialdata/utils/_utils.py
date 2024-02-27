@@ -150,7 +150,7 @@ def _get_categorical(
 
 
 def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str, NDArrayA]:
-    if not is_categorical_dtype(clusters):
+    if clusters is not None and isinstance(clusters.dtype, pd.CategoricalDtype):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
     coords = coords[:, 1:]
     df = pd.DataFrame(coords)
