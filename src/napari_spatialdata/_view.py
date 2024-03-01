@@ -17,6 +17,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from spatialdata._core.query.relational_query import _get_element_annotators
 
 from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata._model import ImageModel
@@ -152,6 +153,14 @@ class QtAdataViewWidget(QWidget):
 
         self.setLayout(QVBoxLayout())
 
+        # Names of tables annotating respective layer.
+        table_label = QLabel("Tables annotating layer:")
+        self.table_name_widget = QComboBox()
+        if (table_names := self.model.table_names) is not None:
+            self.table_name_widget.addItems(table_names)
+        self.layout().addWidget(table_label)
+        self.layout().addWidget(self.table_name_widget)
+
         # obs
         obs_label = QLabel("Observations:")
         obs_label.setToolTip("Keys in `adata.obs` containing cell observations.")
@@ -213,6 +222,8 @@ class QtAdataViewWidget(QWidget):
         """When the model updates the selected layer, update the relevant widgets."""
         logger.info("Updating layer.")
 
+        self.table_name_widget.clear()
+        self.table_name_widget.addItems(self._get_element_annotators(event.sources[0]))
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
@@ -261,6 +272,12 @@ class QtAdataViewWidget(QWidget):
         if len(adata_layers):
             return adata_layers
         return [None]
+
+    def _get_element_annotators(self, source: ImageModel) -> list[str] | None:
+        layer = source._layer
+        if sdata := layer.metadata.get("sdata"):
+            return list(_get_element_annotators(sdata, layer.metadata["name"]))
+        return None
 
     @property
     def viewer(self) -> napari.Viewer:
