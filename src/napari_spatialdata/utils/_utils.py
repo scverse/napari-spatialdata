@@ -26,7 +26,6 @@ from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
 from spatialdata import SpatialData
-from spatialdata._core.query.relational_query import _get_element_annotators
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -151,7 +150,7 @@ def _get_categorical(
 
 
 def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str, NDArrayA]:
-    if clusters is not None and not isinstance(clusters.dtype, pd.CategoricalDtype):
+    if not is_categorical_dtype(clusters):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
     coords = coords[:, 1:]
     df = pd.DataFrame(coords)
@@ -372,18 +371,17 @@ def get_elements_meta_mapping(
     return elements, name_to_add
 
 
-def _get_init_metadata_adata(sdata: SpatialData, key: str) -> None | AnnData:
+def _get_metadata_adata(sdata: SpatialData, key: str) -> None | AnnData:
     """
     Retrieve AnnData to be used in layer metadata.
 
     Get the AnnData table in the SpatialData object based on the element
     """
-    tables = _get_element_annotators(sdata, key)
-    if len(tables) == 0:
-        return None
-    table = next(iter(tables))
-    adata = sdata[table][sdata[table].obs[sdata[table].uns["spatialdata_attrs"]["region_key"]] == key]
-    if adata.shape[0] == 0:
+    if sdata.table:
+        adata = sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
+        if adata.shape[0] == 0:
+            return None
+    else:
         return None
     return adata
 

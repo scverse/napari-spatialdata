@@ -17,7 +17,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from spatialdata._core.query.relational_query import _get_element_annotators
 
 from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata._model import ImageModel
@@ -153,16 +152,6 @@ class QtAdataViewWidget(QWidget):
 
         self.setLayout(QVBoxLayout())
 
-        # Names of tables annotating respective layer.
-        table_label = QLabel("Tables annotating layer:")
-        self.table_name_widget = QComboBox()
-        if (table_names := self.model.table_names) is not None:
-            self.table_name_widget.addItems(table_names)
-
-        self.table_name_widget.currentTextChanged.connect(self._update_adata)
-        self.layout().addWidget(table_label)
-        self.layout().addWidget(self.table_name_widget)
-
         # obs
         obs_label = QLabel("Observations:")
         obs_label.setToolTip("Keys in `adata.obs` containing cell observations.")
@@ -224,8 +213,6 @@ class QtAdataViewWidget(QWidget):
         """When the model updates the selected layer, update the relevant widgets."""
         logger.info("Updating layer.")
 
-        self.table_name_widget.clear()
-        self.table_name_widget.addItems(self._get_element_annotators())
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
@@ -240,7 +227,6 @@ class QtAdataViewWidget(QWidget):
         self.model.layer = layer
         if not hasattr(layer, "metadata") or not isinstance(layer.metadata.get("adata", None), AnnData):
             if hasattr(self, "obs_widget"):
-                self.table_name_widget.clear()
                 self.adata_layer_widget.clear()
                 self.obs_widget.clear()
                 self.var_widget.clear()
@@ -248,8 +234,8 @@ class QtAdataViewWidget(QWidget):
                 self.var_points_widget.clear()
             return
 
-        if layer is not None and "adata" in layer.metadata:
-            self.model.adata = layer.metadata["adata"]
+        # if layer is not None and "adata" in layer.metadata:
+        self.model.adata = layer.metadata["adata"]
 
         if self.model.adata.shape == (0, 0):
             return
@@ -270,56 +256,11 @@ class QtAdataViewWidget(QWidget):
         else:
             return
 
-    def _update_adata(self):
-        if (table_name := self.table_name_widget.currentText()) == "":
-            return
-        layer = self._viewer.layers.selection.active
-        if sdata := layer.metadata.get("sdata"):
-            element_name = layer.metadata.get("name")
-            table = sdata[table_name]
-            adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
-            layer.metadata["adata"] = adata
-
-        if layer is not None and "adata" in layer.metadata:
-            with self.model.events.adata.blocker():
-                self.model.adata = layer.metadata["adata"]
-
-        if self.model.adata.shape == (0, 0):
-            return
-
-        if "spatial" in self.model.adata.obsm:
-            self.model.coordinates = np.insert(
-                self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1
-            )
-
-        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
-        self.model._labels_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
-        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
-
-        if hasattr(
-            self, "obs_widget"
-        ):  # to check if the widget has been already initialized, layer update should only be called on layer change
-            self.adata_layer_widget.clear()
-            self.adata_layer_widget.addItem("X", None)
-            self.adata_layer_widget.addItems(self._get_adata_layer())
-            self.obs_widget._onChange()
-            self.var_widget._onChange()
-            self.obsm_widget._onChange()
-            self.var_points_widget._onChange()
-        else:
-            return
-
     def _get_adata_layer(self) -> Sequence[Optional[str]]:
         adata_layers = list(self.model.adata.layers.keys())
         if len(adata_layers):
             return adata_layers
         return [None]
-
-    def _get_element_annotators(self) -> list[str] | None:
-        layer = self.viewer.layers.selection.active
-        if sdata := layer.metadata.get("sdata"):
-            return list(_get_element_annotators(sdata, layer.metadata["name"]))
-        return None
 
     @property
     def viewer(self) -> napari.Viewer:
