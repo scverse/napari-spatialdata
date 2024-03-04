@@ -6,7 +6,9 @@ import pytest
 from anndata import AnnData
 from anndata.tests.helpers import assert_equal
 from napari.layers import Image, Labels
+from napari.utils.events import EventedList
 from napari_spatialdata._model import ImageModel
+from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
 from napari_spatialdata.utils._utils import NDArrayA
 from spatialdata import SpatialData
@@ -79,32 +81,27 @@ def test_model(
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget])
-@pytest.mark.parametrize("obs_item", ["a", "categorical"])
-@pytest.mark.parametrize("var_item", ["42", "0"])
 def test_change_layer(
     make_napari_viewer: Any,
     widget: Any,
-    labels: NDArrayA,
-    adata_labels: AnnData,
-    image: NDArrayA,
-    adata_shapes: AnnData,
-    obs_item: str,
-    var_item: str,
+    sdata_blobs: SpatialData,
 ) -> None:
+    table = sdata_blobs["table"].copy()
+    table.obs["region"] = "blobs_labels"
+    table.uns["spatialdata_attrs"]["region"] = "blobs_labels"
+    table.var_names = pd.Index([i + "_second" for i in table.var_names])
+    sdata_blobs["second_table"] = table
+
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
-    layer_name = "labels"
-
-    viewer.add_labels(
-        image,
-        name=layer_name,
-        metadata={"adata": adata_labels, "region_key": "cell_id"},
-    )
+    sdata_widget = SdataWidget(viewer, EventedList([sdata_blobs]))
+    sdata_widget.viewer_model.add_sdata_image(sdata_blobs, "blobs_image", "global", False)
 
     widget = widget(viewer)
     widget._select_layer()
     assert isinstance(widget.model, ImageModel)
-    assert isinstance(widget.model.layer, Labels)
+    assert isinstance(widget.model.layer, Image)
+    assert widget.table_name_widget.currentText() == ""
 
     # select observations
     # widget.obs_widget._onAction(items=[obs_item])
@@ -118,18 +115,13 @@ def test_change_layer(
     # assert "perc" in viewer.layers.selection.active.metadata
     # assert "minmax" in viewer.layers.selection.active.metadata
 
-    layer_name = "image"
-    viewer.add_image(
-        image,
-        rgb=True,
-        name=layer_name,
-        metadata={"adata": adata_shapes},
-    )
+    sdata_widget.viewer_model.add_sdata_labels(sdata_blobs, "blobs_labels", "global", False)
 
     widget._select_layer()
 
     assert isinstance(widget.model, ImageModel)
-    assert isinstance(widget.model.layer, Image)
+    assert isinstance(widget.model.layer, Labels)
+    assert widget.table_name_widget.currentText() == "second_table"
 
     # select observations
     # widget.obs_widget._onAction(items=[obs_item])
@@ -275,22 +267,13 @@ def test_component_widget(
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
-def test_layer_selection(
-    make_napari_viewer: Any, image: NDArrayA, widget: Any, adata_labels: AnnData, adata_shapes: AnnData
-):
+def test_layer_selection(make_napari_viewer: Any, image: NDArrayA, widget: Any, sdata_blobs: SpatialData):
     viewer = make_napari_viewer()
+    sdata_widget = SdataWidget(viewer, EventedList([sdata_blobs]))
+    sdata_widget.viewer_model.add_sdata_labels(sdata_blobs, "blobs_labels", "global", False)
 
-    viewer.add_labels(
-        image,
-        name="labels",
-        metadata={"adata": adata_labels, "region_key": "cell_id"},
-    )
     widget = widget(viewer)
-    assert widget.model.adata is adata_labels
-    viewer.add_image(
-        image,
-        rgb=True,
-        name="image",
-        metadata={"adata": adata_shapes},
-    )
-    assert widget.model.adata is adata_shapes
+    assert_equal(widget.model.adata.copy(), sdata_blobs["table"])
+
+    sdata_widget.viewer_model.add_sdata_image(sdata_blobs, "blobs_image", "global", False)
+    assert_equal(widget.model.adata.copy(), sdata_blobs["table"])
