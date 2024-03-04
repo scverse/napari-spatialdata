@@ -12,7 +12,6 @@ from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWid
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
 from spatialdata.datasets import blobs
-from spatialdata.models import PointsModel
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
 
@@ -83,9 +82,7 @@ def test_sdatawidget_labels(make_napari_viewer: Any):
 
 
 def test_sdatawidget_points(caplog, make_napari_viewer: Any):
-    sdata.points["many_points"] = PointsModel.parse(
-        from_dask_array(randint(0, 10, [200000, 2], dtype=int64), columns=["x", "y"])
-    )
+    sdata.points["many_points"] = from_dask_array(randint(0, 10, [200000, 2], dtype=int64), columns=["x", "y"])
     set_transformation(sdata.points["many_points"], {"global": Identity()}, set_all=True)
 
     viewer = make_napari_viewer()
@@ -178,9 +175,7 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
 def test_multiple_sdata(qtbot, make_napari_viewer: Any):
     # Create additional sdata with one extra element that is unique
     sdata_mock = blobs(extra_coord_system="test")
-    sdata_mock.points["extra"] = PointsModel.parse(
-        from_dask_array(randint(0, 10, [5, 2], dtype=int64), columns=["x", "y"])
-    )
+    sdata_mock.points["extra"] = from_dask_array(randint(0, 10, [5, 2], dtype=int64), columns=["x", "y"])
     set_transformation(sdata_mock.points["extra"], {"global": Identity()}, set_all=True)
 
     viewer = make_napari_viewer()
