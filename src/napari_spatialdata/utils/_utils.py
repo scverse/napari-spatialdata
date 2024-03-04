@@ -151,7 +151,7 @@ def _get_categorical(
 
 
 def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str, NDArrayA]:
-    if clusters is not None and isinstance(clusters.dtype, pd.CategoricalDtype):
+    if clusters is not None and not isinstance(clusters.dtype, pd.CategoricalDtype):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
     coords = coords[:, 1:]
     df = pd.DataFrame(coords)
@@ -379,6 +379,8 @@ def _get_init_metadata_adata(sdata: SpatialData, key: str) -> None | AnnData:
     Get the AnnData table in the SpatialData object based on the element
     """
     tables = _get_element_annotators(sdata, key)
+    if len(tables) == 0:
+        return None
     table = next(iter(tables))
     adata = sdata[table][sdata[table].obs[sdata[table].uns["spatialdata_attrs"]["region_key"]] == key]
     if adata.shape[0] == 0:

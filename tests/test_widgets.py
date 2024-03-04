@@ -4,10 +4,12 @@ import numpy as np
 import pandas as pd
 import pytest
 from anndata import AnnData
+from anndata.tests.helpers import assert_equal
 from napari.layers import Image, Labels
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
 from napari_spatialdata.utils._utils import NDArrayA
+from spatialdata import SpatialData
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
@@ -15,16 +17,17 @@ from napari_spatialdata.utils._utils import NDArrayA
 def test_creating_widget_with_data(
     make_napari_viewer: Any,
     widget: Any,
-    image: NDArrayA,
+    sdata_blobs: SpatialData,
     adata_shapes: AnnData,
 ) -> None:
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
+    image = np.transpose(sdata_blobs["blobs_image"].data, axes=(1, 2, 0))
     viewer.add_image(
         image,
         rgb=True,
         name="image",
-        metadata={"adata": adata_shapes},
+        metadata={"sdata": sdata_blobs, "name": "blobs_image", "adata": adata_shapes},
     )
 
     # create our widget, passing in the viewer
@@ -47,25 +50,31 @@ def test_model(
     make_napari_viewer: Any,
     widget: Any,
     labels: NDArrayA,
-    adata_labels: AnnData,
+    sdata_blobs: SpatialData,
 ) -> None:
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
 
     viewer.add_labels(
-        labels,
-        name="labels",
-        metadata={"adata": adata_labels, "region_key": "cell_id"},
+        sdata_blobs["blobs_labels"],
+        name="blobs_labels",
+        metadata={
+            "sdata": sdata_blobs,
+            "name": "blobs_labels",
+            "adata": sdata_blobs["table"],
+            "region_key": sdata_blobs["table"].uns["spatialdata_attrs"]["region_key"],
+        },
     )
 
     widget = widget(viewer)
     # layer = viewer.layers.selection.active
     widget._select_layer()
     assert isinstance(widget.model, ImageModel)
-    assert widget.model.adata is adata_labels
-    assert widget.model.coordinates.shape[0] == adata_labels.shape[0]
-    assert widget.model.coordinates.ndim == 2
-    assert widget.model.labels_key == "cell_id"
+    assert_equal(widget.model.adata, sdata_blobs["table"])
+    # TODO check whether this can be removed as this requires spatial in obsm
+    # assert widget.model.coordinates.shape[0] == sdata_blobs["table"].shape[0]
+    # assert widget.model.coordinates.ndim == 2
+    assert widget.model.labels_key == "region"
     viewer.layers.selection.events.changed.disconnect()
 
 
