@@ -254,11 +254,6 @@ class QtAdataViewWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        if "spatial" in self.model.adata.obsm:
-            self.model.coordinates = np.insert(
-                self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1
-            )
-
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model._labels_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
