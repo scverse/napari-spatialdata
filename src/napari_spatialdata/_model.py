@@ -19,6 +19,7 @@ class ImageModel:
     """Model which holds the data for interactive visualization."""
 
     events: EmitterGroup = field(init=False, default=None, repr=True)
+    _table_names: list[str] = field(default_factory=list, init=False)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
     _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
@@ -179,6 +180,14 @@ class ImageModel:
             return str(key) + (f":{self.adata_layer}" if self.adata_layer is not None else ":X") + f":{self.layer}"
 
         return str(key) + (f":{self.layer}" if self.layer is not None else ":X")
+
+    @property
+    def table_names(self) -> list[Optional[str]]:
+        return self._table_names
+
+    @table_names.setter
+    def table_names(self, table_names: list[Optional[str]]) -> None:
+        self._table_names = table_names
 
     @property
     def layer(self) -> Optional[Layer]:  # noqa: D102

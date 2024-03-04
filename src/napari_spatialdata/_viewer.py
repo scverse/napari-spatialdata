@@ -17,7 +17,7 @@ from spatialdata.transformations import Identity
 
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
-    _get_metadata_adata,
+    _get_init_metadata_adata,
     _get_transform,
     _transform_coordinates,
     get_duplicate_element_names,
@@ -305,7 +305,7 @@ class SpatialDataViewer(QObject):
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
         radii = df.radius.to_numpy()
-        adata = _get_metadata_adata(sdata, original_name)
+        adata = _get_init_metadata_adata(sdata, original_name)
 
         self.viewer.add_points(
             xy,
@@ -347,7 +347,7 @@ class SpatialDataViewer(QObject):
 
         # this will only work for polygons and not for multipolygons
         polygons = _transform_coordinates(polygons, f=lambda x: x[::-1])
-        adata = _get_metadata_adata(sdata, key)
+        adata = _get_init_metadata_adata(sdata, key)
 
         self.viewer.add_shapes(
             polygons,
@@ -373,7 +373,7 @@ class SpatialDataViewer(QObject):
 
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
-        adata = _get_metadata_adata(sdata, key)
+        adata = _get_init_metadata_adata(sdata, key)
 
         self.viewer.add_labels(
             rgb_labels,
@@ -382,7 +382,7 @@ class SpatialDataViewer(QObject):
             metadata={
                 "sdata": sdata,
                 "adata": adata,
-                "region_key": sdata.table.uns["spatialdata_attrs"]["instance_key"] if sdata.table else None,
+                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
