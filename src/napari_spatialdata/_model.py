@@ -25,7 +25,6 @@ class ImageModel:
     _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
     _label_key: Optional[str] = field(default=None, repr=True)
-    _coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
     _scale: Optional[float] = field(init=False, default=None)
@@ -222,14 +221,6 @@ class ImageModel:
     @adata_layer.setter
     def adata_layer(self, adata_layer: str) -> None:
         self._adata_layer = adata_layer
-
-    @property
-    def coordinates(self) -> NDArrayA:  # noqa: D102
-        return self._coordinates  # type: ignore[return-value]
-
-    @coordinates.setter
-    def coordinates(self, coordinates: NDArrayA) -> None:
-        self._coordinates = coordinates
 
     @property
     def points_coordinates(self) -> NDArrayA:  # noqa: D102
