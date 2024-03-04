@@ -19,7 +19,6 @@ from qtpy.QtWidgets import (
 )
 from spatialdata._core.query.relational_query import _get_element_annotators
 
-from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._widgets import (
@@ -281,11 +280,6 @@ class QtAdataViewWidget(QWidget):
 
         if self.model.adata.shape == (0, 0):
             return
-
-        if "spatial" in self.model.adata.obsm:
-            self.model.coordinates = np.insert(
-                self.model.adata.obsm[Key.obsm.spatial][:, ::-1][:, :2], 0, values=0, axis=1
-            )
 
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model._labels_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None

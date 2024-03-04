@@ -121,7 +121,7 @@ def test_change_layer(
 
     assert isinstance(widget.model, ImageModel)
     assert isinstance(widget.model.layer, Labels)
-    assert widget.table_name_widget.currentText() == "second_table"
+    assert widget.table_name_widget.currentText() == "table"
 
     # select observations
     # widget.obs_widget._onAction(items=[obs_item])
