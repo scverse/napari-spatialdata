@@ -8,7 +8,6 @@ from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
 
 from napari_spatialdata._constants._constants import Symbol
-from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
 __all__ = ["ImageModel"]
@@ -22,9 +21,9 @@ class ImageModel:
     _table_names: list[str] = field(default_factory=list, init=False)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
-    _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
-    _label_key: Optional[str] = field(default=None, repr=True)
+    _region_key: Optional[str] = field(default=None, repr=True)
+    _instance_key: Optional[str] = field(default=None, repr=True)
     _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
     _scale: Optional[float] = field(init=False, default=None)
@@ -207,14 +206,6 @@ class ImageModel:
         self.events.adata()
 
     @property
-    def spatial_key(self) -> str:  # noqa: D102
-        return self._spatial_key
-
-    @spatial_key.setter
-    def spatial_key(self, key: str) -> None:
-        self._spatial_key = key
-
-    @property
     def adata_layer(self) -> Optional[str]:  # noqa: D102
         return self._adata_layer
 
@@ -265,12 +256,20 @@ class ImageModel:
         self._point_diameter = point_diameter
 
     @property
-    def labels_key(self) -> Optional[str]:  # noqa: D102
-        return self._labels_key
+    def region_key(self) -> Optional[str]:  # noqa: D102
+        return self._region_key
 
-    @labels_key.setter
-    def labels_key(self, region_key: str) -> None:
-        self._labels_key = region_key
+    @region_key.setter
+    def region_key(self, region_key: str) -> None:
+        self._region_key = region_key
+
+    @property
+    def instance_key(self) -> Optional[str]:  # noqa: D102
+        return self._instance_key
+
+    @instance_key.setter
+    def instance_key(self, instance_key: str) -> None:
+        self._instance_key = instance_key
 
     @property
     def palette(self) -> Optional[str]:  # noqa: D102

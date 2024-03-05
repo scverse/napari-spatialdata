@@ -12,6 +12,7 @@ from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
+from spatialdata._core.query.relational_query import _get_element_annotators
 from spatialdata.models import PointsModel, ShapesModel
 from spatialdata.transformations import Identity
 
@@ -46,6 +47,7 @@ class SpatialDataViewer(QObject):
         self.viewer.bind_key("Shift-L", self._inherit_metadata)
         self.viewer.bind_key("Shift-E", self._save_to_sdata)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
+        self._active_layer_table_names = None
         self.viewer.layers.events.removed.connect(self._on_layer_removed)
 
         # Used to check old layer name. This because event emitted does not contain this information.
@@ -204,7 +206,7 @@ class SpatialDataViewer(QObject):
         layer.metadata["_n_indices"] = len(layer.data)
         layer.metadata["indices"] = list(i for i in range(len(layer.data)))  # noqa: C400
         if type(layer) == Points:
-            layer.metadata["adata"] = AnnData(obs=model, obsm={"spatial": data})
+            layer.metadata["adata"] = AnnData(obs=model)
 
     def _get_layer_for_unique_sdata(self, viewer: Viewer) -> Layer:
         # If there is only one sdata object across all the layers, any layer containing the sdata object will be the
@@ -266,11 +268,18 @@ class SpatialDataViewer(QObject):
             layer.metadata["adata"] = None
             if isinstance(layer, (Shapes, Labels)):
                 layer.metadata["region_key"] = None
+                layer.metadata["instance_key"] = None
             if isinstance(layer, (Shapes, Points)):
                 layer.metadata["_n_indices"] = None
                 layer.metadata["indices"] = None
 
         show_info(f"Layer(s) inherited info from {ref_layer}")
+
+    def _get_table_data(self, sdata, element_name):
+        table_names = list(_get_element_annotators(sdata, element_name))
+        table_name = table_names[0] if len(table_names) > 0 else None
+        adata = _get_init_metadata_adata(sdata, table_name, element_name)
+        return adata, table_name, table_names
 
     def add_sdata_image(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
@@ -305,7 +314,7 @@ class SpatialDataViewer(QObject):
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
         radii = df.radius.to_numpy()
-        adata = _get_init_metadata_adata(sdata, original_name)
+        adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
         self.viewer.add_points(
             xy,
@@ -316,7 +325,9 @@ class SpatialDataViewer(QObject):
             metadata={
                 "sdata": sdata,
                 "adata": adata,
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
+                "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
+                "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
+                "table_names": table_names if table_name else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -347,7 +358,7 @@ class SpatialDataViewer(QObject):
 
         # this will only work for polygons and not for multipolygons
         polygons = _transform_coordinates(polygons, f=lambda x: x[::-1])
-        adata = _get_init_metadata_adata(sdata, key)
+        adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
         self.viewer.add_shapes(
             polygons,
@@ -357,7 +368,9 @@ class SpatialDataViewer(QObject):
             metadata={
                 "sdata": sdata,
                 "adata": adata,
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
+                "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
+                "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
+                "table_names": table_names if table_name else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -373,7 +386,7 @@ class SpatialDataViewer(QObject):
 
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
-        adata = _get_init_metadata_adata(sdata, key)
+        adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
         self.viewer.add_labels(
             rgb_labels,
@@ -382,7 +395,9 @@ class SpatialDataViewer(QObject):
             metadata={
                 "sdata": sdata,
                 "adata": adata,
-                "region_key": sdata.table.uns["spatialdata_attrs"]["region_key"] if sdata.table else None,
+                "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
+                "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
+                "table_names": table_names if table_name else None,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
@@ -403,6 +418,9 @@ class SpatialDataViewer(QObject):
             gen = np.random.default_rng()
             subsample = np.sort(gen.choice(len(points), size=100000, replace=False))  # same as indices
 
+        # TODO consider subsampling adata and passing that on.
+        adata, table_name, table_names = self._get_table_data(sdata, original_name)
+
         xy = points[["y", "x"]].values[subsample]
         np.fliplr(xy)
         self.viewer.add_points(
@@ -413,8 +431,11 @@ class SpatialDataViewer(QObject):
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": AnnData(obs=points.iloc[subsample, :], obsm={"spatial": xy}),
+                "adata": AnnData(obs=points.iloc[subsample, :]),
                 "name": original_name,
+                "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
+                "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
+                "table_names": table_names if table_name else None,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
                 "_n_indices": len(points),

@@ -114,7 +114,7 @@ class QtAdataScatterWidget(QWidget):
         """Napari layers."""
         layer = self._viewer.layers.selection.active
         self.model.layer = layer
-        if not hasattr(layer, "metadata") or not isinstance(layer.metadata.get("adata", None), AnnData):
+        if not hasattr(layer, "metadata") or not isinstance(layer.metadata.get("adata"), AnnData):
             if hasattr(self, "x_widget"):
                 self.x_widget.clear()
                 self.y_widget.clear()
@@ -268,6 +268,8 @@ class QtAdataViewWidget(QWidget):
         if (table_name := self.table_name_widget.currentText()) == "":
             return
         layer = self._viewer.layers.selection.active
+        adata = None
+
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
             table = sdata[table_name]
@@ -282,7 +284,12 @@ class QtAdataViewWidget(QWidget):
             return
 
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
-        self.model._labels_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
+        self.model.instance_key = layer.metadata["instance_key"] = (
+            adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
+        )
+        self.model.region_key = layer.metadata["region_key"] = (
+            adata.uns["spatialdata_attrs"]["region_key"] if adata is not None else None
+        )
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
 
         if hasattr(
