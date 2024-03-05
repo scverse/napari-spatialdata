@@ -155,7 +155,7 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str,
     coords = coords[:, 1:]
     df = pd.DataFrame(coords)
     df["clusters"] = clusters.values
-    df = df.groupby("clusters")[[0, 1]].apply(lambda g: list(np.median(g.values, axis=0)))
+    df = df.groupby("clusters", observed=True)[[0, 1]].apply(lambda g: list(np.median(g.values, axis=0)))
     df = pd.DataFrame(list(df), index=df.index).dropna()
     kdtree = KDTree(coords)
     clusters = np.full(len(coords), fill_value="", dtype=object)

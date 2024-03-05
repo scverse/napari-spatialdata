@@ -112,7 +112,7 @@ def labels():
 
 
 def _get_blobs_galaxy() -> Tuple[NDArrayA, NDArrayA]:
-    blobs = data.binary_blobs(seed=SEED)
+    blobs = data.binary_blobs(rng=SEED)
     blobs = ndi.label(blobs)[0]
     return blobs, data.hubble_deep_field()[: blobs.shape[0], : blobs.shape[0]]
 
