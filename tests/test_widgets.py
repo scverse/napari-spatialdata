@@ -66,6 +66,7 @@ def test_model(
             "adata": sdata_blobs["table"],
             "region_key": sdata_blobs["table"].uns["spatialdata_attrs"]["region_key"],
             "instance_key": sdata_blobs["table"].uns["spatialdata_attrs"]["instance_key"],
+            "table_names": ["table"],
         },
     )
 

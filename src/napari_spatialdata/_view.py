@@ -17,7 +17,6 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from spatialdata._core.query.relational_query import _get_element_annotators
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
@@ -224,7 +223,10 @@ class QtAdataViewWidget(QWidget):
         logger.info("Updating layer.")
 
         self.table_name_widget.clear()
-        self.table_name_widget.addItems(self._get_element_annotators())
+        table_list = self._get_init_table_list()
+        self.table_name_widget.addItems(table_list)
+        widget_index = self.table_name_widget.findText(table_list[0])
+        self.table_name_widget.setCurrentIndex(widget_index)
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
@@ -311,10 +313,10 @@ class QtAdataViewWidget(QWidget):
             return adata_layers
         return [None]
 
-    def _get_element_annotators(self) -> list[str] | None:
+    def _get_init_table_list(self) -> list[str] | None:
         layer = self.viewer.layers.selection.active
-        if sdata := layer.metadata.get("sdata"):
-            return list(_get_element_annotators(sdata, layer.metadata["name"]))
+        if table_names := layer.metadata.get("table_names"):
+            return table_names
         return None
 
     @property
