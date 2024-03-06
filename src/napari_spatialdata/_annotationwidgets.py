@@ -1,9 +1,10 @@
 import random
 
-from PyQt5.QtGui import QStandardItemModel
-from PyQt5.QtWidgets import (
+from qtpy.QtGui import QStandardItemModel
+from qtpy.QtWidgets import (
     QButtonGroup,
     QColorDialog,
+    QComboBox,
     QLineEdit,
     QPushButton,
     QRadioButton,
@@ -21,6 +22,7 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
+        self.index_to_color = dict()
         self.layout = QVBoxLayout()
 
         self.tree_view = QTreeView()
@@ -40,23 +42,49 @@ class MainWindow(QWidget):
 
         self.layout.addWidget(self.tree_view)
 
+        self._table_names = []
+
         self.add_button = QPushButton("Add annotation group")
         self.add_button.clicked.connect(lambda: self.addGroup())
+        self.table_name_widget = QComboBox()
+        self.import_button = QPushButton("import annotation classes from table")
+        self.import_button.clicked.connect(self._import_table)
+        self.export_name = QLineEdit("annotation_classes")
+        self.export_button = QPushButton("export annotation classes to sdata table")
 
         self.layout.addWidget(self.add_button)
+        self.layout.addWidget(self.table_name_widget)
+        self.layout.addWidget(self.import_button)
+        self.layout.addWidget(self.export_name)
+        self.layout.addWidget(self.export_button)
+
         # Set the layout on the application's window
         self.setLayout(self.layout)
         self.setWindowTitle("Annotation")
         self.show()
 
+    def _import_table(self):
+        pass
+
+    @property
+    def table_names(self):
+        return self._table_names
+
+    @table_names.setter
+    def table_names(self, table_list):
+        self._table_names = table_list
+
     def addGroup(self, color=None, name="Class", shape="Polygon"):
         i = self.model.rowCount()
 
         if color:
+            self.index_to_color[i] = color
             color_button = ColorButton(color)
             name_field = QLineEdit(name)
         else:
-            color_button = ColorButton(self.generate_random_color_hex())
+            color = self.generate_random_color_hex()
+            self.index_to_color[i] = color
+            color_button = ColorButton(color)
             name_field = QLineEdit(name + "_" + str(i))
 
         radio_button = QRadioButton("")
@@ -68,7 +96,7 @@ class MainWindow(QWidget):
         type_text = QLineEdit(shape)
         type_text.setDisabled(True)
         delete_button = QPushButton("Delete")
-        delete_button.clicked.connect(lambda: self.deleteGroup(model, tree_view))
+        delete_button.clicked.connect(lambda: self.deleteGroup())
 
         if color:
             delete_button.setDisabled(True)
@@ -90,6 +118,7 @@ class MainWindow(QWidget):
         button = self.sender()
         if button:
             row = self.tree_view.indexAt(button.pos()).row()
+            del self.index_to_color[row]
             self.model.removeRow(row)
             self.button_group.removeButton(button)
 

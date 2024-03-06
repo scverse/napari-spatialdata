@@ -2,6 +2,7 @@ from typing import Any, FrozenSet, Optional, Sequence
 
 import napari
 import numpy as np
+import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
@@ -349,22 +350,65 @@ class QtAdataAnnotationWidget(QWidget):
         self._viewer = input
 
         self.setLayout(QGridLayout())
+        self._current_color = None
+        self._current_class = None
 
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
         self.annotation_widget.button_group.buttonClicked.connect(self._on_click)
+        self.viewer.layers.events.inserted.connect(self._on_inserted)
+        self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
 
-        self.viewer.layers.selection.events.changed.connect(self.adjust)
+    def _on_inserted(self, event):
+        layer = event.value
+        if isinstance(layer, Shapes):
+            if sdata := layer.metadata.get("sdata"):
+                self._set_tables(sdata)
+            layer.events.data.connect(self._update_annotations)
+            df = pd.DataFrame({"class": [], "color": []})
+            layer.features = df
 
     @property
     def viewer(self) -> napari.Viewer:
         """:mod:`napari` viewer."""
         return self._viewer
 
-    def adjust(self):
-        pass
+    def _on_layer_selection_changed(self):
+        layer = self._viewer.layers.selection.active
+        if isinstance(layer, Shapes):
+            if sdata := layer.metadata.get("sdata"):
+                self._set_tables(sdata)
+            layer.events.data.connect(self._update_annotations)
+            df = pd.DataFrame({"class": [], "color": []})
+            layer.features = df
+
+    def _update_annotations(self, event):
+        layer = event.source
+        if event.action == "added":
+            row = [self._current_class, self._current_color]
+            layer.features.loc[len(layer.features) - 1] = row
 
     def _on_click(self):
-        print("lol")
         if isinstance(layer := self.viewer.layers.selection.active, Shapes):
-            print(self.annotation_widget.button_group.checkedId())
+            # We have five columns with at position 1 the color button
+            color_ind = self.annotation_widget.tree_view.selectedIndexes()[1]
+            color_button = self.annotation_widget.tree_view.indexWidget(color_ind)
+
+            class_ind = self.annotation_widget.tree_view.selectedIndexes()[2]
+            class_widget = self.annotation_widget.tree_view.indexWidget(class_ind)
+            self._current_class = class_widget.text()
+
+            # .name() converts the QColor in hexadecimal
+            palette = color_button.palette()
+            color = palette.color(color_button.backgroundRole()).name()
+            self._viewer.layers.selection.active.current_face_color = color
+            self._current_color = color
+
+    def _set_tables(self, sdata):
+        self.annotation_widget.table_name_widget.clear()
+        table_list = [""]
+        for table_name, table in sdata.tables.items():
+            if "spatialdata_attrs" not in table.uns:
+                table_list.append(table_name)
+
+        self.annotation_widget.table_name_widget.addItems(table_list)
