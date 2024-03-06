@@ -26,6 +26,7 @@ from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
 from spatialdata import SpatialData
+from spatialdata._core.query.relational_query import _get_element_annotators
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -381,6 +382,7 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: 
         return None
     table = sdata[table_name]
     adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
+
     if adata.shape[0] == 0:
         return None
     return adata
