@@ -65,6 +65,8 @@ def test_model(
             "name": "blobs_labels",
             "adata": sdata_blobs["table"],
             "region_key": sdata_blobs["table"].uns["spatialdata_attrs"]["region_key"],
+            "instance_key": sdata_blobs["table"].uns["spatialdata_attrs"]["instance_key"],
+            "table_names": ["table"],
         },
     )
 
@@ -73,10 +75,9 @@ def test_model(
     widget._select_layer()
     assert isinstance(widget.model, ImageModel)
     assert_equal(widget.model.adata, sdata_blobs["table"])
-    # TODO check whether this can be removed as this requires spatial in obsm
-    # assert widget.model.coordinates.shape[0] == sdata_blobs["table"].shape[0]
-    # assert widget.model.coordinates.ndim == 2
-    assert widget.model.labels_key == "region"
+
+    assert widget.model.region_key == "region"
+    assert widget.model.instance_key == "instance_id"
     viewer.layers.selection.events.changed.disconnect()
 
 
@@ -103,42 +104,13 @@ def test_change_layer(
     assert isinstance(widget.model.layer, Image)
     assert widget.table_name_widget.currentText() == ""
 
-    # select observations
-    # widget.obs_widget._onAction(items=[obs_item])
-    # assert isinstance(viewer.layers.selection.active, Labels)
-    # assert viewer.layers.selection.active.name == f"{obs_item}:{layer_name}"
-
-    # select genes
-    # widget.var_widget._onAction(items=[var_item])
-    # assert isinstance(viewer.layers.selection.active, Labels)
-    # assert viewer.layers.selection.active.name == f"{var_item}:X:{layer_name}"
-    # assert "perc" in viewer.layers.selection.active.metadata
-    # assert "minmax" in viewer.layers.selection.active.metadata
-
     sdata_widget.viewer_model.add_sdata_labels(sdata_blobs, "blobs_labels", "global", False)
 
     widget._select_layer()
 
     assert isinstance(widget.model, ImageModel)
     assert isinstance(widget.model.layer, Labels)
-    assert widget.table_name_widget.currentText() == "second_table"
-
-    # select observations
-    # widget.obs_widget._onAction(items=[obs_item])
-    # assert isinstance(viewer.layers.selection.active, Points)
-    # assert viewer.layers.selection.active.name == f"{obs_item}:{layer_name}"
-
-    # select genes
-    # widget.var_widget._onAction(items=[var_item])
-    # assert isinstance(viewer.layers.selection.active, Points)
-    # assert viewer.layers.selection.active.name == f"{var_item}:X:{layer_name}"
-    # assert "perc" in viewer.layers.selection.active.metadata
-    # assert "minmax" in viewer.layers.selection.active.metadata
-
-    # check adata layers
-    # assert len(widget._get_adata_layer()) == 1
-    # assert widget._get_adata_layer()[0] is None
-    # viewer.layers.selection.events.changed.disconnect()
+    assert widget.table_name_widget.currentText() == widget.model.layer.metadata["table_names"][0]
 
 
 @pytest.mark.parametrize("widget", [QtAdataScatterWidget])

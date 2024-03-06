@@ -77,7 +77,9 @@ def test_sdatawidget_labels(make_napari_viewer: Any):
     assert isinstance(widget.viewer_model.viewer.layers[0].metadata.get("adata"), AnnData)
     assert (
         widget.viewer_model.viewer.layers[0].metadata.get("adata").n_obs
-        == (sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == list(sdata.labels.keys())[0]).sum()
+        == (
+            sdata["table"].obs[sdata["table"].uns["spatialdata_attrs"]["region_key"]] == list(sdata.labels.keys())[0]
+        ).sum()
     )
     assert widget.viewer_model.viewer.layers[0].metadata.get("region_key") is not None
 

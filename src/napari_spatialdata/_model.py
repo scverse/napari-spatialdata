@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -8,7 +8,6 @@ from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
 
 from napari_spatialdata._constants._constants import Symbol
-from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
 __all__ = ["ImageModel"]
@@ -19,13 +18,12 @@ class ImageModel:
     """Model which holds the data for interactive visualization."""
 
     events: EmitterGroup = field(init=False, default=None, repr=True)
-    _table_names: list[str] = field(default_factory=list, init=False)
+    _table_names: Sequence[Optional[str]] = field(default_factory=list, init=False)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
-    _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
-    _label_key: Optional[str] = field(default=None, repr=True)
-    _coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
+    _region_key: Optional[str] = field(default=None, repr=True)
+    _instance_key: Optional[str] = field(default=None, repr=True)
     _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
     _scale: Optional[float] = field(init=False, default=None)
@@ -182,11 +180,11 @@ class ImageModel:
         return str(key) + (f":{self.layer}" if self.layer is not None else ":X")
 
     @property
-    def table_names(self) -> list[Optional[str]]:
+    def table_names(self) -> Sequence[Optional[str]]:
         return self._table_names
 
     @table_names.setter
-    def table_names(self, table_names: list[Optional[str]]) -> None:
+    def table_names(self, table_names: Sequence[Optional[str]]) -> None:
         self._table_names = table_names
 
     @property
@@ -208,28 +206,12 @@ class ImageModel:
         self.events.adata()
 
     @property
-    def spatial_key(self) -> str:  # noqa: D102
-        return self._spatial_key
-
-    @spatial_key.setter
-    def spatial_key(self, key: str) -> None:
-        self._spatial_key = key
-
-    @property
     def adata_layer(self) -> Optional[str]:  # noqa: D102
         return self._adata_layer
 
     @adata_layer.setter
     def adata_layer(self, adata_layer: str) -> None:
         self._adata_layer = adata_layer
-
-    @property
-    def coordinates(self) -> NDArrayA:  # noqa: D102
-        return self._coordinates  # type: ignore[return-value]
-
-    @coordinates.setter
-    def coordinates(self, coordinates: NDArrayA) -> None:
-        self._coordinates = coordinates
 
     @property
     def points_coordinates(self) -> NDArrayA:  # noqa: D102
@@ -274,12 +256,20 @@ class ImageModel:
         self._point_diameter = point_diameter
 
     @property
-    def labels_key(self) -> Optional[str]:  # noqa: D102
-        return self._labels_key
+    def region_key(self) -> Optional[str]:  # noqa: D102
+        return self._region_key
 
-    @labels_key.setter
-    def labels_key(self, region_key: str) -> None:
-        self._labels_key = region_key
+    @region_key.setter
+    def region_key(self, region_key: str) -> None:
+        self._region_key = region_key
+
+    @property
+    def instance_key(self) -> Optional[str]:  # noqa: D102
+        return self._instance_key
+
+    @instance_key.setter
+    def instance_key(self, instance_key: str) -> None:
+        self._instance_key = instance_key
 
     @property
     def palette(self) -> Optional[str]:  # noqa: D102

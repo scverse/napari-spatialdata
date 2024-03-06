@@ -14,7 +14,7 @@ from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
 from numba import njit, prange
-from pandas.api.types import infer_dtype, is_categorical_dtype
+from pandas.api.types import CategoricalDtype, infer_dtype
 from pandas.core.dtypes.common import (
     is_bool_dtype,
     is_integer_dtype,
@@ -26,7 +26,6 @@ from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
 from spatialdata import SpatialData
-from spatialdata._core.query.relational_query import _get_element_annotators
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -63,7 +62,7 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
             return None, None
 
         if isinstance(res, pd.Series):
-            if is_categorical_dtype(res):
+            if isinstance(res.dtype, pd.CategoricalDtype):
                 return res, fmt
             if is_string_dtype(res) or is_object_dtype(res) or is_bool_dtype(res):
                 return res.astype("category"), fmt
@@ -111,7 +110,7 @@ def _set_palette(
     palette: str | None = None,
     vec: pd.Series | None = None,
 ) -> dict[Any, Any]:
-    if vec is not None and not is_categorical_dtype(vec):
+    if vec is not None and not isinstance(vec.dtype, CategoricalDtype):
         raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
 
     add_colors_for_categorical_sample_annotation(
@@ -156,7 +155,7 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str,
     coords = coords[:, 1:]
     df = pd.DataFrame(coords)
     df["clusters"] = clusters.values
-    df = df.groupby("clusters")[[0, 1]].apply(lambda g: list(np.median(g.values, axis=0)))
+    df = df.groupby("clusters", observed=True)[[0, 1]].apply(lambda g: list(np.median(g.values, axis=0)))
     df = pd.DataFrame(list(df), index=df.index).dropna()
     kdtree = KDTree(coords)
     clusters = np.full(len(coords), fill_value="", dtype=object)
@@ -372,17 +371,17 @@ def get_elements_meta_mapping(
     return elements, name_to_add
 
 
-def _get_init_metadata_adata(sdata: SpatialData, key: str) -> None | AnnData:
+def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: str) -> None | AnnData:
     """
     Retrieve AnnData to be used in layer metadata.
 
-    Get the AnnData table in the SpatialData object based on the element
+    Get the AnnData table in the SpatialData object based on table_name.
     """
-    tables = _get_element_annotators(sdata, key)
-    if len(tables) == 0:
+    if not table_name:
         return None
-    table = next(iter(tables))
-    adata = sdata[table][sdata[table].obs[sdata[table].uns["spatialdata_attrs"]["region_key"]] == key]
+    table = sdata[table_name]
+    adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
+
     if adata.shape[0] == 0:
         return None
     return adata

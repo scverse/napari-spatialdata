@@ -203,21 +203,13 @@ class AListWidget(ListWidget):
         norm_vec = _min_max_norm(vec)
         color_vec = cmap(norm_vec)
         if layer is not None and isinstance(layer, Labels):
-            cmap = plt.get_cmap(self.model.cmap)
-            norm_vec = _min_max_norm(vec)
-            color_vec = cmap(norm_vec)
-
             return {
-                "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, color_vec)),
+                "color": dict(zip(self.model.adata.obs[self.model.instance_key].values, color_vec)),
                 "properties": {"value": vec},
                 "text": None,
             }
 
         if layer is not None and isinstance(layer, Shapes):
-            cmap = plt.get_cmap(self.model.cmap)
-            norm_vec = _min_max_norm(vec)
-            color_vec = cmap(norm_vec)
-
             return {
                 "text": None,
                 "face_color": color_vec,
@@ -237,7 +229,7 @@ class AListWidget(ListWidget):
 
         if layer is not None and isinstance(layer, Labels):
             return {
-                "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color)),
+                "color": dict(zip(self.model.adata.obs[self.model.instance_key].values, face_color)),
                 "text": None,
             }
 

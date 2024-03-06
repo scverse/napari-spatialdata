@@ -14,7 +14,7 @@ from matplotlib.widgets import LassoSelector
 from napari.layers import Layer
 from napari.viewer import Viewer
 from napari_matplotlib.base import NapariMPLWidget
-from pandas.api.types import is_categorical_dtype
+from pandas.api.types import CategoricalDtype
 from qtpy import QtWidgets
 from qtpy.QtCore import Signal
 
@@ -136,7 +136,7 @@ class ScatterListWidget(AListWidget):
             self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = vec
-            elif is_categorical_dtype(vec):
+            elif vec is not None and isinstance(vec.dtype, CategoricalDtype):
                 self.data = vec
                 colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=vec)
                 if self._color:
