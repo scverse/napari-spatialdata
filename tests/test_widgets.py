@@ -112,7 +112,7 @@ def test_change_layer(
 
     assert isinstance(widget.model, ImageModel)
     assert isinstance(widget.model.layer, Labels)
-    assert widget.table_name_widget.currentText() == "second_table"
+    assert widget.table_name_widget.currentText() == widget.model.layer.metadata["table_names"][0]
 
 
 @pytest.mark.parametrize("widget", [QtAdataScatterWidget])

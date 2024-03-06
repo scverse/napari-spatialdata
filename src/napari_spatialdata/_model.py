@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -18,7 +18,7 @@ class ImageModel:
     """Model which holds the data for interactive visualization."""
 
     events: EmitterGroup = field(init=False, default=None, repr=True)
-    _table_names: list[str] = field(default_factory=list, init=False)
+    _table_names: Sequence[Optional[str]] = field(default_factory=list, init=False)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
@@ -180,11 +180,11 @@ class ImageModel:
         return str(key) + (f":{self.layer}" if self.layer is not None else ":X")
 
     @property
-    def table_names(self) -> list[Optional[str]]:
+    def table_names(self) -> Sequence[Optional[str]]:
         return self._table_names
 
     @table_names.setter
-    def table_names(self, table_names: list[Optional[str]]) -> None:
+    def table_names(self, table_names: Sequence[Optional[str]]) -> None:
         self._table_names = table_names
 
     @property

@@ -224,8 +224,10 @@ class QtAdataViewWidget(QWidget):
 
         self.table_name_widget.clear()
         table_list = self._get_init_table_list()
-        self.table_name_widget.addItems(table_list)
-        widget_index = self.table_name_widget.findText(table_list[0])
+        if table_list:
+            self.model.table_names = table_list
+            self.table_name_widget.addItems(table_list)
+            widget_index = self.table_name_widget.findText(table_list[0])
         self.table_name_widget.setCurrentIndex(widget_index)
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
@@ -256,7 +258,8 @@ class QtAdataViewWidget(QWidget):
             return
 
         self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
-        self.model._labels_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
+        self.model._region_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
+        self.model._instance_key = layer.metadata["instance_key"] if isinstance(layer, Labels) else None
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
 
         if hasattr(
@@ -266,7 +269,7 @@ class QtAdataViewWidget(QWidget):
         else:
             return
 
-    def _update_adata(self):
+    def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":
             return
         layer = self._viewer.layers.selection.active
@@ -313,10 +316,12 @@ class QtAdataViewWidget(QWidget):
             return adata_layers
         return [None]
 
-    def _get_init_table_list(self) -> list[str] | None:
+    def _get_init_table_list(self) -> Optional[Sequence[Optional[str]]]:
         layer = self.viewer.layers.selection.active
+
+        table_names: Optional[Sequence[Optional[str]]]
         if table_names := layer.metadata.get("table_names"):
-            return table_names
+            return table_names  # type: ignore[no-any-return]
         return None
 
     @property

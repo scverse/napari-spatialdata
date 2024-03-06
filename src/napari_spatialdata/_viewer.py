@@ -275,7 +275,7 @@ class SpatialDataViewer(QObject):
 
         show_info(f"Layer(s) inherited info from {ref_layer}")
 
-    def _get_table_data(self, sdata, element_name):
+    def _get_table_data(self, sdata: SpatialData, element_name: str) -> tuple[AnnData, str | None, list[str | None]]:
         table_names = list(_get_element_annotators(sdata, element_name))
         table_name = table_names[0] if len(table_names) > 0 else None
         adata = _get_init_metadata_adata(sdata, table_name, element_name)
