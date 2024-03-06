@@ -1,19 +1,16 @@
+import random
+
+from PyQt5.QtGui import QStandardItemModel
 from PyQt5.QtWidgets import (
-    QApplication,
-    QMainWindow,
-    QWidget,
+    QButtonGroup,
+    QColorDialog,
+    QLineEdit,
+    QPushButton,
+    QRadioButton,
     QTreeView,
     QVBoxLayout,
-    QPushButton,
-    QLineEdit,
-    QComboBox,
-    QColorDialog,
-    QRadioButton,
+    QWidget,
 )
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
-from PyQt5.QtCore import QSize, Qt
-import sys
-import random
 
 __all__ = ["MainWindow"]
 
@@ -24,35 +21,36 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        layout = QVBoxLayout()
+        self.layout = QVBoxLayout()
 
-        tree_view = QTreeView()
-        model = QStandardItemModel()
+        self.tree_view = QTreeView()
+        self.model = QStandardItemModel()
 
-        tree_view.setModel(model)
-        model.setHorizontalHeaderLabels(COLUMNS)
-        tree_view.setColumnWidth(0, 50)
-        tree_view.setColumnWidth(1, 50)
-        tree_view.setColumnWidth(2, 75)
-        tree_view.setColumnWidth(3, 75)
-        tree_view.setColumnWidth(4, 50)
+        self.tree_view.setModel(self.model)
+        self.model.setHorizontalHeaderLabels(COLUMNS)
+        self.tree_view.setColumnWidth(0, 50)
+        self.tree_view.setColumnWidth(1, 50)
+        self.tree_view.setColumnWidth(2, 75)
+        self.tree_view.setColumnWidth(3, 75)
+        self.tree_view.setColumnWidth(4, 50)
 
-        tree_view.setFixedWidth(400)
-        self.addGroup(model, tree_view, color="white", name="undefined", shape="Polygon")
+        self.tree_view.setFixedWidth(400)
+        self.button_group = QButtonGroup()
+        self.addGroup(color="white", name="undefined", shape="Polygon")
 
-        layout.addWidget(tree_view)
+        self.layout.addWidget(self.tree_view)
 
-        add_button = QPushButton("Add layer")
-        add_button.clicked.connect(lambda: self.addGroup(model, tree_view))
+        self.add_button = QPushButton("Add annotation group")
+        self.add_button.clicked.connect(lambda: self.addGroup())
 
-        layout.addWidget(add_button)
+        self.layout.addWidget(self.add_button)
         # Set the layout on the application's window
-        self.setLayout(layout)
+        self.setLayout(self.layout)
         self.setWindowTitle("Annotation")
         self.show()
 
-    def addGroup(self, model, tree_view, color=None, name="Name", shape="Polygon"):
-        i = model.rowCount()
+    def addGroup(self, color=None, name="Class", shape="Polygon"):
+        i = self.model.rowCount()
 
         if color:
             color_button = ColorButton(color)
@@ -62,6 +60,7 @@ class MainWindow(QWidget):
             name_field = QLineEdit(name + "_" + str(i))
 
         radio_button = QRadioButton("")
+        self.button_group.addButton(radio_button)
         if i == 0:
             radio_button.setChecked(True)
         radio_button.setAutoExclusive(True)
@@ -74,24 +73,25 @@ class MainWindow(QWidget):
         if color:
             delete_button.setDisabled(True)
 
-        model.insertRow(i)
-        radio_index = model.index(i, 0)
-        color_index = model.index(i, 1)
-        name_index = model.index(i, 2)
-        type_index = model.index(i, 3)
-        delete_index = model.index(i, 4)
+        self.model.insertRow(i)
+        radio_index = self.model.index(i, 0)
+        color_index = self.model.index(i, 1)
+        name_index = self.model.index(i, 2)
+        type_index = self.model.index(i, 3)
+        delete_index = self.model.index(i, 4)
 
-        tree_view.setIndexWidget(color_index, color_button)
-        tree_view.setIndexWidget(name_index, name_field)
-        tree_view.setIndexWidget(type_index, type_text)
-        tree_view.setIndexWidget(delete_index, delete_button)
-        tree_view.setIndexWidget(radio_index, radio_button)
+        self.tree_view.setIndexWidget(color_index, color_button)
+        self.tree_view.setIndexWidget(name_index, name_field)
+        self.tree_view.setIndexWidget(type_index, type_text)
+        self.tree_view.setIndexWidget(delete_index, delete_button)
+        self.tree_view.setIndexWidget(radio_index, radio_button)
 
-    def deleteGroup(self, model, tree_view):
+    def deleteGroup(self):
         button = self.sender()
         if button:
-            row = tree_view.indexAt(button.pos()).row()
-            model.removeRow(row)
+            row = self.tree_view.indexAt(button.pos()).row()
+            self.model.removeRow(row)
+            self.button_group.removeButton(button)
 
     def generate_random_color_hex(self):
         # Generate a random hex color code

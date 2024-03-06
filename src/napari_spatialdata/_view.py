@@ -6,7 +6,7 @@ from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
-from napari.layers import Labels
+from napari.layers import Labels, Shapes
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
+from napari_spatialdata._annotationwidgets import MainWindow
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._widgets import (
@@ -26,7 +27,6 @@ from napari_spatialdata._widgets import (
     ComponentWidget,
     RangeSliderWidget,
 )
-from napari_spatialdata._annotationwidgets import MainWindow
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget", "QtAdataAnnotationWidget"]
 
@@ -346,13 +346,25 @@ class QtAdataAnnotationWidget(QWidget):
 
     def __init__(self, input: Viewer):
         super().__init__()
+        self._viewer = input
 
         self.setLayout(QGridLayout())
 
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
+        self.annotation_widget.button_group.buttonClicked.connect(self._on_click)
+
+        self.viewer.layers.selection.events.changed.connect(self.adjust)
 
     @property
     def viewer(self) -> napari.Viewer:
         """:mod:`napari` viewer."""
         return self._viewer
+
+    def adjust(self):
+        pass
+
+    def _on_click(self):
+        print("lol")
+        if isinstance(layer := self.viewer.layers.selection.active, Shapes):
+            print(self.annotation_widget.button_group.checkedId())
