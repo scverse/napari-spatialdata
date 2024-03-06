@@ -116,3 +116,5 @@ tests/plots/generated
 
 # Local temp script for testing user bugs (Luca)
 temp/
+
+visium.zarr/

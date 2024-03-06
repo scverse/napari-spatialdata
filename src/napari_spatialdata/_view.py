@@ -26,8 +26,9 @@ from napari_spatialdata._widgets import (
     ComponentWidget,
     RangeSliderWidget,
 )
+from napari_spatialdata._annotationwidgets import MainWindow
 
-__all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
+__all__ = ["QtAdataViewWidget", "QtAdataScatterWidget", "QtAdataAnnotationWidget"]
 
 
 class QtAdataScatterWidget(QWidget):
@@ -338,3 +339,20 @@ class QtAdataViewWidget(QWidget):
     def layernames(self) -> FrozenSet[str]:
         """Names of :class:`napari.layers.Layer`."""
         return frozenset(layer.name for layer in self.viewer.layers)
+
+
+class QtAdataAnnotationWidget(QWidget):
+    """Adata viewer widget."""
+
+    def __init__(self, input: Viewer):
+        super().__init__()
+
+        self.setLayout(QGridLayout())
+
+        self.annotation_widget = MainWindow()
+        self.layout().addWidget(self.annotation_widget)
+
+    @property
+    def viewer(self) -> napari.Viewer:
+        """:mod:`napari` viewer."""
+        return self._viewer
