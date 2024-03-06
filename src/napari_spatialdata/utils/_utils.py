@@ -26,7 +26,6 @@ from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
 from spatialdata import SpatialData
-from spatialdata._core.query.relational_query import _get_element_annotators
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 

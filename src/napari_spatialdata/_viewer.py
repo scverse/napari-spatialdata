@@ -314,7 +314,7 @@ class SpatialDataViewer(QObject):
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
         radii = df.radius.to_numpy()
-        
+
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
         self.viewer.add_points(
