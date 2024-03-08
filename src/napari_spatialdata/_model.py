@@ -23,7 +23,7 @@ class ImageModel:
     _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
     _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
-    _label_key: Optional[str] = field(default=None, repr=True)
+    _labels_key: Optional[str] = field(default=None, repr=True)
     _coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
