@@ -26,6 +26,7 @@ class ImageModel:
     _instance_key: Optional[str] = field(default=None, repr=True)
     _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
+    _color_by: str = field(default="", repr=True, init=False)
     _scale: Optional[float] = field(init=False, default=None)
     _system_name: Optional[str] = field(default=None, repr=True)
 
@@ -44,6 +45,7 @@ class ImageModel:
             source=self,
             layer=Event,
             adata=Event,
+            color_by=Event,
         )
 
     def get_items(self, attr: str) -> Tuple[str, ...]:
@@ -178,6 +180,15 @@ class ImageModel:
             return str(key) + (f":{self.adata_layer}" if self.adata_layer is not None else ":X") + f":{self.layer}"
 
         return str(key) + (f":{self.layer}" if self.layer is not None else ":X")
+
+    @property
+    def color_by(self) -> str:
+        return self._color_by
+
+    @color_by.setter
+    def color_by(self, color_column: str) -> None:
+        self._color_by = color_column
+        self.events.color_by()
 
     @property
     def table_names(self) -> Sequence[Optional[str]]:
