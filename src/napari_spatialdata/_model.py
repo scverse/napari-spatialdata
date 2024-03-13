@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -24,8 +24,6 @@ class ImageModel:
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
     _region_key: Optional[str] = field(default=None, repr=True)
     _instance_key: Optional[str] = field(default=None, repr=True)
-    _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
-    _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
     _color_by: str = field(default="", repr=True, init=False)
     _system_name: Optional[str] = field(default=None, repr=True)
 
@@ -62,10 +60,6 @@ class ImageModel:
         """
         if attr in ("obs", "obsm"):
             return tuple(map(str, getattr(self.adata, attr).keys()))
-        if attr == "points":
-            if self.points_var is not None:
-                return tuple(map(str, self.points_var.unique()))
-            return tuple(["No points found."])  # noqa: C409
         return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector
@@ -151,25 +145,6 @@ class ImageModel:
 
         return (res if res.ndim == 1 else res[:, index]), pretty_name
 
-    def get_points(self, name: str, **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
-        """
-        Return a gene in spatial coordinates.
-
-        Parameters
-        ----------
-        name
-            Gene name.
-
-        Returns
-        -------
-        The values and the formatted ``name``.
-        """
-        if name not in self.points_var.unique():
-            raise KeyError(f"Key `{name}` not found in `adata.uns['points']['gene']`.")
-        coords = self.points_coordinates
-        coords = coords[self.points_var == name]
-        return np.insert(coords[:, ::-1][:, :2], 0, values=0, axis=1), self._format_key(name)
-
     def _format_key(
         self, key: Union[str, int], index: Optional[Union[int, str]] = None, adata_layer: bool = False
     ) -> str:
@@ -222,24 +197,6 @@ class ImageModel:
     @adata_layer.setter
     def adata_layer(self, adata_layer: str) -> None:
         self._adata_layer = adata_layer
-
-    @property
-    def points_coordinates(self) -> NDArrayA:  # noqa: D102
-        if TYPE_CHECKING:
-            assert self._points_coordinates is not None
-        return self._points_coordinates
-
-    @points_coordinates.setter
-    def points_coordinates(self, points_coordinates: NDArrayA) -> None:
-        self._points_coordinates = points_coordinates
-
-    @property
-    def points_var(self) -> pd.Series:  # noqa: D102
-        return self._points_var
-
-    @points_var.setter
-    def points_var(self, points_var: pd.Series) -> None:
-        self._points_var = points_var
 
     @property
     def spot_diameter(self) -> Union[NDArrayA, float]:  # noqa: D102
