@@ -1,22 +1,29 @@
 import logging
 from typing import Any
 
+import numpy as np
 import pytest
 from anndata import AnnData
 from dask.array.random import randint
 from dask.dataframe import from_dask_array
-from multiscale_spatial_image import to_multiscale
+from dask.dataframe.core import DataFrame as DaskDataFrame
+from multiscale_spatial_image import MultiscaleSpatialImage, to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
+from spatial_image import SpatialImage
+from spatialdata import SpatialData, deepcopy
+from spatialdata._core.query.relational_query import _get_unique_label_values_as_index
 from spatialdata.datasets import blobs
-from spatialdata.models import PointsModel
+from spatialdata.models import PointsModel, TableModel
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
 
 sdata = blobs(extra_coord_system="space")
+
+RNG = np.random.default_rng(seed=0)
 
 
 def test_elementwidget(make_napari_viewer: Any):
@@ -234,3 +241,82 @@ def test_multiple_sdata(qtbot, make_napari_viewer: Any):
     viewer.layers.selection = viewer.layers[-2:]
     widget.viewer_model._inherit_metadata(viewer)
     assert viewer.layers[-1].metadata["sdata"] is sdata_mock
+
+
+@pytest.mark.parametrize("instance_key_type", ["int", "str"])
+def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewer: Any, instance_key_type: str):
+    """
+    Test plotting when the table has less or extra rows than the spatial elements, and the order is arbitrary.
+    """
+    # - Remove the original table, then add additional tables, one per spatial element, so that each element is
+    #   annotated by a table.
+    # - The table will have some rows referring to instances that are not present in the spatial elements, and will lack
+    #   some rows referring to instances that are present in the spatial elements.
+    # - At the same time we construct a parallel SpatialData object with permuted order both for the spatial element
+    #   and for the table rows
+    original_sdata = blobs()
+    del original_sdata.tables["table"]
+    shuffled_element_dicts = {}
+    REGION_KEY = "region"
+    INSTANCE_KEY = "instance_id"
+    for region in [
+        "blobs_labels",
+        "blobs_multiscale_labels",
+        "blobs_points",
+        "blobs_circles",
+        "blobs_multipolygons",
+        "blobs_polygons",
+    ]:
+        element = original_sdata[region]
+        if isinstance(element, (SpatialImage, MultiscaleSpatialImage)):
+            index = _get_unique_label_values_as_index(element).values
+        elif isinstance(element, DaskDataFrame):
+            index = element.index.compute().values
+        else:
+            index = element.index.values
+        # remove one row, so that one instance in the spatial element is not present in the table
+        adjusted_index = index[:-1]
+        # add annotation to an instance that is not present in the spatial element
+        adjusted_index = adjusted_index + [1000]
+        table = AnnData(
+            X=np.zeros((len(adjusted_index), 1)),
+            obs={REGION_KEY: region, INSTANCE_KEY: adjusted_index, "annotation": np.arange(len(adjusted_index))},
+        )
+        table = TableModel.parse(table, region=region, region_key=REGION_KEY, instance_key=INSTANCE_KEY)
+        table_name = region + "_table"
+        original_sdata.tables[table_name] = table
+
+        # when instance_key_type == 'str' (and when the element is not Labels), let's change the type of instance_key
+        # column and of the corresponding index in the spatial element to string. Labels need to have int as they are
+        # tensors of non-negative integers.
+        if not isinstance(element, (SpatialImage, MultiscaleSpatialImage)) and instance_key_type == "str":
+            element.index = element.index.astype(str)
+            table.obs[INSTANCE_KEY] = table.obs[INSTANCE_KEY].astype(str)
+
+        shuffled_element = deepcopy(element)
+        shuffled_table = deepcopy(table)
+
+        # shuffle the order of the rows of the element (when the element is not Labels)
+        if not isinstance(element, (SpatialImage, MultiscaleSpatialImage)):
+            shuffled_element = shuffled_element.loc[RNG.random.permutation(shuffled_element.index)]
+        # shuffle the order of the rows of the table
+        shuffled_table = shuffled_table[RNG.random.permutation(shuffled_table.obs.index), :].copy()
+
+        shuffled_element_dicts[region] = shuffled_element
+        shuffled_element_dicts[table_name] = shuffled_table
+    ##
+    shuffled_sdata = SpatialData.from_elements_dict(shuffled_element_dicts)
+
+    # to manually check the results
+    # from napari_spatialdata import Interactive
+    # Interactive([original_sdata, shuffled_sdata])
+
+    # TODO: here below we should make the test automatic: compare if the plot of annotation is the same for the original
+    # and the shuffled sdata object
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, EventedList([original_sdata, shuffled_sdata]))
+
+    # Click on `global` coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+    pass

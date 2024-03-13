@@ -247,6 +247,7 @@ class QtAdataViewWidget(QWidget):
 
         self.adata_layer_widget.currentTextChanged.connect(self.var_widget.setAdataLayer)
 
+        self.layout().addWidget(adata_layer_label)
         self.layout().addWidget(self.adata_layer_widget)
         self.layout().addWidget(var_label)
         self.layout().addWidget(self.var_widget)
