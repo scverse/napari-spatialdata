@@ -217,6 +217,7 @@ class AListWidget(ListWidget):
             "face_color": color_vec,
         }
 
+
     # @_get_points_properties.register(pd.Series)
     # def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
     #     colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
@@ -244,6 +245,7 @@ class AListWidget(ListWidget):
     #         "face_color": face_color,
     #         "features": cluster_labels,
     #     }
+
 
     @property
     def viewer(self) -> napari.Viewer:
