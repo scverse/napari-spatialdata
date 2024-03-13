@@ -164,6 +164,7 @@ def test_categorical_and_error(
 ) -> None:
     viewer = make_napari_viewer()
     layer_name = "labels"
+    widget = widget(viewer)
 
     viewer.add_labels(
         image,
@@ -171,8 +172,7 @@ def test_categorical_and_error(
         metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
 
-    widget = widget(viewer)
-    widget._select_layer()
+    # widget._select_layer()
 
     widget.x_widget.widget.setAttribute(attr)
     widget.x_widget.widget._onAction(items=[item])
