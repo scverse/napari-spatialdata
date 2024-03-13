@@ -292,7 +292,7 @@ class QtAdataViewWidget(QWidget):
             self.model.table_names = table_list
             self.table_name_widget.addItems(table_list)
             widget_index = self.table_name_widget.findText(table_list[0])
-        self.table_name_widget.setCurrentIndex(widget_index)
+            self.table_name_widget.setCurrentIndex(widget_index)
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
