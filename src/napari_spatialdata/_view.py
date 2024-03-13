@@ -1,7 +1,6 @@
 from typing import Any, FrozenSet, Optional, Sequence
 
 import napari
-import numpy as np
 from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
@@ -126,7 +125,6 @@ class QtAdataScatterWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.instance_key = layer.metadata["instance_key"] = (
             adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
         )
@@ -317,7 +315,6 @@ class QtAdataViewWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model._region_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
         self.model._instance_key = layer.metadata["instance_key"] if isinstance(layer, Labels) else None
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
@@ -348,7 +345,6 @@ class QtAdataViewWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.instance_key = layer.metadata["instance_key"] = (
             adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
         )

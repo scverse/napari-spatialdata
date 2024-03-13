@@ -27,7 +27,6 @@ class ImageModel:
     _color_by: str = field(default="", repr=True, init=False)
     _system_name: Optional[str] = field(default=None, repr=True)
 
-    _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     _scale_key: Optional[str] = field(init=False, default="tissue_hires_scalef")  # TODO(giovp): use constants for these
 
     _palette: Optional[str] = field(init=False, default=None, repr=False)
@@ -196,14 +195,6 @@ class ImageModel:
     @adata_layer.setter
     def adata_layer(self, adata_layer: str) -> None:
         self._adata_layer = adata_layer
-
-    @property
-    def spot_diameter(self) -> Union[NDArrayA, float]:  # noqa: D102
-        return self._spot_diameter
-
-    @spot_diameter.setter
-    def spot_diameter(self, spot_diameter: Union[NDArrayA, float]) -> None:
-        self._spot_diameter = spot_diameter
 
     @property
     def region_key(self) -> Optional[str]:  # noqa: D102
