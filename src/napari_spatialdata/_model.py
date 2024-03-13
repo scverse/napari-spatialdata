@@ -27,7 +27,6 @@ class ImageModel:
     _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
     _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
     _color_by: str = field(default="", repr=True, init=False)
-    _scale: Optional[float] = field(init=False, default=None)
     _system_name: Optional[str] = field(default=None, repr=True)
 
     _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
@@ -169,7 +168,7 @@ class ImageModel:
             raise KeyError(f"Key `{name}` not found in `adata.uns['points']['gene']`.")
         coords = self.points_coordinates
         coords = coords[self.points_var == name]
-        return np.insert(coords[:, ::-1][:, :2] * self.scale, 0, values=0, axis=1), self._format_key(name)
+        return np.insert(coords[:, ::-1][:, :2], 0, values=0, axis=1), self._format_key(name)
 
     def _format_key(
         self, key: Union[str, int], index: Optional[Union[int, str]] = None, adata_layer: bool = False
@@ -241,14 +240,6 @@ class ImageModel:
     @points_var.setter
     def points_var(self, points_var: pd.Series) -> None:
         self._points_var = points_var
-
-    @property
-    def scale(self) -> Optional[float]:  # noqa: D102
-        return self._scale
-
-    @scale.setter
-    def scale(self, scale: float) -> None:
-        self._scale = scale
 
     @property
     def spot_diameter(self) -> Union[NDArrayA, float]:  # noqa: D102
