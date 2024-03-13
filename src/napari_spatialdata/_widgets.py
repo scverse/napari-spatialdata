@@ -129,7 +129,7 @@ class AListWidget(ListWidget):
                     name=name,
                     edge_color="white",
                     face_color="white",
-                    size=self.model.point_diameter,
+                    size=self.model.spot_diameter,
                     symbol=self.model.symbol,
                 )
             else:

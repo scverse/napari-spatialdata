@@ -28,7 +28,6 @@ class ImageModel:
     _system_name: Optional[str] = field(default=None, repr=True)
 
     _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
-    _point_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     _scale_key: Optional[str] = field(init=False, default="tissue_hires_scalef")  # TODO(giovp): use constants for these
 
     _palette: Optional[str] = field(init=False, default=None, repr=False)
@@ -205,14 +204,6 @@ class ImageModel:
     @spot_diameter.setter
     def spot_diameter(self, spot_diameter: Union[NDArrayA, float]) -> None:
         self._spot_diameter = spot_diameter
-
-    @property
-    def point_diameter(self) -> Union[NDArrayA, float]:  # noqa: D102
-        return self._point_diameter
-
-    @point_diameter.setter
-    def point_diameter(self, point_diameter: Union[NDArrayA, float]) -> None:
-        self._point_diameter = point_diameter
 
     @property
     def region_key(self) -> Optional[str]:  # noqa: D102
