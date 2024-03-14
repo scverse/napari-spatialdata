@@ -1,7 +1,6 @@
 from typing import Any, FrozenSet, Optional, Sequence
 
 import napari
-import numpy as np
 from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
@@ -126,7 +125,6 @@ class QtAdataScatterWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.instance_key = layer.metadata["instance_key"] = (
             adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
         )
@@ -265,13 +263,9 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
 
-        # gene
-        var_points = QLabel("Points:")
-        var_points.setToolTip("Gene names from points.")
-        self.var_points_widget = AListWidget(self.viewer, self.model, attr="points")
-
-        self.layout().addWidget(var_points)
-        self.layout().addWidget(self.var_points_widget)
+        # color by
+        self.color_by = QLabel("Colored by:")
+        self.layout().addWidget(self.color_by)
 
         # scalebar
         colorbar = CBarWidget(model=self.model)
@@ -281,6 +275,7 @@ class QtAdataViewWidget(QWidget):
         self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
 
         self.model.events.adata.connect(self._on_layer_update)
+        self.model.events.color_by.connect(self._change_color_by)
 
     def _on_layer_update(self, event: Optional[Any] = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
@@ -293,14 +288,13 @@ class QtAdataViewWidget(QWidget):
             self.model.table_names = table_list
             self.table_name_widget.addItems(table_list)
             widget_index = self.table_name_widget.findText(table_list[0])
-        self.table_name_widget.setCurrentIndex(widget_index)
+            self.table_name_widget.setCurrentIndex(widget_index)
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
         self.obs_widget._onChange()
         self.var_widget._onChange()
         self.obsm_widget._onChange()
-        self.var_points_widget._onChange()
 
     def _select_layer(self) -> None:
         """Napari layers."""
@@ -313,7 +307,7 @@ class QtAdataViewWidget(QWidget):
                 self.obs_widget.clear()
                 self.var_widget.clear()
                 self.obsm_widget.clear()
-                self.var_points_widget.clear()
+                self.color_by.clear()
             return
 
         if layer is not None and "adata" in layer.metadata:
@@ -322,7 +316,6 @@ class QtAdataViewWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model._region_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
         self.model._instance_key = layer.metadata["instance_key"] if isinstance(layer, Labels) else None
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
@@ -353,7 +346,6 @@ class QtAdataViewWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
         self.model.instance_key = layer.metadata["instance_key"] = (
             adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
         )
@@ -371,7 +363,6 @@ class QtAdataViewWidget(QWidget):
             self.obs_widget._onChange()
             self.var_widget._onChange()
             self.obsm_widget._onChange()
-            self.var_points_widget._onChange()
         else:
             return
 
@@ -389,6 +380,9 @@ class QtAdataViewWidget(QWidget):
             return table_names  # type: ignore[no-any-return]
 
         return None
+
+    def _change_color_by(self) -> None:
+        self.color_by.setText(f"Color by: {self.model.color_by}")
 
     @property
     def viewer(self) -> napari.Viewer:

@@ -14,7 +14,8 @@ from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
 from spatialdata._core.query.relational_query import _get_element_annotators
 from spatialdata.models import PointsModel, ShapesModel
-from spatialdata.transformations import Identity
+from spatialdata.transformations import Affine, Identity
+from spatialdata.transformations._utils import scale_radii
 
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
@@ -44,8 +45,8 @@ class SpatialDataViewer(QObject):
         self.viewer = viewer
         self.sdata = sdata
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
-        self.viewer.bind_key("Shift-L", self._inherit_metadata)
-        self.viewer.bind_key("Shift-E", self._save_to_sdata)
+        self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=False)
+        self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=False)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
         self._active_layer_table_names = None
         self.viewer.layers.events.removed.connect(self._on_layer_removed)
@@ -317,7 +318,7 @@ class SpatialDataViewer(QObject):
 
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
-        self.viewer.add_points(
+        layer = self.viewer.add_points(
             xy,
             name=key,
             affine=affine,
@@ -336,6 +337,8 @@ class SpatialDataViewer(QObject):
                 "indices": df.index.to_list(),
             },
         )
+        assert affine is not None
+        self._adjust_radii_of_points_layer(layer=layer, affine=affine)
 
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
@@ -426,7 +429,7 @@ class SpatialDataViewer(QObject):
 
         xy = points[["y", "x"]].values[subsample]
         np.fliplr(xy)
-        self.viewer.add_points(
+        layer = self.viewer.add_points(
             xy,
             name=key,
             size=20,
@@ -445,6 +448,23 @@ class SpatialDataViewer(QObject):
                 "indices": subsample.tolist(),
             },
         )
+        assert affine is not None
+        self._adjust_radii_of_points_layer(layer=layer, affine=affine)
+
+    def _adjust_radii_of_points_layer(self, layer: Layer, affine: npt.ArrayLike) -> None:
+        assert isinstance(affine, np.ndarray)
+        axes: tuple[str, ...]
+        if affine.shape == (3, 3):
+            axes = ("y", "x")
+        elif affine.shape == (4, 4):
+            axes = ("z", "y", "x")
+        else:
+            raise ValueError(f"Invalid affine shape: {affine.shape}")
+        affine_transformation = Affine(affine, input_axes=axes, output_axes=axes)
+        metadata = layer.metadata
+        radii = metadata["sdata"][metadata["name"]].radius.to_numpy()
+        new_radii = scale_radii(radii=radii, affine=affine_transformation, axes=axes)
+        layer.size = new_radii * 2
 
     def _affine_transform_layers(self, coordinate_system: str) -> None:
         for layer in self.viewer.layers:
@@ -456,3 +476,5 @@ class SpatialDataViewer(QObject):
                 affine = _get_transform(element_data, coordinate_system)
                 if affine is not None:
                     layer.affine = affine
+                    if layer._type_string == "points":
+                        self._adjust_radii_of_points_layer(layer, affine)
