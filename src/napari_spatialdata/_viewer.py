@@ -317,6 +317,7 @@ class SpatialDataViewer(QObject):
         xy = np.array([df.geometry.x, df.geometry.y]).T
         xy = np.fliplr(xy)
         radii = df.radius.to_numpy()
+
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
         self.viewer.add_points(
@@ -361,6 +362,7 @@ class SpatialDataViewer(QObject):
 
         # this will only work for polygons and not for multipolygons
         polygons = _transform_coordinates(polygons, f=lambda x: x[::-1])
+
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
         self.viewer.add_shapes(
@@ -389,6 +391,7 @@ class SpatialDataViewer(QObject):
 
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
+
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
         self.viewer.add_labels(

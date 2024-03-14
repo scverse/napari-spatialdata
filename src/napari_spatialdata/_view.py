@@ -63,14 +63,24 @@ class QtAdataScatterWidget(QWidget):
         self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
         self.layout().addWidget(self.matplotlib_widget, 1, 0, 1, 3)
 
+        # Names of tables annotating respective layer.
+        table_label = QLabel("Tables annotating layer:")
+        self.table_name_widget = QComboBox()
+        if (table_names := self.model.table_names) is not None:
+            self.table_name_widget.addItems(table_names)
+
+        self.table_name_widget.currentTextChanged.connect(self._update_adata)
+        self.layout().addWidget(table_label, 2, 0, Qt.AlignLeft)
+        self.layout().addWidget(self.table_name_widget)
+
         self.x_widget = AxisWidgets(self.model, "X-axis")
-        self.layout().addWidget(self.x_widget, 2, 0, 6, 1)
+        self.layout().addWidget(self.x_widget, 3, 0, 6, 1)
 
         self.y_widget = AxisWidgets(self.model, "Y-axis")
-        self.layout().addWidget(self.y_widget, 2, 1, 6, 1)
+        self.layout().addWidget(self.y_widget, 3, 1, 6, 1)
 
         self.color_widget = AxisWidgets(self.model, "Color", True)
-        self.layout().addWidget(self.color_widget, 2, 2, 6, 1)
+        self.layout().addWidget(self.color_widget, 3, 2, 6, 1)
 
         self.plot_button_widget = QPushButton("Plot")
         self.plot_button_widget.clicked.connect(
@@ -87,8 +97,8 @@ class QtAdataScatterWidget(QWidget):
         self.export_button_widget = QPushButton("Export")
         self.export_button_widget.clicked.connect(self.export)
 
-        self.layout().addWidget(self.plot_button_widget, 8, 0, 1, 2)
-        self.layout().addWidget(self.export_button_widget, 8, 2, 1, 2)
+        self.layout().addWidget(self.plot_button_widget, 9, 0, 1, 2)
+        self.layout().addWidget(self.export_button_widget, 9, 2, 1, 2)
 
         self.model.events.adata.connect(self._on_selection)
 
@@ -99,10 +109,33 @@ class QtAdataScatterWidget(QWidget):
 
         self.matplotlib_widget.selector.export(self.model.adata)
 
-    def _on_selection(self, event: Optional[Any] = None) -> None:
-        self.x_widget.widget.clear()
-        self.y_widget.widget.clear()
-        self.color_widget.widget.clear()
+    def _update_adata(self) -> None:
+        if (table_name := self.table_name_widget.currentText()) == "":
+            return
+        layer = self._viewer.layers.selection.active
+        adata = None
+
+        if sdata := layer.metadata.get("sdata"):
+            element_name = layer.metadata.get("name")
+            table = sdata[table_name]
+            adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
+            layer.metadata["adata"] = adata
+
+        if layer is not None and "adata" in layer.metadata:
+            with self.model.events.adata.blocker():
+                self.model.adata = layer.metadata["adata"]
+
+        if self.model.adata.shape == (0, 0):
+            return
+
+        self.model.spot_diameter = np.array([0.0, 10.0, 10.0])
+        self.model.instance_key = layer.metadata["instance_key"] = (
+            adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
+        )
+        self.model.region_key = layer.metadata["region_key"] = (
+            adata.uns["spatialdata_attrs"]["region_key"] if adata is not None else None
+        )
+        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
 
         self.x_widget.widget._onChange()
         self.x_widget.component_widget._onChange()
@@ -111,19 +144,49 @@ class QtAdataScatterWidget(QWidget):
         self.color_widget.widget._onChange()
         self.color_widget.component_widget._onChange()
 
+    def _on_selection(self, event: Any) -> None:
+        self.x_widget.widget.clear()
+        self.y_widget.widget.clear()
+        self.color_widget.widget.clear()
+
+        self.table_name_widget.clear()
+        self.table_name_widget.clear()
+        if event.source == self.model or event.source.active:
+            table_list = self._get_init_table_list()
+            if table_list:
+                self.model.table_names = table_list
+                self.table_name_widget.addItems(table_list)
+                widget_index = self.table_name_widget.findText(table_list[0])
+                self.table_name_widget.setCurrentIndex(widget_index)
+        self.x_widget.widget._onChange()
+        self.x_widget.component_widget._onChange()
+        self.y_widget.widget._onChange()
+        self.y_widget.component_widget._onChange()
+        self.color_widget.widget._onChange()
+        self.color_widget.component_widget._onChange()
+
+    def _get_init_table_list(self) -> Optional[Sequence[Optional[str]]]:
+        layer = self.viewer.layers.selection.active
+
+        table_names: Optional[Sequence[Optional[str]]]
+        if table_names := layer.metadata.get("table_names"):
+            return table_names  # type: ignore[no-any-return]
+        return None
+
     def _select_layer(self) -> None:
         """Napari layers."""
         layer = self._viewer.layers.selection.active
         self.model.layer = layer
         if not hasattr(layer, "metadata") or not isinstance(layer.metadata.get("adata"), AnnData):
             if hasattr(self, "x_widget"):
+                self.table_name_widget.clear()
                 self.x_widget.clear()
                 self.y_widget.clear()
                 self.color_widget.clear()
             return
 
-        # if layer is not None and "adata" in layer.metadata:
-        self.model.adata = layer.metadata["adata"]
+        if layer is not None and "adata" in layer.metadata:
+            self.model.adata = layer.metadata["adata"]
 
     def screenshot(self) -> Any:
         return QImg2array(self.grab().toImage())
@@ -225,6 +288,7 @@ class QtAdataViewWidget(QWidget):
         logger.info("Updating layer.")
 
         self.table_name_widget.clear()
+
         table_list = self._get_init_table_list()
         if table_list:
             self.model.table_names = table_list
@@ -324,6 +388,7 @@ class QtAdataViewWidget(QWidget):
         table_names: Optional[Sequence[Optional[str]]]
         if table_names := layer.metadata.get("table_names"):
             return table_names  # type: ignore[no-any-return]
+
         return None
 
     @property

@@ -381,6 +381,7 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: 
         return None
     table = sdata[table_name]
     adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
+
     if adata.shape[0] == 0:
         return None
     return adata

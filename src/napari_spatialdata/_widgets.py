@@ -9,7 +9,7 @@ import napari
 import numpy as np
 import pandas as pd
 from loguru import logger
-from napari.layers import Labels, Layer, Points, Shapes
+from napari.layers import Labels, Points, Shapes
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -22,10 +22,7 @@ from vispy.scene.widgets import ColorBarWidget
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata.utils._utils import (
     NDArrayA,
-    _get_categorical,
     _min_max_norm,
-    _position_cluster_labels,
-    _set_palette,
 )
 
 __all__ = [
@@ -220,33 +217,33 @@ class AListWidget(ListWidget):
             "face_color": color_vec,
         }
 
-    @_get_points_properties.register(pd.Series)
-    def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
-        colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
-        face_color = _get_categorical(
-            self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
-        )
-
-        if layer is not None and isinstance(layer, Labels):
-            return {
-                "color": dict(zip(self.model.adata.obs[self.model.instance_key].values, face_color)),
-                "text": None,
-            }
-
-        if layer is not None and isinstance(layer, Shapes):
-            return {"face_color": face_color, "metadata": None, "text": None}
-
-        cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
-        return {
-            "text": {
-                "string": "{clusters}",
-                "size": 24,
-                "color": {"feature": "clusters", "colormap": colortypes},
-                "anchor": "center",
-            },
-            "face_color": face_color,
-            "features": cluster_labels,
-        }
+    # @_get_points_properties.register(pd.Series)
+    # def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
+    #     colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
+    #     face_color = _get_categorical(
+    #         self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
+    #     )
+    #
+    #     if layer is not None and isinstance(layer, Labels):
+    #         return {
+    #             "color": dict(zip(self.model.adata.obs[self.model.instance_key].values, face_color)),
+    #             "text": None,
+    #         }
+    #
+    #     if layer is not None and isinstance(layer, Shapes):
+    #         return {"face_color": face_color, "metadata": None, "text": None}
+    #
+    #     cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
+    #     return {
+    #         "text": {
+    #             "string": "{clusters}",
+    #             "size": 24,
+    #             "color": {"feature": "clusters", "colormap": colortypes},
+    #             "anchor": "center",
+    #         },
+    #         "face_color": face_color,
+    #         "features": cluster_labels,
+    #     }
 
     @property
     def viewer(self) -> napari.Viewer:

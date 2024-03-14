@@ -75,9 +75,7 @@ def test_model(
     widget._select_layer()
     assert isinstance(widget.model, ImageModel)
     assert_equal(widget.model.adata, sdata_blobs["table"])
-    # TODO check whether this can be removed as this requires spatial in obsm
-    # assert widget.model.coordinates.shape[0] == sdata_blobs["table"].shape[0]
-    # assert widget.model.coordinates.ndim == 2
+
     assert widget.model.region_key == "region"
     assert widget.model.instance_key == "instance_id"
     viewer.layers.selection.events.changed.disconnect()
@@ -166,6 +164,7 @@ def test_categorical_and_error(
 ) -> None:
     viewer = make_napari_viewer()
     layer_name = "labels"
+    widget = widget(viewer)
 
     viewer.add_labels(
         image,
@@ -173,8 +172,7 @@ def test_categorical_and_error(
         metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
 
-    widget = widget(viewer)
-    widget._select_layer()
+    # widget._select_layer()
 
     widget.x_widget.widget.setAttribute(attr)
     widget.x_widget.widget._onAction(items=[item])
