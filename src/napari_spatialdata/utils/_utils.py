@@ -13,6 +13,7 @@ from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
+from napari.layers import Layer
 from numba import njit, prange
 from pandas.api.types import CategoricalDtype, infer_dtype
 from pandas.core.dtypes.common import (
@@ -396,3 +397,10 @@ def get_itemindex_by_text(
         if widget_item_text == item_text:
             widget_item = list_widget.item(index)
     return widget_item
+
+
+def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
+    table_names: Sequence[str | None] | None
+    if table_names := layer.metadata.get("table_names"):
+        return table_names  # type: ignore[no-any-return]
+    return None

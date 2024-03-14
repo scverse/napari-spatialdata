@@ -28,6 +28,8 @@ from napari_spatialdata._widgets import (
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
+from napari_spatialdata.utils._utils import _get_init_table_list
+
 
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
@@ -148,7 +150,7 @@ class QtAdataScatterWidget(QWidget):
         self.table_name_widget.clear()
         self.table_name_widget.clear()
         if event.source == self.model or event.source.active:
-            table_list = self._get_init_table_list()
+            table_list = _get_init_table_list(self.viewer.layers.selection.active)
             if table_list:
                 self.model.table_names = table_list
                 self.table_name_widget.addItems(table_list)
@@ -160,14 +162,6 @@ class QtAdataScatterWidget(QWidget):
         self.y_widget.component_widget._onChange()
         self.color_widget.widget._onChange()
         self.color_widget.component_widget._onChange()
-
-    def _get_init_table_list(self) -> Optional[Sequence[Optional[str]]]:
-        layer = self.viewer.layers.selection.active
-
-        table_names: Optional[Sequence[Optional[str]]]
-        if table_names := layer.metadata.get("table_names"):
-            return table_names  # type: ignore[no-any-return]
-        return None
 
     def _select_layer(self) -> None:
         """Napari layers."""
@@ -283,7 +277,7 @@ class QtAdataViewWidget(QWidget):
 
         self.table_name_widget.clear()
 
-        table_list = self._get_init_table_list()
+        table_list = _get_init_table_list(self.viewer.layers.selection.active)
         if table_list:
             self.model.table_names = table_list
             self.table_name_widget.addItems(table_list)
@@ -371,15 +365,6 @@ class QtAdataViewWidget(QWidget):
         if len(adata_layers):
             return adata_layers
         return [None]
-
-    def _get_init_table_list(self) -> Optional[Sequence[Optional[str]]]:
-        layer = self.viewer.layers.selection.active
-
-        table_names: Optional[Sequence[Optional[str]]]
-        if table_names := layer.metadata.get("table_names"):
-            return table_names  # type: ignore[no-any-return]
-
-        return None
 
     def _change_color_by(self) -> None:
         self.color_by.setText(f"Color by: {self.model.color_by}")
