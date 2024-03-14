@@ -22,7 +22,7 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.index_to_color = dict()
+        self.index_to_color = {}
         self.layout = QVBoxLayout()
 
         self.tree_view = QTreeView()
@@ -42,8 +42,13 @@ class MainWindow(QWidget):
 
         self.layout.addWidget(self.tree_view)
 
-        self._table_names = []
+        self.add_annotator_widget = QLineEdit(placeholderText="Add annotator")
+        self.add_annotator_widget.editingFinished.connect(self._add_annotator)
+        self.annotators = QComboBox()
+        self.layout.addWidget(self.add_annotator_widget)
+        self.layout.addWidget(self.annotators)
 
+        self._table_names = []
         self.add_button = QPushButton("Add annotation group")
         self.add_button.clicked.connect(lambda: self.addGroup())
         self.table_name_widget = QComboBox()
@@ -124,8 +129,12 @@ class MainWindow(QWidget):
 
     def generate_random_color_hex(self):
         # Generate a random hex color code
-        color = "#{:02x}{:02x}{:02x}".format(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        return color
+        return "#{:02x}{:02x}{:02x}".format(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+
+    def _add_annotator(self):
+        annotator = self.add_annotator_widget.text()
+        if annotator:
+            self.annotators.addItem(annotator)
 
 
 class ColorButton(QPushButton):
