@@ -298,9 +298,9 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
 
         # shuffle the order of the rows of the element (when the element is not Labels)
         if not isinstance(element, (SpatialImage, MultiscaleSpatialImage)):
-            shuffled_element = shuffled_element.loc[RNG.random.permutation(shuffled_element.index)]
+            shuffled_element = shuffled_element.loc[RNG.permutation(shuffled_element.index)]
         # shuffle the order of the rows of the table
-        shuffled_table = shuffled_table[RNG.random.permutation(shuffled_table.obs.index), :].copy()
+        shuffled_table = shuffled_table[RNG.permutation(shuffled_table.obs.index), :].copy()
 
         shuffled_element_dicts[region] = shuffled_element
         shuffled_element_dicts[table_name] = shuffled_table
