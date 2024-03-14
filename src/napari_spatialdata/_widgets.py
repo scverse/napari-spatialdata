@@ -123,32 +123,22 @@ class AListWidget(ListWidget):
                 logger.error(e)
                 continue
 
-            if vec.ndim == 2:
-                self.viewer.add_points(
-                    vec,
-                    name=name,
-                    edge_color="white",
-                    face_color="white",
-                    size=self.model.point_diameter,
-                    symbol=self.model.symbol,
-                )
-            else:
-                properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
+            properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
 
-                self.model.color_by = "" if self.model.system_name is None else item
-                if isinstance(self.model.layer, (Points, Shapes)):
-                    self.model.layer.text = None  # needed because of the text-feature order of updates
-                    self.model.layer.features = properties.get("features", None)
-                    self.model.layer.face_color = properties["face_color"]
-                    self.model.layer.text = properties["text"]
-                elif isinstance(self.model.layer, Labels):
-                    self.model.layer.color = properties["color"]
-                    self.model.layer.properties = properties.get("properties", None)
-                else:
-                    raise ValueError("TODO")
-                # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
-                # TODO(giovp): make layer editable?
-                # self.viewer.layers[layer_name].editable = False
+            self.model.color_by = "" if self.model.system_name is None else item
+            if isinstance(self.model.layer, (Points, Shapes)):
+                self.model.layer.text = None  # needed because of the text-feature order of updates
+                self.model.layer.features = properties.get("features", None)
+                self.model.layer.face_color = properties["face_color"]
+                self.model.layer.text = properties["text"]
+            elif isinstance(self.model.layer, Labels):
+                self.model.layer.color = properties["color"]
+                self.model.layer.properties = properties.get("properties", None)
+            else:
+                raise ValueError("TODO")
+            # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
+            # TODO(giovp): make layer editable?
+            # self.viewer.layers[layer_name].editable = False
 
     def setAdataLayer(self, layer: str | None) -> None:
         if layer in ("default", "None", "X"):
