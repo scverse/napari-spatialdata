@@ -264,13 +264,9 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
 
-        # gene
-        var_points = QLabel("Points:")
-        var_points.setToolTip("Gene names from points.")
-        self.var_points_widget = AListWidget(self.viewer, self.model, attr="points")
-
-        self.layout().addWidget(var_points)
-        self.layout().addWidget(self.var_points_widget)
+        # color by
+        self.color_by = QLabel("Colored by:")
+        self.layout().addWidget(self.color_by)
 
         # scalebar
         colorbar = CBarWidget(model=self.model)
@@ -280,6 +276,7 @@ class QtAdataViewWidget(QWidget):
         self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
 
         self.model.events.adata.connect(self._on_layer_update)
+        self.model.events.color_by.connect(self._change_color_by)
 
     def _on_layer_update(self, event: Optional[Any] = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
@@ -299,7 +296,6 @@ class QtAdataViewWidget(QWidget):
         self.obs_widget._onChange()
         self.var_widget._onChange()
         self.obsm_widget._onChange()
-        self.var_points_widget._onChange()
 
     def _select_layer(self) -> None:
         """Napari layers."""
@@ -312,7 +308,7 @@ class QtAdataViewWidget(QWidget):
                 self.obs_widget.clear()
                 self.var_widget.clear()
                 self.obsm_widget.clear()
-                self.var_points_widget.clear()
+                self.color_by.clear()
             return
 
         if layer is not None and "adata" in layer.metadata:
@@ -370,7 +366,6 @@ class QtAdataViewWidget(QWidget):
             self.obs_widget._onChange()
             self.var_widget._onChange()
             self.obsm_widget._onChange()
-            self.var_points_widget._onChange()
         else:
             return
 
@@ -388,6 +383,9 @@ class QtAdataViewWidget(QWidget):
             return table_names  # type: ignore[no-any-return]
 
         return None
+
+    def _change_color_by(self) -> None:
+        self.color_by.setText(f"Color by: {self.model.color_by}")
 
     @property
     def viewer(self) -> napari.Viewer:

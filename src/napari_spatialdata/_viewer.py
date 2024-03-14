@@ -64,8 +64,8 @@ class SpatialDataViewer(QObject):
 
     def _on_layer_removed(self, event: Event) -> None:
         layer = event.value
-        if layer_name := layer.metadata.get("name"):
-            del self._layer_event_caches[layer_name]
+        if layer.metadata.get("name"):
+            del self._layer_event_caches[layer.name]
             self.layer_names.remove(layer.name)
 
     def _validate_name(self, event: Event) -> None:
