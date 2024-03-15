@@ -432,7 +432,7 @@ class SpatialDataViewer(QObject):
         layer = self.viewer.add_points(
             xy,
             name=key,
-            size=20,
+            size=20,  # TODO fix scale to radii
             affine=affine,
             edge_width=0.0,
             metadata={
@@ -461,8 +461,7 @@ class SpatialDataViewer(QObject):
         else:
             raise ValueError(f"Invalid affine shape: {affine.shape}")
         affine_transformation = Affine(affine, input_axes=axes, output_axes=axes)
-        metadata = layer.metadata
-        radii = metadata["sdata"][metadata["name"]].radius.to_numpy()
+        radii = layer.size  # TODO fix scale to radii
         new_radii = scale_radii(radii=radii, affine=affine_transformation, axes=axes)
         layer.size = new_radii * 2
 

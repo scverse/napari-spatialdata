@@ -26,7 +26,7 @@ from pandas.core.dtypes.common import (
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
-from spatialdata import SpatialData
+from spatialdata import SpatialData, join_sdata_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -36,6 +36,7 @@ from napari_spatialdata.utils._categoricals_utils import (
 )
 
 if TYPE_CHECKING:
+    from napari import Viewer
     from napari.utils.events import EventedList
     from qtpy.QtWidgets import QListWidgetItem
     from xarray import DataArray
@@ -380,8 +381,9 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: 
     """
     if not table_name:
         return None
-    table = sdata[table_name]
-    adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
+    element_type, _, _ = sdata._find_element(element_name)
+    how = "left" if element_type == "labels" else "inner"
+    _, adata = join_sdata_spatialelement_table(sdata, element_name, table_name, how)
 
     if adata.shape[0] == 0:
         return None
@@ -404,3 +406,9 @@ def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
     if table_names := layer.metadata.get("table_names"):
         return table_names  # type: ignore[no-any-return]
     return None
+
+
+# TODO fix scale to radii
+def _calc_default_radii(viewer: Viewer) -> int:
+    max_dim_geometry = max(viewer.window.geometry()[-2:])
+    return int(20 / max_dim_geometry)
