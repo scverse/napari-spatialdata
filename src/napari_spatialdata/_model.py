@@ -10,15 +10,16 @@ from napari.utils.events import EmitterGroup, Event
 from napari_spatialdata._constants._constants import Symbol
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
-__all__ = ["ImageModel"]
+__all__ = ["DataModel"]
 
 
 @dataclass
-class ImageModel:
+class DataModel:
     """Model which holds the data for interactive visualization."""
 
     events: EmitterGroup = field(init=False, default=None, repr=True)
     _table_names: Sequence[Optional[str]] = field(default_factory=list, init=False)
+    _active_table_name: Optional[str] = field(default=None, init=False, repr=True)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
@@ -178,6 +179,14 @@ class ImageModel:
     def layer(self, layer: Optional[Layer]) -> None:
         self._layer = layer
         self.events.layer()
+
+    @property
+    def active_table_name(self) -> Optional[str]:
+        return self._active_table_name
+
+    @active_table_name.setter
+    def active_table_name(self, active_table_name: Optional[str]) -> None:
+        self._active_table_name = active_table_name
 
     @property
     def adata(self) -> AnnData:  # noqa: D102

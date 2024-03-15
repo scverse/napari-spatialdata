@@ -18,7 +18,7 @@ from pandas.api.types import CategoricalDtype
 from qtpy import QtWidgets
 from qtpy.QtCore import Signal
 
-from napari_spatialdata._model import ImageModel
+from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
 from napari_spatialdata.utils._categoricals_utils import _add_categorical_legend
 from napari_spatialdata.utils._utils import NDArrayA, _get_categorical, _set_palette
@@ -57,7 +57,7 @@ class SelectFromCollection:
 
     def __init__(
         self,
-        model: ImageModel,
+        model: DataModel,
         ax: Axes,
         collection: Collection,
         data: list[NDArrayA],
@@ -113,7 +113,7 @@ class ScatterListWidget(AListWidget):
     _text = None
     _chosen = None
 
-    def __init__(self, model: ImageModel, attr: str, color: bool, **kwargs: Any):
+    def __init__(self, model: DataModel, attr: str, color: bool, **kwargs: Any):
         AListWidget.__init__(self, None, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
@@ -209,7 +209,7 @@ class ScatterListWidget(AListWidget):
 
 
 class MatplotlibWidget(NapariMPLWidget):
-    def __init__(self, viewer: Viewer | None, model: ImageModel):
+    def __init__(self, viewer: Viewer | None, model: DataModel):
         self.is_widget = False
         if viewer is None:
             viewer = Viewer()
@@ -291,7 +291,7 @@ class MatplotlibWidget(NapariMPLWidget):
 
 
 class AxisWidgets(QtWidgets.QWidget):
-    def __init__(self, model: ImageModel, name: str, color: bool = False):
+    def __init__(self, model: DataModel, name: str, color: bool = False):
         super().__init__()
 
         self._model = model
@@ -346,6 +346,6 @@ class AxisWidgets(QtWidgets.QWidget):
         self.component_widget.clear()
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model

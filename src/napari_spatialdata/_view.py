@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
 )
 from spatialdata import join_sdata_spatialelement_table
 
-from napari_spatialdata._model import ImageModel
+from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._widgets import (
     AListWidget,
@@ -38,7 +38,7 @@ class QtAdataScatterWidget(QWidget):
     def __init__(self, input: Viewer):
         super().__init__()
 
-        self._model = ImageModel()
+        self._model = DataModel()
 
         self.setLayout(QGridLayout())
 
@@ -112,6 +112,7 @@ class QtAdataScatterWidget(QWidget):
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":
             return
+        self.model.active_table_name = table_name
         layer = self._viewer.layers.selection.active
 
         if sdata := layer.metadata.get("sdata"):
@@ -188,7 +189,7 @@ class QtAdataScatterWidget(QWidget):
         return self._viewer
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
 
@@ -200,7 +201,7 @@ class QtAdataViewWidget(QWidget):
         super().__init__()
 
         self._viewer = viewer
-        self._model = ImageModel()
+        self._model = DataModel()
 
         self._select_layer()
         self._viewer.layers.selection.events.changed.connect(self._select_layer)
@@ -325,6 +326,8 @@ class QtAdataViewWidget(QWidget):
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":
             return
+        self.model.active_table_name = table_name
+
         layer = self._viewer.layers.selection.active
 
         if sdata := layer.metadata.get("sdata"):
@@ -375,7 +378,7 @@ class QtAdataViewWidget(QWidget):
         return self._viewer
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
 

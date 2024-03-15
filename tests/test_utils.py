@@ -42,9 +42,9 @@ def test_value_error(adata_labels: AnnData):
 
 
 def test_position_cluster_labels(adata_labels: AnnData):
-    from napari_spatialdata._model import ImageModel
+    from napari_spatialdata._model import DataModel
 
-    model = ImageModel()
+    model = DataModel()
     model.coordinates = np.insert(adata_labels.obsm["spatial"], 0, values=0, axis=1).copy()
     clusters = adata_labels.obs["categorical"]
 
@@ -55,11 +55,11 @@ def test_position_cluster_labels(adata_labels: AnnData):
 
 @pytest.mark.parametrize("tri_coord", [[[0, 10, 20], [30, 40, 50]]])
 def test_points_inside_triangles(adata_shapes: AnnData, tri_coord: List[List[int]]):
-    from napari_spatialdata._model import ImageModel
+    from napari_spatialdata._model import DataModel
 
     coord1, coord2 = tri_coord
 
-    model = ImageModel()
+    model = DataModel()
     model.coordinates = np.insert(adata_shapes.obsm["spatial"], 0, values=0, axis=1).copy()
 
     triangles = np.array(
@@ -84,11 +84,11 @@ def test_min_max_norm(vec: np.ndarray) -> None:
 
 
 def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
-    from napari_spatialdata._model import ImageModel
+    from napari_spatialdata._model import DataModel
     from napari_spatialdata._scatterwidgets import MatplotlibWidget
 
     viewer = make_napari_viewer()
-    model = ImageModel()
+    model = DataModel()
 
     m = MatplotlibWidget(viewer, model)
     m._onClick(np.ones(10), np.ones(10), np.ones(10), "X", "Y", "Color")

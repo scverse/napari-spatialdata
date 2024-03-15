@@ -314,9 +314,11 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
     # TODO: here below we should make the test automatic: compare if the plot of annotation is the same for the original
     # and the shuffled sdata object
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, EventedList([original_sdata, shuffled_sdata]))
+    widget = SdataWidget(viewer, EventedList([sdata]))
+    # view_widget = QtAdataViewWidget(viewer)
 
     # Click on `global` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
-    pass
+
+    widget._onClick(list(shuffled_sdata.points.keys())[0])

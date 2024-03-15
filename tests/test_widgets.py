@@ -7,7 +7,7 @@ from anndata import AnnData
 from anndata.tests.helpers import assert_equal
 from napari.layers import Image, Labels
 from napari.utils.events import EventedList
-from napari_spatialdata._model import ImageModel
+from napari_spatialdata._model import DataModel
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
 from napari_spatialdata.utils._utils import NDArrayA
@@ -73,7 +73,7 @@ def test_model(
     widget = widget(viewer)
     # layer = viewer.layers.selection.active
     widget._select_layer()
-    assert isinstance(widget.model, ImageModel)
+    assert isinstance(widget.model, DataModel)
     assert_equal(widget.model.adata, sdata_blobs["table"])
 
     assert widget.model.region_key == "region"
@@ -100,7 +100,7 @@ def test_change_layer(
 
     widget = widget(viewer)
     widget._select_layer()
-    assert isinstance(widget.model, ImageModel)
+    assert isinstance(widget.model, DataModel)
     assert isinstance(widget.model.layer, Image)
     assert widget.table_name_widget.currentText() == ""
 
@@ -108,7 +108,7 @@ def test_change_layer(
 
     widget._select_layer()
 
-    assert isinstance(widget.model, ImageModel)
+    assert isinstance(widget.model, DataModel)
     assert isinstance(widget.model.layer, Labels)
     assert widget.table_name_widget.currentText() == widget.model.layer.metadata["table_names"][0]
 

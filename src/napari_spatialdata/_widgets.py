@@ -14,12 +14,13 @@ from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
 from sklearn.preprocessing import MinMaxScaler
+from spatialdata import join_sdata_spatialelement_table
 from superqt import QRangeSlider
 from vispy import scene
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
 
-from napari_spatialdata._model import ImageModel
+from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import (
     NDArrayA,
     _min_max_norm,
@@ -96,9 +97,9 @@ class ListWidget(QtWidgets.QListWidget):
 class AListWidget(ListWidget):
     layerChanged = Signal()
 
-    def __init__(self, viewer: Viewer | None, model: ImageModel, attr: str, **kwargs: Any):
-        if attr not in ImageModel.VALID_ATTRIBUTES:
-            raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
+    def __init__(self, viewer: Viewer | None, model: DataModel, attr: str, **kwargs: Any):
+        if attr not in DataModel.VALID_ATTRIBUTES:
+            raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(DataModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
 
         self._viewer = viewer
@@ -123,22 +124,26 @@ class AListWidget(ListWidget):
                 logger.error(e)
                 continue
 
-            properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-
-            self.model.color_by = "" if self.model.system_name is None else item
-            if isinstance(self.model.layer, (Points, Shapes)):
-                self.model.layer.text = None  # needed because of the text-feature order of updates
-                self.model.layer.features = properties.get("features", None)
-                self.model.layer.face_color = properties["face_color"]
-                self.model.layer.text = properties["text"]
-            elif isinstance(self.model.layer, Labels):
-                self.model.layer.color = properties["color"]
-                self.model.layer.properties = properties.get("properties", None)
-            else:
-                raise ValueError("TODO")
-            # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
-            # TODO(giovp): make layer editable?
-            # self.viewer.layers[layer_name].editable = False
+            if self.model.layer is not None:
+                properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
+                element_name = self.model.layer.metadata["name"]
+                sdata = self.model.layer.metadata["sdata"]
+                table_name = self.model.active_table_name
+                self.model.color_by = "" if self.model.system_name is None else item
+                if isinstance(self.model.layer, (Points, Shapes)):
+                    elements, table = join_sdata_spatialelement_table(sdata, element_name, table_name, "inner")
+                    self.model.layer.text = None  # needed because of the text-feature order of updates
+                    self.model.layer.features = properties.get("features", None)
+                    self.model.layer.face_color = properties["face_color"]
+                    self.model.layer.text = properties["text"]
+                elif isinstance(self.model.layer, Labels):
+                    self.model.layer.color = properties["color"]
+                    self.model.layer.properties = properties.get("properties", None)
+                else:
+                    raise ValueError("TODO")
+                # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
+                # TODO(giovp): make layer editable?
+                # self.viewer.layers[layer_name].editable = False
 
     def setAdataLayer(self, layer: str | None) -> None:
         if layer in ("default", "None", "X"):
@@ -236,13 +241,13 @@ class AListWidget(ListWidget):
         return self._viewer
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
 
 
 class ComponentWidget(QtWidgets.QComboBox):
-    def __init__(self, model: ImageModel, attr: str, max_visible: int = 4, **kwargs: Any):
+    def __init__(self, model: DataModel, attr: str, max_visible: int = 4, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._model = model
@@ -324,7 +329,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     def __init__(
         self,
-        model: ImageModel,
+        model: DataModel,
         cmap: str = "viridis",
         label: str | None = None,
         width: int | None = 250,
@@ -437,7 +442,7 @@ class CBarWidget(QtWidgets.QWidget):
 
 
 class RangeSliderWidget(QRangeSlider):
-    def __init__(self, viewer: Viewer, model: ImageModel, colorbar: CBarWidget, **kwargs: Any):
+    def __init__(self, viewer: Viewer, model: DataModel, colorbar: CBarWidget, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._viewer = viewer
@@ -495,6 +500,6 @@ class RangeSliderWidget(QRangeSlider):
         return self._viewer
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
