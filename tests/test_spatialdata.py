@@ -277,7 +277,7 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
         # remove one row, so that one instance in the spatial element is not present in the table
         adjusted_index = index[:-1]
         # add annotation to an instance that is not present in the spatial element
-        adjusted_index = adjusted_index + [1000]
+        adjusted_index = np.append(adjusted_index, [1000])
         table = AnnData(
             X=np.zeros((len(adjusted_index), 1)),
             obs={REGION_KEY: region, INSTANCE_KEY: adjusted_index, "annotation": np.arange(len(adjusted_index))},
