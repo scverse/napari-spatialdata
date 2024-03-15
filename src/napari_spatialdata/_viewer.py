@@ -422,7 +422,7 @@ class SpatialDataViewer(QObject):
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
-            subsample = np.sort(gen.choice(len(points), size=100000, replace=False))  # same as indices
+            subsample = np.sort(gen.choice(len(points), size=POINT_THRESHOLD, replace=False))  # same as indices
 
         # TODO consider subsampling adata and passing that on.
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
