@@ -16,6 +16,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from spatialdata import join_sdata_spatialelement_table
 
 from napari_spatialdata._model import ImageModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
@@ -112,13 +113,13 @@ class QtAdataScatterWidget(QWidget):
         if (table_name := self.table_name_widget.currentText()) == "":
             return
         layer = self._viewer.layers.selection.active
-        adata = None
 
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
-            table = sdata[table_name]
-            adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
-            layer.metadata["adata"] = adata
+
+            how = "left" if isinstance(layer, Labels) else "inner"
+            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, how)
+            layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
             with self.model.events.adata.blocker():
@@ -128,10 +129,10 @@ class QtAdataScatterWidget(QWidget):
             return
 
         self.model.instance_key = layer.metadata["instance_key"] = (
-            adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
+            table.uns["spatialdata_attrs"]["instance_key"] if table is not None else None
         )
         self.model.region_key = layer.metadata["region_key"] = (
-            adata.uns["spatialdata_attrs"]["region_key"] if adata is not None else None
+            table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
         )
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
 
@@ -325,13 +326,12 @@ class QtAdataViewWidget(QWidget):
         if (table_name := self.table_name_widget.currentText()) == "":
             return
         layer = self._viewer.layers.selection.active
-        adata = None
 
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
-            table = sdata[table_name]
-            adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
-            layer.metadata["adata"] = adata
+            how = "left" if isinstance(layer, Labels) else "inner"
+            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, how)
+            layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
             with self.model.events.adata.blocker():
@@ -341,10 +341,10 @@ class QtAdataViewWidget(QWidget):
             return
 
         self.model.instance_key = layer.metadata["instance_key"] = (
-            adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
+            table.uns["spatialdata_attrs"]["instance_key"] if table is not None else None
         )
         self.model.region_key = layer.metadata["region_key"] = (
-            adata.uns["spatialdata_attrs"]["region_key"] if adata is not None else None
+            table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
         )
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
 
