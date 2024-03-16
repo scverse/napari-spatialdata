@@ -117,9 +117,7 @@ class QtAdataScatterWidget(QWidget):
 
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
-
-            how = "left" if isinstance(layer, Labels) else "inner"
-            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, how)
+            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, "left")
             layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
