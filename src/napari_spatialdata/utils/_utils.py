@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from functools import wraps
+from random import randint
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
@@ -412,3 +413,8 @@ def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
 def _calc_default_radii(viewer: Viewer) -> int:
     max_dim_geometry = max(viewer.window.geometry()[-2:])
     return int(20 / max_dim_geometry)
+
+
+def generate_random_color_hex() -> str:
+    # Generate a random hex color code with alpha set to max
+    return f"#{randint(0, 255):02x}{randint(0, 255):02x}{randint(0, 255):02x}ff"
