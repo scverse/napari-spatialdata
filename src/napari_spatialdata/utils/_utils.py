@@ -377,13 +377,13 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: 
     """
     Retrieve AnnData to be used in layer metadata.
 
-    Get the AnnData table in the SpatialData object based on table_name.
+    Get the AnnData table in the SpatialData object based on table_name and return a table with only those rows that
+    annotate the element. For this a left join is performed.
     """
     if not table_name:
         return None
     element_type, _, _ = sdata._find_element(element_name)
-    how = "left" if element_type == "labels" else "inner"
-    _, adata = join_sdata_spatialelement_table(sdata, element_name, table_name, how)
+    _, adata = join_sdata_spatialelement_table(sdata, element_name, table_name, "left")
 
     if adata.shape[0] == 0:
         return None
