@@ -12,7 +12,7 @@ from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
-from spatialdata._core.query.relational_query import _get_element_annotators
+from spatialdata._core.query.relational_query import _get_element_annotators, _left_join_spatialelement_table
 from spatialdata.models import PointsModel, ShapesModel
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
@@ -276,7 +276,9 @@ class SpatialDataViewer(QObject):
 
         show_info(f"Layer(s) inherited info from {ref_layer}")
 
-    def _get_table_data(self, sdata: SpatialData, element_name: str) -> tuple[AnnData, str | None, list[str | None]]:
+    def _get_table_data(
+        self, sdata: SpatialData, element_name: str
+    ) -> tuple[AnnData | None, str | None, list[str | None]]:
         table_names = list(_get_element_annotators(sdata, element_name))
         table_name = table_names[0] if len(table_names) > 0 else None
         adata = _get_init_metadata_adata(sdata, table_name, element_name)
@@ -417,17 +419,20 @@ class SpatialDataViewer(QObject):
 
         points = sdata.points[original_name].compute()
         affine = _get_transform(sdata.points[original_name], selected_cs)
+        adata, table_name, table_names = self._get_table_data(sdata, original_name)
         if len(points) < POINT_THRESHOLD:
-            subsample = np.arange(len(points))
+            subsample = None
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
             subsample = np.sort(gen.choice(len(points), size=POINT_THRESHOLD, replace=False))  # same as indices
 
-        # TODO consider subsampling adata and passing that on.
-        adata, table_name, table_names = self._get_table_data(sdata, original_name)
-
-        xy = points[["y", "x"]].values[subsample]
+        subsample_points = points.iloc[subsample] if subsample else points
+        if subsample:
+            adata = _left_join_spatialelement_table(
+                {"points": {original_name: subsample_points}}, table_name, match_rows="left"
+            )
+        xy = subsample_points[["y", "x"]].values
         np.fliplr(xy)
         layer = self.viewer.add_points(
             xy,
@@ -437,7 +442,7 @@ class SpatialDataViewer(QObject):
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": AnnData(obs=points.iloc[subsample, :]),
+                "adata": adata,
                 "name": original_name,
                 "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
                 "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
@@ -445,7 +450,7 @@ class SpatialDataViewer(QObject):
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
                 "_n_indices": len(points),
-                "indices": subsample.tolist(),
+                "indices": subsample_points.index.to_list(),
             },
         )
         assert affine is not None
