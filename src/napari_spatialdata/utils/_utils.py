@@ -383,8 +383,7 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: 
     """
     if not table_name:
         return None
-    element_type, _, _ = sdata._find_element(element_name)
-    _, adata = join_sdata_spatialelement_table(sdata, element_name, table_name, "left")
+    _, adata = join_sdata_spatialelement_table(sdata, element_name, table_name, how="left", match_rows="left")
 
     if adata.shape[0] == 0:
         return None
