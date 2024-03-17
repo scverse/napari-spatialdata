@@ -14,7 +14,6 @@ from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
 from sklearn.preprocessing import MinMaxScaler
-from spatialdata import join_sdata_spatialelement_table
 from superqt import QRangeSlider
 from vispy import scene
 from vispy.color.colormap import Colormap, MatplotlibColormap
@@ -24,6 +23,7 @@ from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import (
     NDArrayA,
     _min_max_norm,
+    generate_random_color_hex,
 )
 
 __all__ = [
@@ -126,14 +126,10 @@ class AListWidget(ListWidget):
 
             if self.model.layer is not None:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                element_name = self.model.layer.metadata["name"]
-                sdata = self.model.layer.metadata["sdata"]
-                table_name = self.model.active_table_name
                 self.model.color_by = "" if self.model.system_name is None else item
                 if isinstance(self.model.layer, (Points, Shapes)):
-                    elements, table = join_sdata_spatialelement_table(sdata, element_name, table_name, "inner")
                     self.model.layer.text = None  # needed because of the text-feature order of updates
-                    self.model.layer.features = properties.get("features", None)
+                    # self.model.layer.features = properties.get("features", None)
                     self.model.layer.face_color = properties["face_color"]
                     self.model.layer.text = properties["text"]
                 elif isinstance(self.model.layer, Labels):
@@ -183,15 +179,52 @@ class AListWidget(ListWidget):
     def _get_points_properties(self, vec: NDArrayA | pd.Series, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError(type(vec))
 
+    @_get_points_properties.register(pd.Series)
+    def _(self, vec: pd.Series, **kwargs: Any) -> dict[str, Any]:
+        layer = kwargs.pop("layer", None)
+        layer_meta = self.model.layer.metadata if self.model.layer is not None else None
+        element_indices = pd.Series(layer_meta["indices"], name="element_indices")
+
+        # When merging if the row is not present in the other table it will be nan so we can give it a default color
+        color_dict = {
+            cat: color if (color := generate_random_color_hex()) != "#808080FF" else generate_random_color_hex()
+            for cat in vec.cat.categories
+        }
+        color_dict.update({np.nan: "#808080ff"})
+
+        merge_df = pd.merge(
+            pd.Series(element_indices), vec, left_on="element_indices", right_on=self.model.instance_key, how="left"
+        )
+        merge_df["color"] = merge_df[vec.name].map(color_dict)
+        if layer is not None and isinstance(layer, Labels):
+            return {
+                "color": dict(zip(merge_df["element_indices"], merge_df["color"])),
+                "properties": {"value": vec},
+                "text": None,
+            }
+
+        return {
+            "text": None,
+            "face_color": merge_df["color"].to_list(),
+        }
+
     @_get_points_properties.register(np.ndarray)
     def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
+        layer_meta = self.model.layer.metadata if self.model.layer is not None else None
+        element_indices = layer_meta["indices"]
+        diff_element_table = set(vec).symmetric_difference(element_indices)
+
         cmap = plt.get_cmap(self.model.cmap)
-        norm_vec = _min_max_norm(vec)
+        norm_vec = _min_max_norm(element_indices)
         color_vec = cmap(norm_vec)
+        for i in diff_element_table:
+            change_index = element_indices.index(i)
+            color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
+
         if layer is not None and isinstance(layer, Labels):
             return {
-                "color": dict(zip(self.model.adata.obs[self.model.instance_key].values, color_vec)),
+                "color": dict(zip(element_indices, color_vec)),
                 "properties": {"value": vec},
                 "text": None,
             }

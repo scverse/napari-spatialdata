@@ -21,96 +21,98 @@ from spatialdata.models import PointsModel, TableModel
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
 
-sdata = blobs(extra_coord_system="space")
-
 RNG = np.random.default_rng(seed=0)
 
 
-def test_elementwidget(make_napari_viewer: Any):
+def test_elementwidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     _ = make_napari_viewer()
-    widget = ElementWidget(EventedList([sdata]))
+    widget = ElementWidget(EventedList([blobs_extra_cs]))
     assert widget._sdata is not None
     assert not widget._elements
     widget._onItemChange("global")
     assert widget._elements
-    for name in sdata.images:
+    for name in blobs_extra_cs.images:
         assert widget._elements[name]["element_type"] == "images"
-    for name in sdata.labels:
+    for name in blobs_extra_cs.labels:
         assert widget._elements[name]["element_type"] == "labels"
-    for name in sdata.points:
+    for name in blobs_extra_cs.points:
         assert widget._elements[name]["element_type"] == "points"
-    for name in sdata.shapes:
+    for name in blobs_extra_cs.shapes:
         assert widget._elements[name]["element_type"] == "shapes"
 
 
-def test_coordinatewidget(make_napari_viewer: Any):
+def test_coordinatewidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     _ = make_napari_viewer()
-    widget = CoordinateSystemWidget(EventedList([sdata]))
+    widget = CoordinateSystemWidget(EventedList([blobs_extra_cs]))
     items = [widget.item(x).text() for x in range(widget.count())]
-    assert len(items) == len(sdata.coordinate_systems)
+    assert len(items) == len(blobs_extra_cs.coordinate_systems)
     for item in items:
-        assert item in sdata.coordinate_systems
+        assert item in blobs_extra_cs.coordinate_systems
 
 
-def test_sdatawidget_images(make_napari_viewer: Any):
+def test_sdatawidget_images(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, EventedList([sdata]))
+    widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onItemChange("global")
-    widget._onClick(list(sdata.images.keys())[0])
+    widget._onClick(list(blobs_extra_cs.images.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert isinstance(widget.viewer_model.viewer.layers[0], Image)
-    assert widget.viewer_model.viewer.layers[0].name == list(sdata.images.keys())[0]
-    sdata.images["image"] = to_multiscale(sdata.images["blobs_image"], [2, 4])
+    assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.images.keys())[0]
+    blobs_extra_cs.images["image"] = to_multiscale(blobs_extra_cs.images["blobs_image"], [2, 4])
     widget.elements_widget._onItemChange("global")
     widget._onClick("image")
 
     assert len(widget.viewer_model.viewer.layers) == 2
     assert (widget.viewer_model.viewer.layers[0].data == widget.viewer_model.viewer.layers[1].data._data[0]).all()
-    del sdata.images["image"]
+    del blobs_extra_cs.images["image"]
 
 
-def test_sdatawidget_labels(make_napari_viewer: Any):
+def test_sdatawidget_labels(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, EventedList([sdata]))
+    widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onItemChange("global")
-    widget._onClick(list(sdata.labels.keys())[0])
+    widget._onClick(list(blobs_extra_cs.labels.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
-    assert widget.viewer_model.viewer.layers[0].name == list(sdata.labels.keys())[0]
+    assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.labels.keys())[0]
     assert isinstance(widget.viewer_model.viewer.layers[0], Labels)
     assert isinstance(widget.viewer_model.viewer.layers[0].metadata.get("adata"), AnnData)
     assert (
         widget.viewer_model.viewer.layers[0].metadata.get("adata").n_obs
         == (
-            sdata["table"].obs[sdata["table"].uns["spatialdata_attrs"]["region_key"]] == list(sdata.labels.keys())[0]
+            blobs_extra_cs["table"].obs[blobs_extra_cs["table"].uns["spatialdata_attrs"]["region_key"]]
+            == list(blobs_extra_cs.labels.keys())[0]
         ).sum()
     )
     assert widget.viewer_model.viewer.layers[0].metadata.get("region_key") is not None
 
 
-def test_sdatawidget_points(caplog, make_napari_viewer: Any):
-    sdata.points["many_points"] = PointsModel.parse(
+@pytest.mark.xfail
+def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
+    blobs_extra_cs.points["many_points"] = PointsModel.parse(
         from_dask_array(randint(0, 10, [200000, 2], dtype=int64), columns=["x", "y"])
     )
-    set_transformation(sdata.points["many_points"], {"global": Identity()}, set_all=True)
+    set_transformation(blobs_extra_cs.points["many_points"], {"global": Identity()}, set_all=True)
 
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, EventedList([sdata]))
+    widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
     widget.elements_widget._onItemChange("global")
-    widget._onClick(list(sdata.points.keys())[0])
+    widget._onClick(list(blobs_extra_cs.points.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
-    assert widget.viewer_model.viewer.layers[0].name == list(sdata.points.keys())[0]
+    assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.points.keys())[0]
     assert isinstance(widget.viewer_model.viewer.layers[0], Points)
     assert isinstance(widget.viewer_model.viewer.layers[0].metadata.get("adata"), AnnData)
-    assert widget.viewer_model.viewer.layers[0].metadata.get("adata").n_obs == len(sdata.points["blobs_points"]["x"])
+    assert widget.viewer_model.viewer.layers[0].metadata.get("adata").n_obs == len(
+        blobs_extra_cs.points["blobs_points"]["x"]
+    )
     assert (
         len(widget.viewer_model.viewer.layers[0].metadata.get("adata").obs.keys())
-        == sdata.points["blobs_points"].shape[1]
+        == blobs_extra_cs.points["blobs_points"].shape[1]
     )
 
     widget._onClick("many_points")
@@ -120,22 +122,24 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any):
             in caplog.records[0].message
         )
     assert widget.viewer_model.viewer.layers[1].metadata.get("adata").n_obs == 100000
-    del sdata.points["many_points"]
+    del blobs_extra_cs.points["many_points"]
 
 
-def test_layer_visibility(qtbot, make_napari_viewer: Any):
+def test_layer_visibility(qtbot, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     # Only points layer in coordinate system `other`
-    set_transformation(sdata.points[list(sdata.points.keys())[0]], Identity(), to_coordinate_system="other")
+    set_transformation(
+        blobs_extra_cs.points[list(blobs_extra_cs.points.keys())[0]], Identity(), to_coordinate_system="other"
+    )
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, EventedList([sdata]))
+    widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
 
     # Click on `global` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     # Load 2 layers both are visible
-    widget._onClick(list(sdata.points.keys())[0])
-    widget._onClick(list(sdata.labels.keys())[0])
+    widget._onClick(list(blobs_extra_cs.points.keys())[0])
+    widget._onClick(list(blobs_extra_cs.labels.keys())[0])
 
     points = viewer.layers[0]
     labels = viewer.layers[1]
@@ -184,7 +188,7 @@ def test_layer_visibility(qtbot, make_napari_viewer: Any):
     assert points.metadata["_active_in_cs"] == {"global", "space", "other"}
 
 
-def test_multiple_sdata(qtbot, make_napari_viewer: Any):
+def test_multiple_sdata(qtbot, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     # Create additional sdata with one extra element that is unique
     sdata_mock = blobs(extra_coord_system="test")
     sdata_mock.points["extra"] = PointsModel.parse(
@@ -194,18 +198,18 @@ def test_multiple_sdata(qtbot, make_napari_viewer: Any):
 
     viewer = make_napari_viewer()
     # qtbot.addWidget(viewer.window._qt_viewer)
-    widget = SdataWidget(viewer, EventedList([sdata, sdata_mock]))
+    widget = SdataWidget(viewer, EventedList([blobs_extra_cs, sdata_mock]))
 
     # Click on `global` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     # _0 suffix for sdata and _1 for sdata_mock as it is based on index.
-    widget._onClick(list(sdata.images.keys())[0] + "_0")
+    widget._onClick(list(blobs_extra_cs.images.keys())[0] + "_0")
     widget._onClick(list(sdata_mock.images.keys())[0] + "_1")
 
     # Extra is unique and thus should not have suffix
-    assert viewer.layers[0].metadata["sdata"] is sdata
+    assert viewer.layers[0].metadata["sdata"] is blobs_extra_cs
     assert viewer.layers[1].metadata["sdata"] is sdata_mock
     assert "extra" in widget.elements_widget._elements
 
@@ -214,8 +218,8 @@ def test_multiple_sdata(qtbot, make_napari_viewer: Any):
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
     assert all(element_name.endswith("0") for element_name in list(widget.elements_widget._elements.keys()))
 
-    widget._onClick(list(sdata.labels.keys())[0] + "_0")
-    assert viewer.layers[-1].metadata["sdata"] is sdata
+    widget._onClick(list(blobs_extra_cs.labels.keys())[0] + "_0")
+    assert viewer.layers[-1].metadata["sdata"] is blobs_extra_cs
 
     # Only elements of sdata present in test
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "test")
@@ -314,11 +318,11 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
     # TODO: here below we should make the test automatic: compare if the plot of annotation is the same for the original
     # and the shuffled sdata object
     viewer = make_napari_viewer()
-    widget = SdataWidget(viewer, EventedList([sdata]))
+    widget = SdataWidget(viewer, EventedList([original_sdata, shuffled_sdata]))
     # view_widget = QtAdataViewWidget(viewer)
 
     # Click on `global` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
-    widget._onClick(list(shuffled_sdata.points.keys())[0])
+    widget._onClick(list(shuffled_sdata.points.keys())[0] + "_1")

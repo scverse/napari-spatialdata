@@ -79,7 +79,12 @@ class DataModel:
         """
         if name not in self.adata.obs.columns:
             raise KeyError(f"Key `{name}` not found in `adata.obs`.")
-        return self.adata.obs[name], self._format_key(name)
+        if name != self.instance_key:
+            adata_obs = self.adata.obs[[self.instance_key, name]]
+            adata_obs.set_index(self.instance_key, inplace=True)
+        else:
+            adata_obs = self.adata.obs
+        return adata_obs[name], self._format_key(name)
 
     @_ensure_dense_vector
     def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
