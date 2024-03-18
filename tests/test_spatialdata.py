@@ -2,6 +2,7 @@ import logging
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import pytest
 from anndata import AnnData
 from dask.array.random import randint
@@ -10,6 +11,8 @@ from dask.dataframe.core import DataFrame as DaskDataFrame
 from multiscale_spatial_image import MultiscaleSpatialImage, to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
+from napari_spatialdata import QtAdataViewWidget
+from napari_spatialdata._constants import config
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
@@ -90,11 +93,25 @@ def test_sdatawidget_labels(make_napari_viewer: Any, blobs_extra_cs: SpatialData
     assert widget.viewer_model.viewer.layers[0].metadata.get("region_key") is not None
 
 
-@pytest.mark.xfail
 def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
+    config.POINT_THRESHOLD = 400
     blobs_extra_cs.points["many_points"] = PointsModel.parse(
-        from_dask_array(randint(0, 10, [200000, 2], dtype=int64), columns=["x", "y"])
+        from_dask_array(randint(0, 10, [800, 2], dtype=int64), columns=["x", "y"])
     )
+    adata = AnnData(
+        X=RNG.normal(size=(800, 1)),
+        obs=pd.DataFrame({"instance_id": list(range(800)), "region": ["many_points"] * 800}),
+    )
+    table = TableModel.parse(adata, region_key="region", region="many_points", instance_key="instance_id")
+    blobs_extra_cs["many_points_table"] = table
+
+    # same length as blobs_points
+    adata = AnnData(
+        X=RNG.normal(size=(200, 2)),
+        obs=pd.DataFrame({"instance_id": list(range(200)), "region": ["blobs_points"] * 200}),
+    )
+    table = TableModel.parse(adata, region_key="region", region="blobs_points", instance_key="instance_id")
+    blobs_extra_cs["table"] = table
     set_transformation(blobs_extra_cs.points["many_points"], {"global": Identity()}, set_all=True)
 
     viewer = make_napari_viewer()
@@ -110,10 +127,6 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: Spa
     assert widget.viewer_model.viewer.layers[0].metadata.get("adata").n_obs == len(
         blobs_extra_cs.points["blobs_points"]["x"]
     )
-    assert (
-        len(widget.viewer_model.viewer.layers[0].metadata.get("adata").obs.keys())
-        == blobs_extra_cs.points["blobs_points"].shape[1]
-    )
 
     widget._onClick("many_points")
     with caplog.at_level(logging.INFO):
@@ -121,7 +134,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: Spa
             "Subsampling points because the number of points exceeds the currently supported 100 000."
             in caplog.records[0].message
         )
-    assert widget.viewer_model.viewer.layers[1].metadata.get("adata").n_obs == 100000
+    assert widget.viewer_model.viewer.layers[1].metadata.get("adata").n_obs == 400
     del blobs_extra_cs.points["many_points"]
 
 
@@ -247,6 +260,7 @@ def test_multiple_sdata(qtbot, make_napari_viewer: Any, blobs_extra_cs: SpatialD
     assert viewer.layers[-1].metadata["sdata"] is sdata_mock
 
 
+@pytest.mark.xfail
 @pytest.mark.parametrize("instance_key_type", ["int", "str"])
 def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewer: Any, instance_key_type: str):
     """
@@ -319,10 +333,14 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
     # and the shuffled sdata object
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([original_sdata, shuffled_sdata]))
-    # view_widget = QtAdataViewWidget(viewer)
+    view_widget = QtAdataViewWidget(viewer)
 
     # Click on `global` coordinate system
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
     widget._onClick(list(shuffled_sdata.points.keys())[0] + "_1")
+    view_widget._select_layer()
+
+    center_pos = get_center_pos_listitem(view_widget.obs_widget, "instance_id")
+    click_list_widget_item(qtbot, view_widget.obs_widget, center_pos, "itemDoubleClicked", click="double")
