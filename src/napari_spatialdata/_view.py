@@ -224,7 +224,7 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obs_widget)
 
         # gene
-        var_label = QLabel("Genes:")
+        var_label = QLabel("Vars:")
         var_label.setToolTip("Gene names from `adata.var_names` or `adata.raw.var_names`.")
         self.var_widget = AListWidget(self.viewer, self.model, attr="var")
         self.var_widget.setAdataLayer("X")
