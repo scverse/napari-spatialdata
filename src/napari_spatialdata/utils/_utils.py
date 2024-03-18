@@ -27,7 +27,7 @@ from pandas.core.dtypes.common import (
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
-from spatialdata import SpatialData, join_sdata_spatialelement_table
+from spatialdata import SpatialData, get_extent, join_sdata_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -408,10 +408,11 @@ def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
     return None
 
 
-# TODO fix scale to radii
-def _calc_default_radii(viewer: Viewer) -> int:
+def _calc_default_radii(viewer: Viewer, sdata: SpatialData) -> int:
     max_dim_geometry = max(viewer.window.geometry()[-2:])
-    return int(20 / max_dim_geometry)
+    extent = get_extent(sdata, coordinate_system="global", exact=False)
+    max_extent_axis = max(max(extent_tuple) for extent_tuple in extent.values())
+    return int(20 / max_dim_geometry * max_extent_axis)
 
 
 def generate_random_color_hex() -> str:
