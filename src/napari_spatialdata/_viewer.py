@@ -17,6 +17,7 @@ from spatialdata.models import PointsModel, ShapesModel
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
 
+from napari_spatialdata._constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _calc_default_radii,
@@ -34,8 +35,8 @@ if TYPE_CHECKING:
     from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
 
-POLYGON_THRESHOLD = 100
-POINT_THRESHOLD = 100000
+# POLYGON_THRESHOLD = 100
+# POINT_THRESHOLD = 100000
 
 
 class SpatialDataViewer(QObject):
@@ -360,7 +361,7 @@ class SpatialDataViewer(QObject):
             df = df[~df.index.duplicated(keep="first")]  # only keep the largest area
             df = df.sort_index()  # reset the index to the first order
 
-        simplify = len(df) > POLYGON_THRESHOLD
+        simplify = len(df) > config.POLYGON_THRESHOLD
         polygons, indices = _get_polygons_properties(df, simplify)
 
         # this will only work for polygons and not for multipolygons
@@ -421,12 +422,13 @@ class SpatialDataViewer(QObject):
         points = sdata.points[original_name].compute()
         affine = _get_transform(sdata.points[original_name], selected_cs)
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
-        if len(points) < POINT_THRESHOLD:
+
+        if len(points) < config.POINT_THRESHOLD:
             subsample = None
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
-            subsample = np.sort(gen.choice(len(points), size=POINT_THRESHOLD, replace=False))  # same as indices
+            subsample = np.sort(gen.choice(len(points), size=config.POINT_THRESHOLD, replace=False))  # same as indices
 
         subsample_points = points.iloc[subsample] if subsample is not None else points
         if subsample is not None:

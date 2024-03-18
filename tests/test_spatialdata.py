@@ -12,6 +12,7 @@ from multiscale_spatial_image import MultiscaleSpatialImage, to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
 from napari_spatialdata import QtAdataViewWidget
+from napari_spatialdata._constants import config
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
@@ -93,12 +94,13 @@ def test_sdatawidget_labels(make_napari_viewer: Any, blobs_extra_cs: SpatialData
 
 
 def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
+    config.POINT_THRESHOLD = 400
     blobs_extra_cs.points["many_points"] = PointsModel.parse(
-        from_dask_array(randint(0, 10, [200000, 2], dtype=int64), columns=["x", "y"])
+        from_dask_array(randint(0, 10, [800, 2], dtype=int64), columns=["x", "y"])
     )
     adata = AnnData(
-        X=RNG.normal(size=(200000, 1)),
-        obs=pd.DataFrame({"instance_id": list(range(200000)), "region": ["many_points"] * 200000}),
+        X=RNG.normal(size=(800, 1)),
+        obs=pd.DataFrame({"instance_id": list(range(800)), "region": ["many_points"] * 800}),
     )
     table = TableModel.parse(adata, region_key="region", region="many_points", instance_key="instance_id")
     blobs_extra_cs["many_points_table"] = table
@@ -132,7 +134,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: Spa
             "Subsampling points because the number of points exceeds the currently supported 100 000."
             in caplog.records[0].message
         )
-    assert widget.viewer_model.viewer.layers[1].metadata.get("adata").n_obs == 100000
+    assert widget.viewer_model.viewer.layers[1].metadata.get("adata").n_obs == 400
     del blobs_extra_cs.points["many_points"]
 
 
