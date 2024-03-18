@@ -409,10 +409,17 @@ def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
 
 
 def _calc_default_radii(viewer: Viewer, sdata: SpatialData, selected_cs: str) -> int:
-    max_dim_geometry = max(viewer.window.geometry()[-2:])
+    w_win, h_win = viewer.window.geometry()[-2:]
     extent = get_extent(sdata, coordinate_system=selected_cs, exact=False)
-    max_extent_axis = max(max(extent_tuple) for extent_tuple in extent.values())
-    return int(20 / max_dim_geometry * max_extent_axis)
+    w_data = extent["x"][1] - extent["x"][0]
+    h_data = extent["y"][1] - extent["y"][0]
+    fit_w = w_data / w_win * h_win <= h_data
+    fit_h = h_data / h_win * w_win <= w_data
+    assert fit_w or fit_h
+    points_size_in_pixels = 5
+    if fit_h:
+        return int(points_size_in_pixels / w_win * w_data)
+    return int(points_size_in_pixels / h_win * h_data)
 
 
 def generate_random_color_hex() -> str:
