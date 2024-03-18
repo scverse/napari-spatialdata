@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from anndata import AnnData
+from dask.dataframe.core import DataFrame as DaskDataFrame
 from geopandas import GeoDataFrame
 from loguru import logger
 from napari import Viewer
@@ -25,6 +26,7 @@ from napari_spatialdata._constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _calc_default_radii,
+    _get_ellipses_from_circles,
     _get_init_metadata_adata,
     _get_transform,
     _transform_coordinates,
@@ -38,9 +40,6 @@ if TYPE_CHECKING:
     from napari.layers import Layer
     from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
-
-# POLYGON_THRESHOLD = 100
-# POINT_THRESHOLD = 100000
 
 
 class SpatialDataViewer(QObject):
@@ -321,32 +320,48 @@ class SpatialDataViewer(QObject):
         affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
         xy = np.array([df.geometry.x, df.geometry.y]).T
-        xy = np.fliplr(xy)
+        yx = np.fliplr(xy)
         radii = df.radius.to_numpy()
 
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
+        metadata = {
+            "sdata": sdata,
+            "adata": adata,
+            "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
+            "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
+            "table_names": table_names if table_name else None,
+            "name": original_name,
+            "_active_in_cs": {selected_cs},
+            "_current_cs": selected_cs,
+            "_n_indices": len(df),
+            "indices": df.index.to_list(),
+        }
 
-        layer = self.viewer.add_points(
-            xy,
-            name=key,
-            affine=affine,
-            size=radii * 2,
-            edge_width=0.0,
-            metadata={
-                "sdata": sdata,
-                "adata": adata,
-                "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
-                "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
-                "table_names": table_names if table_name else None,
-                "name": original_name,
-                "_active_in_cs": {selected_cs},
-                "_current_cs": selected_cs,
-                "_n_indices": len(df),
-                "indices": df.index.to_list(),
-            },
-        )
-        assert affine is not None
-        self._adjust_radii_of_points_layer(layer=layer, affine=affine)
+        CIRCLES_AS_POINTS = True
+        if CIRCLES_AS_POINTS:
+            layer = self.viewer.add_points(
+                yx,
+                name=key,
+                affine=affine,
+                size=1,  # the sise doesn't matter here since it will be adjusted in _adjust_radii_of_points_layer
+                edge_width=0.0,
+                metadata=metadata,
+            )
+            assert affine is not None
+            self._adjust_radii_of_points_layer(layer=layer, affine=affine)
+        else:
+            # useful code to have readily available to debug the correct radius of circles when represented as points
+            ellipses = _get_ellipses_from_circles(yx=yx, radii=radii)
+            self.viewer.add_shapes(
+                ellipses,
+                shape_type="ellipse",
+                name=key,
+                edge_color="white",
+                face_color="white",
+                edge_width=0.0,
+                affine=affine,
+                metadata=metadata,
+            )
 
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
@@ -447,7 +462,7 @@ class SpatialDataViewer(QObject):
         layer = self.viewer.add_points(
             xy,
             name=key,
-            size=radii_size,
+            size=radii_size * 2,
             affine=affine,
             edge_width=0.0,
             metadata={
@@ -467,7 +482,17 @@ class SpatialDataViewer(QObject):
         self._adjust_radii_of_points_layer(layer=layer, affine=affine)
 
     def _adjust_radii_of_points_layer(self, layer: Layer, affine: npt.ArrayLike) -> None:
+        """When visualizing circles as points, we need to adjust the radii manually after an affine transformation."""
         assert isinstance(affine, np.ndarray)
+
+        metadata = layer.metadata
+        element = metadata["sdata"][metadata["name"]]
+        # we don't adjust the radii of dask dataframes (points) since there was no radius to start with (we use an
+        # heuristic to calculate the radius in _calc_default_radii())
+        if isinstance(element, DaskDataFrame):
+            return
+        radii = element.radius.to_numpy()
+
         axes: tuple[str, ...]
         if affine.shape == (3, 3):
             axes = ("y", "x")
@@ -476,9 +501,18 @@ class SpatialDataViewer(QObject):
         else:
             raise ValueError(f"Invalid affine shape: {affine.shape}")
         affine_transformation = Affine(affine, input_axes=axes, output_axes=axes)
-        radii = layer.size  # TODO fix scale to radii
+
         new_radii = scale_radii(radii=radii, affine=affine_transformation, axes=axes)
-        layer.size = new_radii * 2
+
+        # the points size is the diameter, in "data pixels" of the current coordinate system, so we need to scale by
+        # scale factor of the affine transformation. This scale factor is an approximation when the affine
+        # transformation is anisotropic.
+        matrix = affine_transformation.to_affine_matrix(input_axes=axes, output_axes=axes)
+        eigenvalues = np.linalg.eigvals(matrix[:-1, :-1])
+        modules = np.absolute(eigenvalues)
+        scale_factor = np.mean(modules)
+
+        layer.size = 2 * new_radii / scale_factor
 
     def _affine_transform_layers(self, coordinate_system: str) -> None:
         for layer in self.viewer.layers:

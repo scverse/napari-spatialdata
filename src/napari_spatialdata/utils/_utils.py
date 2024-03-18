@@ -425,3 +425,31 @@ def _calc_default_radii(viewer: Viewer, sdata: SpatialData, selected_cs: str) ->
 def generate_random_color_hex() -> str:
     # Generate a random hex color code with alpha set to max
     return f"#{randint(0, 255):02x}{randint(0, 255):02x}{randint(0, 255):02x}ff"
+
+
+def _get_ellipses_from_circles(yx: NDArrayA, radii: NDArrayA) -> NDArrayA:
+    """Convert circles to ellipses.
+
+    Parameters
+    ----------
+    yx
+        Centroids of the circles.
+    radii
+        Radii of the circles.
+
+    Returns
+    -------
+    NDArrayA
+        Ellipses.
+    """
+    ndim = yx.shape[1]
+    assert ndim == 2
+    r = np.stack([radii] * ndim, axis=1)
+    lower_left = yx - r
+    upper_right = yx + r
+    r[:, 0] = -r[:, 0]
+    lower_right = yx - r
+    upper_left = yx + r
+    ellipses = np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
+    assert isinstance(ellipses, np.ndarray)
+    return ellipses
