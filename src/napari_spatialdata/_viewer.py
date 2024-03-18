@@ -12,7 +12,11 @@ from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
-from spatialdata._core.query.relational_query import _get_element_annotators, _left_join_spatialelement_table
+from spatialdata._core.query.relational_query import (
+    _get_element_annotators,
+    _get_unique_label_values_as_index,
+    _left_join_spatialelement_table,
+)
 from spatialdata.models import PointsModel, ShapesModel
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
@@ -393,6 +397,7 @@ class SpatialDataViewer(QObject):
         if multi:
             original_name = original_name[: original_name.rfind("_")]
 
+        indices = _get_unique_label_values_as_index(sdata.labels[original_name])
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
 
@@ -411,6 +416,7 @@ class SpatialDataViewer(QObject):
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
+                "indices": indices,
             },
         )
 

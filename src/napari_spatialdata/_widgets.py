@@ -184,7 +184,8 @@ class AListWidget(ListWidget):
         layer = kwargs.pop("layer", None)
         layer_meta = self.model.layer.metadata if self.model.layer is not None else None
         element_indices = pd.Series(layer_meta["indices"], name="element_indices")
-
+        if isinstance(layer, Labels):
+            element_indices = element_indices[element_indices != 0]
         # When merging if the row is not present in the other table it will be nan so we can give it a default color
         color_dict = {
             cat: color if (color := generate_random_color_hex()) != "#808080FF" else generate_random_color_hex()
@@ -215,7 +216,10 @@ class AListWidget(ListWidget):
         vec = pd.Series(vec, name="vec", index=instance_key_col)
         layer_meta = self.model.layer.metadata if self.model.layer is not None else None
         element_indices = pd.Series(layer_meta["indices"], name="element_indices")
-        diff_element_table = set(instance_key_col).symmetric_difference(element_indices)
+        if isinstance(layer, Labels):
+            vec = vec.drop(index=0)  # type:ignore[attr-defined]
+            element_indices = element_indices[element_indices != 0]
+        diff_element_table = set(vec.index).symmetric_difference(element_indices)  # type:ignore[attr-defined]
         merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
             "vec"
         ].fillna(0, axis=0)
