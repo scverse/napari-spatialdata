@@ -35,9 +35,6 @@ if TYPE_CHECKING:
     from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
 
-# POLYGON_THRESHOLD = 100
-# POINT_THRESHOLD = 100000
-
 
 class SpatialDataViewer(QObject):
     layer_saved = Signal(object)
