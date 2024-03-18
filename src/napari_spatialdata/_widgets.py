@@ -193,7 +193,7 @@ class AListWidget(ListWidget):
         color_dict.update({np.nan: "#808080ff"})
 
         merge_df = pd.merge(
-            pd.Series(element_indices), vec, left_on="element_indices", right_on=self.model.instance_key, how="left"
+            element_indices, vec, left_on="element_indices", right_on=self.model.instance_key, how="left"
         )
         merge_df["color"] = merge_df[vec.name].map(color_dict)
         if layer is not None and isinstance(layer, Labels):
@@ -211,15 +211,20 @@ class AListWidget(ListWidget):
     @_get_points_properties.register(np.ndarray)
     def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
+        instance_key_col = self.model.adata.obs[self.model.instance_key]
+        vec = pd.Series(vec, name="vec", index=instance_key_col)
         layer_meta = self.model.layer.metadata if self.model.layer is not None else None
-        element_indices = layer_meta["indices"]
-        diff_element_table = set(vec).symmetric_difference(element_indices)
+        element_indices = pd.Series(layer_meta["indices"], name="element_indices")
+        diff_element_table = set(instance_key_col).symmetric_difference(element_indices)
+        merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
+            "vec"
+        ].fillna(0, axis=0)
 
         cmap = plt.get_cmap(self.model.cmap)
-        norm_vec = _min_max_norm(element_indices)
+        norm_vec = _min_max_norm(merge_vec)
         color_vec = cmap(norm_vec)
         for i in diff_element_table:
-            change_index = element_indices.index(i)
+            change_index = element_indices.to_list().index(i)
             color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
 
         if layer is not None and isinstance(layer, Labels):
