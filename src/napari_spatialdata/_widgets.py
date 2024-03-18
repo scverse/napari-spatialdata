@@ -217,7 +217,7 @@ class AListWidget(ListWidget):
         layer_meta = self.model.layer.metadata if self.model.layer is not None else None
         element_indices = pd.Series(layer_meta["indices"], name="element_indices")
         if isinstance(layer, Labels):
-            vec = vec.drop(index=0)  # type:ignore[attr-defined]
+            vec = vec.drop(index=0) if 0 in vec.index else vec  # type:ignore[attr-defined]
             element_indices = element_indices[element_indices != 0]
         diff_element_table = set(vec.index).symmetric_difference(element_indices)  # type:ignore[attr-defined]
         merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
