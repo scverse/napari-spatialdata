@@ -497,7 +497,16 @@ class SpatialDataViewer(QObject):
         affine_transformation = Affine(affine, input_axes=axes, output_axes=axes)
 
         new_radii = scale_radii(radii=radii, affine=affine_transformation, axes=axes)
-        layer.size = 2 * new_radii
+
+        # the points size is the diameter, in "data pixels" of the current coordinate system, so we need to scale by
+        # scale factor of the affine transformation. This scale factor is an approximation when the affine
+        # transformation is anisotropic.
+        matrix = affine_transformation.to_affine_matrix(input_axes=axes, output_axes=axes)
+        eigenvalues = np.linalg.eigvals(matrix[:-1, :-1])
+        modules = np.absolute(eigenvalues)
+        scale_factor = np.mean(modules)
+
+        layer.size = 2 * new_radii / scale_factor
 
     def _affine_transform_layers(self, coordinate_system: str) -> None:
         for layer in self.viewer.layers:
