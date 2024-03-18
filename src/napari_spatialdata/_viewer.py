@@ -428,10 +428,10 @@ class SpatialDataViewer(QObject):
             gen = np.random.default_rng()
             subsample = np.sort(gen.choice(len(points), size=POINT_THRESHOLD, replace=False))  # same as indices
 
-        subsample_points = points.iloc[subsample] if subsample else points
-        if subsample:
-            adata = _left_join_spatialelement_table(
-                {"points": {original_name: subsample_points}}, table_name, match_rows="left"
+        subsample_points = points.iloc[subsample] if subsample is not None else points
+        if subsample is not None:
+            _, adata = _left_join_spatialelement_table(
+                {"points": {original_name: subsample_points}}, sdata[table_name], match_rows="left"
             )
         xy = subsample_points[["y", "x"]].values
         np.fliplr(xy)
