@@ -435,7 +435,7 @@ class SpatialDataViewer(QObject):
             )
         xy = subsample_points[["y", "x"]].values
         np.fliplr(xy)
-        radii_size = _calc_default_radii(self.viewer, sdata)
+        radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
         layer = self.viewer.add_points(
             xy,
             name=key,

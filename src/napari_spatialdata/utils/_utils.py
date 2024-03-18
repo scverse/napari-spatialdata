@@ -408,9 +408,9 @@ def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
     return None
 
 
-def _calc_default_radii(viewer: Viewer, sdata: SpatialData) -> int:
+def _calc_default_radii(viewer: Viewer, sdata: SpatialData, selected_cs: str) -> int:
     max_dim_geometry = max(viewer.window.geometry()[-2:])
-    extent = get_extent(sdata, coordinate_system="global", exact=False)
+    extent = get_extent(sdata, coordinate_system=selected_cs, exact=False)
     max_extent_axis = max(max(extent_tuple) for extent_tuple in extent.values())
     return int(20 / max_dim_geometry * max_extent_axis)
 
