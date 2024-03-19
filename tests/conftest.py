@@ -60,6 +60,11 @@ def adata_labels() -> AnnData:
 
 
 @pytest.fixture
+def blobs_extra_cs() -> SpatialData:
+    return blobs(extra_coord_system="space")
+
+
+@pytest.fixture
 def adata_shapes() -> AnnData:
     n_obs_shapes = 100
     n_var = 50

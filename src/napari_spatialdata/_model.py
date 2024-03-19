@@ -10,15 +10,16 @@ from napari.utils.events import EmitterGroup, Event
 from napari_spatialdata._constants._constants import Symbol
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
-__all__ = ["ImageModel"]
+__all__ = ["DataModel"]
 
 
 @dataclass
-class ImageModel:
+class DataModel:
     """Model which holds the data for interactive visualization."""
 
     events: EmitterGroup = field(init=False, default=None, repr=True)
     _table_names: Sequence[Optional[str]] = field(default_factory=list, init=False)
+    _active_table_name: Optional[str] = field(default=None, init=False, repr=True)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
@@ -58,6 +59,8 @@ class ImageModel:
         """
         if attr in ("obs", "obsm"):
             return tuple(map(str, getattr(self.adata, attr).keys()))
+        if attr == "points" and self.layer is not None and (point_cols := self.layer.metadata.get("points_columns")):
+            return tuple(map(str, point_cols.columns))
         return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector
@@ -78,7 +81,18 @@ class ImageModel:
         """
         if name not in self.adata.obs.columns:
             raise KeyError(f"Key `{name}` not found in `adata.obs`.")
-        return self.adata.obs[name], self._format_key(name)
+        if name != self.instance_key:
+            adata_obs = self.adata.obs[[self.instance_key, name]]
+            adata_obs.set_index(self.instance_key, inplace=True)
+        else:
+            adata_obs = self.adata.obs
+        return adata_obs[name], self._format_key(name)
+
+    @_ensure_dense_vector
+    def get_points(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
+        if self.layer is None:
+            raise ValueError("Layer must be present")
+        return self.layer.metadata["points_columns"][name], self._format_key(name)
 
     @_ensure_dense_vector
     def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
@@ -178,6 +192,14 @@ class ImageModel:
     def layer(self, layer: Optional[Layer]) -> None:
         self._layer = layer
         self.events.layer()
+
+    @property
+    def active_table_name(self) -> Optional[str]:
+        return self._active_table_name
+
+    @active_table_name.setter
+    def active_table_name(self, active_table_name: Optional[str]) -> None:
+        self._active_table_name = active_table_name
 
     @property
     def adata(self) -> AnnData:  # noqa: D102

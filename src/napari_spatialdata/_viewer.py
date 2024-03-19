@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from anndata import AnnData
+from dask.dataframe.core import DataFrame as DaskDataFrame
 from geopandas import GeoDataFrame
 from loguru import logger
 from napari import Viewer
@@ -12,13 +13,20 @@ from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
-from spatialdata._core.query.relational_query import _get_element_annotators
+from spatialdata._core.query.relational_query import (
+    _get_element_annotators,
+    _get_unique_label_values_as_index,
+    _left_join_spatialelement_table,
+)
 from spatialdata.models import PointsModel, ShapesModel
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
 
+from napari_spatialdata._constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
+    _calc_default_radii,
+    _get_ellipses_from_circles,
     _get_init_metadata_adata,
     _get_transform,
     _transform_coordinates,
@@ -32,9 +40,6 @@ if TYPE_CHECKING:
     from napari.layers import Layer
     from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
-
-POLYGON_THRESHOLD = 100
-POINT_THRESHOLD = 100000
 
 
 class SpatialDataViewer(QObject):
@@ -276,7 +281,9 @@ class SpatialDataViewer(QObject):
 
         show_info(f"Layer(s) inherited info from {ref_layer}")
 
-    def _get_table_data(self, sdata: SpatialData, element_name: str) -> tuple[AnnData, str | None, list[str | None]]:
+    def _get_table_data(
+        self, sdata: SpatialData, element_name: str
+    ) -> tuple[AnnData | None, str | None, list[str | None]]:
         table_names = list(_get_element_annotators(sdata, element_name))
         table_name = table_names[0] if len(table_names) > 0 else None
         adata = _get_init_metadata_adata(sdata, table_name, element_name)
@@ -313,32 +320,48 @@ class SpatialDataViewer(QObject):
         affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
         xy = np.array([df.geometry.x, df.geometry.y]).T
-        xy = np.fliplr(xy)
+        yx = np.fliplr(xy)
         radii = df.radius.to_numpy()
 
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
+        metadata = {
+            "sdata": sdata,
+            "adata": adata,
+            "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
+            "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
+            "table_names": table_names if table_name else None,
+            "name": original_name,
+            "_active_in_cs": {selected_cs},
+            "_current_cs": selected_cs,
+            "_n_indices": len(df),
+            "indices": df.index.to_list(),
+        }
 
-        layer = self.viewer.add_points(
-            xy,
-            name=key,
-            affine=affine,
-            size=radii * 2,
-            edge_width=0.0,
-            metadata={
-                "sdata": sdata,
-                "adata": adata,
-                "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
-                "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
-                "table_names": table_names if table_name else None,
-                "name": original_name,
-                "_active_in_cs": {selected_cs},
-                "_current_cs": selected_cs,
-                "_n_indices": len(df),
-                "indices": df.index.to_list(),
-            },
-        )
-        assert affine is not None
-        self._adjust_radii_of_points_layer(layer=layer, affine=affine)
+        CIRCLES_AS_POINTS = True
+        if CIRCLES_AS_POINTS:
+            layer = self.viewer.add_points(
+                yx,
+                name=key,
+                affine=affine,
+                size=1,  # the sise doesn't matter here since it will be adjusted in _adjust_radii_of_points_layer
+                edge_width=0.0,
+                metadata=metadata,
+            )
+            assert affine is not None
+            self._adjust_radii_of_points_layer(layer=layer, affine=affine)
+        else:
+            # useful code to have readily available to debug the correct radius of circles when represented as points
+            ellipses = _get_ellipses_from_circles(yx=yx, radii=radii)
+            self.viewer.add_shapes(
+                ellipses,
+                shape_type="ellipse",
+                name=key,
+                edge_color="white",
+                face_color="white",
+                edge_width=0.0,
+                affine=affine,
+                metadata=metadata,
+            )
 
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key
@@ -357,7 +380,7 @@ class SpatialDataViewer(QObject):
             df = df[~df.index.duplicated(keep="first")]  # only keep the largest area
             df = df.sort_index()  # reset the index to the first order
 
-        simplify = len(df) > POLYGON_THRESHOLD
+        simplify = len(df) > config.POLYGON_THRESHOLD
         polygons, indices = _get_polygons_properties(df, simplify)
 
         # this will only work for polygons and not for multipolygons
@@ -389,6 +412,7 @@ class SpatialDataViewer(QObject):
         if multi:
             original_name = original_name[: original_name.rfind("_")]
 
+        indices = _get_unique_label_values_as_index(sdata.labels[original_name])
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
 
@@ -407,6 +431,7 @@ class SpatialDataViewer(QObject):
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
+                "indices": indices,
             },
         )
 
@@ -417,27 +442,32 @@ class SpatialDataViewer(QObject):
 
         points = sdata.points[original_name].compute()
         affine = _get_transform(sdata.points[original_name], selected_cs)
-        if len(points) < POINT_THRESHOLD:
-            subsample = np.arange(len(points))
+        adata, table_name, table_names = self._get_table_data(sdata, original_name)
+
+        if len(points) < config.POINT_THRESHOLD:
+            subsample = None
         else:
             logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
             gen = np.random.default_rng()
-            subsample = np.sort(gen.choice(len(points), size=100000, replace=False))  # same as indices
+            subsample = np.sort(gen.choice(len(points), size=config.POINT_THRESHOLD, replace=False))  # same as indices
 
-        # TODO consider subsampling adata and passing that on.
-        adata, table_name, table_names = self._get_table_data(sdata, original_name)
-
-        xy = points[["y", "x"]].values[subsample]
+        subsample_points = points.iloc[subsample] if subsample is not None else points
+        if subsample is not None and table_name is not None:
+            _, adata = _left_join_spatialelement_table(
+                {"points": {original_name: subsample_points}}, sdata[table_name], match_rows="left"
+            )
+        xy = subsample_points[["y", "x"]].values
         np.fliplr(xy)
+        radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
         layer = self.viewer.add_points(
             xy,
             name=key,
-            size=20,
+            size=radii_size * 2,
             affine=affine,
             edge_width=0.0,
             metadata={
                 "sdata": sdata,
-                "adata": AnnData(obs=points.iloc[subsample, :]),
+                "adata": adata,
                 "name": original_name,
                 "region_key": sdata[table_name].uns["spatialdata_attrs"]["region_key"] if table_name else None,
                 "instance_key": sdata[table_name].uns["spatialdata_attrs"]["instance_key"] if table_name else None,
@@ -445,14 +475,27 @@ class SpatialDataViewer(QObject):
                 "_active_in_cs": {selected_cs},
                 "_current_cs": selected_cs,
                 "_n_indices": len(points),
-                "indices": subsample.tolist(),
+                "indices": subsample_points.index.to_list(),
+                "points_columns": subsample_excl_coords
+                if (subsample_excl_coords := subsample_points.drop(["x", "y"], axis=1)).shape[1] != 0
+                else None,
             },
         )
         assert affine is not None
         self._adjust_radii_of_points_layer(layer=layer, affine=affine)
 
     def _adjust_radii_of_points_layer(self, layer: Layer, affine: npt.ArrayLike) -> None:
+        """When visualizing circles as points, we need to adjust the radii manually after an affine transformation."""
         assert isinstance(affine, np.ndarray)
+
+        metadata = layer.metadata
+        element = metadata["sdata"][metadata["name"]]
+        # we don't adjust the radii of dask dataframes (points) since there was no radius to start with (we use an
+        # heuristic to calculate the radius in _calc_default_radii())
+        if isinstance(element, DaskDataFrame):
+            return
+        radii = element.radius.to_numpy()
+
         axes: tuple[str, ...]
         if affine.shape == (3, 3):
             axes = ("y", "x")
@@ -461,10 +504,18 @@ class SpatialDataViewer(QObject):
         else:
             raise ValueError(f"Invalid affine shape: {affine.shape}")
         affine_transformation = Affine(affine, input_axes=axes, output_axes=axes)
-        metadata = layer.metadata
-        radii = metadata["sdata"][metadata["name"]].radius.to_numpy()
+
         new_radii = scale_radii(radii=radii, affine=affine_transformation, axes=axes)
-        layer.size = new_radii * 2
+
+        # the points size is the diameter, in "data pixels" of the current coordinate system, so we need to scale by
+        # scale factor of the affine transformation. This scale factor is an approximation when the affine
+        # transformation is anisotropic.
+        matrix = affine_transformation.to_affine_matrix(input_axes=axes, output_axes=axes)
+        eigenvalues = np.linalg.eigvals(matrix[:-1, :-1])
+        modules = np.absolute(eigenvalues)
+        scale_factor = np.mean(modules)
+
+        layer.size = 2 * new_radii / scale_factor
 
     def _affine_transform_layers(self, coordinate_system: str) -> None:
         for layer in self.viewer.layers:

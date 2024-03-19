@@ -5,7 +5,7 @@ from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
-from napari.layers import Labels
+from napari.layers import Labels, Points
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
@@ -16,8 +16,9 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from spatialdata import join_sdata_spatialelement_table
 
-from napari_spatialdata._model import ImageModel
+from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._widgets import (
     AListWidget,
@@ -28,6 +29,8 @@ from napari_spatialdata._widgets import (
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
+from napari_spatialdata.utils._utils import _get_init_table_list
+
 
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
@@ -35,7 +38,7 @@ class QtAdataScatterWidget(QWidget):
     def __init__(self, input: Viewer):
         super().__init__()
 
-        self._model = ImageModel()
+        self._model = DataModel()
 
         self.setLayout(QGridLayout())
 
@@ -109,14 +112,13 @@ class QtAdataScatterWidget(QWidget):
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":
             return
+        self.model.active_table_name = table_name
         layer = self._viewer.layers.selection.active
-        adata = None
 
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
-            table = sdata[table_name]
-            adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
-            layer.metadata["adata"] = adata
+            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, "left")
+            layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
             with self.model.events.adata.blocker():
@@ -126,10 +128,10 @@ class QtAdataScatterWidget(QWidget):
             return
 
         self.model.instance_key = layer.metadata["instance_key"] = (
-            adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
+            table.uns["spatialdata_attrs"]["instance_key"] if table is not None else None
         )
         self.model.region_key = layer.metadata["region_key"] = (
-            adata.uns["spatialdata_attrs"]["region_key"] if adata is not None else None
+            table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
         )
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
 
@@ -148,7 +150,7 @@ class QtAdataScatterWidget(QWidget):
         self.table_name_widget.clear()
         self.table_name_widget.clear()
         if event.source == self.model or event.source.active:
-            table_list = self._get_init_table_list()
+            table_list = _get_init_table_list(self.viewer.layers.selection.active)
             if table_list:
                 self.model.table_names = table_list
                 self.table_name_widget.addItems(table_list)
@@ -160,14 +162,6 @@ class QtAdataScatterWidget(QWidget):
         self.y_widget.component_widget._onChange()
         self.color_widget.widget._onChange()
         self.color_widget.component_widget._onChange()
-
-    def _get_init_table_list(self) -> Optional[Sequence[Optional[str]]]:
-        layer = self.viewer.layers.selection.active
-
-        table_names: Optional[Sequence[Optional[str]]]
-        if table_names := layer.metadata.get("table_names"):
-            return table_names  # type: ignore[no-any-return]
-        return None
 
     def _select_layer(self) -> None:
         """Napari layers."""
@@ -193,7 +187,7 @@ class QtAdataScatterWidget(QWidget):
         return self._viewer
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
 
@@ -205,7 +199,7 @@ class QtAdataViewWidget(QWidget):
         super().__init__()
 
         self._viewer = viewer
-        self._model = ImageModel()
+        self._model = DataModel()
 
         self._select_layer()
         self._viewer.layers.selection.events.changed.connect(self._select_layer)
@@ -229,9 +223,9 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(obs_label)
         self.layout().addWidget(self.obs_widget)
 
-        # gene
-        var_label = QLabel("Genes:")
-        var_label.setToolTip("Gene names from `adata.var_names` or `adata.raw.var_names`.")
+        # Vars
+        var_label = QLabel("Vars:")
+        var_label.setToolTip("Names from `adata.var_names` or `adata.raw.var_names`.")
         self.var_widget = AListWidget(self.viewer, self.model, attr="var")
         self.var_widget.setAdataLayer("X")
 
@@ -245,6 +239,7 @@ class QtAdataViewWidget(QWidget):
 
         self.adata_layer_widget.currentTextChanged.connect(self.var_widget.setAdataLayer)
 
+        self.layout().addWidget(adata_layer_label)
         self.layout().addWidget(self.adata_layer_widget)
         self.layout().addWidget(var_label)
         self.layout().addWidget(self.var_widget)
@@ -261,6 +256,13 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(obsm_label)
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
+
+        # Points columns
+        points_label = QLabel("Points columns:")
+        points_label.setToolTip("Columns in points element excluding dimension columns.")
+        self.points_widget = AListWidget(self.viewer, self.model, attr="points", multiselect=False)
+        self.layout().addWidget(points_label)
+        self.layout().addWidget(self.points_widget)
 
         # color by
         self.color_by = QLabel("Colored by:")
@@ -282,7 +284,7 @@ class QtAdataViewWidget(QWidget):
 
         self.table_name_widget.clear()
 
-        table_list = self._get_init_table_list()
+        table_list = _get_init_table_list(self.viewer.layers.selection.active)
         if table_list:
             self.model.table_names = table_list
             self.table_name_widget.addItems(table_list)
@@ -291,6 +293,7 @@ class QtAdataViewWidget(QWidget):
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
+        self.points_widget.clear()
         self.obs_widget._onChange()
         self.var_widget._onChange()
         self.obsm_widget._onChange()
@@ -303,10 +306,16 @@ class QtAdataViewWidget(QWidget):
             if hasattr(self, "obs_widget"):
                 self.table_name_widget.clear()
                 self.adata_layer_widget.clear()
+                self.points_widget.clear()
                 self.obs_widget.clear()
                 self.var_widget.clear()
                 self.obsm_widget.clear()
                 self.color_by.clear()
+                if (
+                    isinstance(layer, Points)
+                    and len(cols := layer.metadata["sdata"][layer.metadata["name"]].columns.drop(["x", "y"])) != 0
+                ):
+                    self.points_widget.addItems(map(str, cols))
             return
 
         if layer is not None and "adata" in layer.metadata:
@@ -329,14 +338,15 @@ class QtAdataViewWidget(QWidget):
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":
             return
+        self.model.active_table_name = table_name
+
         layer = self._viewer.layers.selection.active
-        adata = None
 
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
-            table = sdata[table_name]
-            adata = table[table.obs[table.uns["spatialdata_attrs"]["region_key"]] == element_name]
-            layer.metadata["adata"] = adata
+            how = "left" if isinstance(layer, Labels) else "inner"
+            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, how)
+            layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
             with self.model.events.adata.blocker():
@@ -346,10 +356,10 @@ class QtAdataViewWidget(QWidget):
             return
 
         self.model.instance_key = layer.metadata["instance_key"] = (
-            adata.uns["spatialdata_attrs"]["instance_key"] if adata is not None else None
+            table.uns["spatialdata_attrs"]["instance_key"] if table is not None else None
         )
         self.model.region_key = layer.metadata["region_key"] = (
-            adata.uns["spatialdata_attrs"]["region_key"] if adata is not None else None
+            table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
         )
         self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
 
@@ -371,15 +381,6 @@ class QtAdataViewWidget(QWidget):
             return adata_layers
         return [None]
 
-    def _get_init_table_list(self) -> Optional[Sequence[Optional[str]]]:
-        layer = self.viewer.layers.selection.active
-
-        table_names: Optional[Sequence[Optional[str]]]
-        if table_names := layer.metadata.get("table_names"):
-            return table_names  # type: ignore[no-any-return]
-
-        return None
-
     def _change_color_by(self) -> None:
         self.color_by.setText(f"Color by: {self.model.color_by}")
 
@@ -389,7 +390,7 @@ class QtAdataViewWidget(QWidget):
         return self._viewer
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
 
