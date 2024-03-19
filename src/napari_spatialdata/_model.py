@@ -86,6 +86,9 @@ class DataModel:
             adata_obs = self.adata.obs
         return adata_obs[name], self._format_key(name)
 
+    def get_points_cols(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
+        pass
+
     @_ensure_dense_vector
     def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
         """

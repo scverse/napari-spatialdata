@@ -223,7 +223,7 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(obs_label)
         self.layout().addWidget(self.obs_widget)
 
-        # gene
+        # Vars
         var_label = QLabel("Vars:")
         var_label.setToolTip("Names from `adata.var_names` or `adata.raw.var_names`.")
         self.var_widget = AListWidget(self.viewer, self.model, attr="var")
@@ -256,6 +256,13 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(obsm_label)
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
+
+        # Points columns
+        points_label = QLabel("Points columns:")
+        points_label.setToolTip("Columns in points element excluding dimension columns.")
+        self.points_widget = AListWidget(self.viewer, self.model, attr="points", multiselect=False)
+        self.layout().addWidget(points_label)
+        self.layout().addWidget(self.points_widget)
 
         # color by
         self.color_by = QLabel("Colored by:")
