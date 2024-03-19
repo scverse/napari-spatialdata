@@ -113,7 +113,9 @@ class SdataWidget(QWidget):
             for layer in self.viewer_model.viewer.layers:
                 element_name = layer.metadata.get("name")
                 if element_name:
-                    if elements and element_name not in elements:
+                    if elements and (
+                        layer.name not in elements or element_name != elements[layer.name]["original_name"]
+                    ):
                         layer.visible = False
                     elif layer.metadata["_active_in_cs"]:
                         layer.visible = True
@@ -124,10 +126,10 @@ class SdataWidget(QWidget):
     def _add_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key[: key.rfind("_")] if multi else key
 
-        if type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.point.Point:
+        if type(sdata.shapes[original_name].iloc[0].geometry) == shapely.geometry.point.Point:
             self.viewer_model.add_sdata_circles(sdata, key, selected_cs, multi)
-        elif (type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.polygon.Polygon) or (
-            type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon
+        elif (type(sdata.shapes[original_name].iloc[0].geometry) == shapely.geometry.polygon.Polygon) or (
+            type(sdata.shapes[original_name].iloc[0].geometry) == shapely.geometry.multipolygon.MultiPolygon
         ):
             self.viewer_model.add_sdata_shapes(sdata, key, selected_cs, multi)
         else:

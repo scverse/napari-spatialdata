@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
 
 import numpy as np
 import pandas as pd
@@ -8,30 +8,26 @@ from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
 
 from napari_spatialdata._constants._constants import Symbol
-from napari_spatialdata._constants._pkg_constants import Key
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
-__all__ = ["ImageModel"]
+__all__ = ["DataModel"]
 
 
 @dataclass
-class ImageModel:
+class DataModel:
     """Model which holds the data for interactive visualization."""
 
     events: EmitterGroup = field(init=False, default=None, repr=True)
+    _table_names: Sequence[Optional[str]] = field(default_factory=list, init=False)
+    _active_table_name: Optional[str] = field(default=None, init=False, repr=True)
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
-    _spatial_key: str = field(default=Key.obsm.spatial, repr=False)
     _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
-    _labels_key: Optional[str] = field(default=None, repr=True)
-    _coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
-    _points_coordinates: Optional[NDArrayA] = field(init=False, default=None, repr=True)
-    _points_var: Optional[pd.Series] = field(init=False, default=None, repr=True)
-    _scale: Optional[float] = field(init=False, default=None)
+    _region_key: Optional[str] = field(default=None, repr=True)
+    _instance_key: Optional[str] = field(default=None, repr=True)
+    _color_by: str = field(default="", repr=True, init=False)
     _system_name: Optional[str] = field(default=None, repr=True)
 
-    _spot_diameter: Union[NDArrayA, float] = field(init=False, default=1)
-    _point_diameter: Union[NDArrayA, float] = field(init=False, default=1)
     _scale_key: Optional[str] = field(init=False, default="tissue_hires_scalef")  # TODO(giovp): use constants for these
 
     _palette: Optional[str] = field(init=False, default=None, repr=False)
@@ -45,6 +41,7 @@ class ImageModel:
             source=self,
             layer=Event,
             adata=Event,
+            color_by=Event,
         )
 
     def get_items(self, attr: str) -> Tuple[str, ...]:
@@ -62,10 +59,8 @@ class ImageModel:
         """
         if attr in ("obs", "obsm"):
             return tuple(map(str, getattr(self.adata, attr).keys()))
-        if attr == "points":
-            if self.points_var is not None:
-                return tuple(map(str, self.points_var.unique()))
-            return tuple(["No points found."])  # noqa: C409
+        if attr == "points" and self.layer is not None and (point_cols := self.layer.metadata.get("points_columns")):
+            return tuple(map(str, point_cols.columns))
         return tuple(map(str, getattr(self.adata, attr).index))
 
     @_ensure_dense_vector
@@ -86,7 +81,18 @@ class ImageModel:
         """
         if name not in self.adata.obs.columns:
             raise KeyError(f"Key `{name}` not found in `adata.obs`.")
-        return self.adata.obs[name], self._format_key(name)
+        if name != self.instance_key:
+            adata_obs = self.adata.obs[[self.instance_key, name]]
+            adata_obs.set_index(self.instance_key, inplace=True)
+        else:
+            adata_obs = self.adata.obs
+        return adata_obs[name], self._format_key(name)
+
+    @_ensure_dense_vector
+    def get_points(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
+        if self.layer is None:
+            raise ValueError("Layer must be present")
+        return self.layer.metadata["points_columns"][name], self._format_key(name)
 
     @_ensure_dense_vector
     def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
@@ -151,25 +157,6 @@ class ImageModel:
 
         return (res if res.ndim == 1 else res[:, index]), pretty_name
 
-    def get_points(self, name: str, **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
-        """
-        Return a gene in spatial coordinates.
-
-        Parameters
-        ----------
-        name
-            Gene name.
-
-        Returns
-        -------
-        The values and the formatted ``name``.
-        """
-        if name not in self.points_var.unique():
-            raise KeyError(f"Key `{name}` not found in `adata.uns['points']['gene']`.")
-        coords = self.points_coordinates
-        coords = coords[self.points_var == name]
-        return np.insert(coords[:, ::-1][:, :2] * self.scale, 0, values=0, axis=1), self._format_key(name)
-
     def _format_key(
         self, key: Union[str, int], index: Optional[Union[int, str]] = None, adata_layer: bool = False
     ) -> str:
@@ -181,6 +168,23 @@ class ImageModel:
         return str(key) + (f":{self.layer}" if self.layer is not None else ":X")
 
     @property
+    def color_by(self) -> str:
+        return self._color_by
+
+    @color_by.setter
+    def color_by(self, color_column: str) -> None:
+        self._color_by = color_column
+        self.events.color_by()
+
+    @property
+    def table_names(self) -> Sequence[Optional[str]]:
+        return self._table_names
+
+    @table_names.setter
+    def table_names(self, table_names: Sequence[Optional[str]]) -> None:
+        self._table_names = table_names
+
+    @property
     def layer(self) -> Optional[Layer]:  # noqa: D102
         return self._layer
 
@@ -188,6 +192,14 @@ class ImageModel:
     def layer(self, layer: Optional[Layer]) -> None:
         self._layer = layer
         self.events.layer()
+
+    @property
+    def active_table_name(self) -> Optional[str]:
+        return self._active_table_name
+
+    @active_table_name.setter
+    def active_table_name(self, active_table_name: Optional[str]) -> None:
+        self._active_table_name = active_table_name
 
     @property
     def adata(self) -> AnnData:  # noqa: D102
@@ -199,14 +211,6 @@ class ImageModel:
         self.events.adata()
 
     @property
-    def spatial_key(self) -> str:  # noqa: D102
-        return self._spatial_key
-
-    @spatial_key.setter
-    def spatial_key(self, key: str) -> None:
-        self._spatial_key = key
-
-    @property
     def adata_layer(self) -> Optional[str]:  # noqa: D102
         return self._adata_layer
 
@@ -215,62 +219,20 @@ class ImageModel:
         self._adata_layer = adata_layer
 
     @property
-    def coordinates(self) -> NDArrayA:  # noqa: D102
-        return self._coordinates  # type: ignore[return-value]
+    def region_key(self) -> Optional[str]:  # noqa: D102
+        return self._region_key
 
-    @coordinates.setter
-    def coordinates(self, coordinates: NDArrayA) -> None:
-        self._coordinates = coordinates
-
-    @property
-    def points_coordinates(self) -> NDArrayA:  # noqa: D102
-        if TYPE_CHECKING:
-            assert self._points_coordinates is not None
-        return self._points_coordinates
-
-    @points_coordinates.setter
-    def points_coordinates(self, points_coordinates: NDArrayA) -> None:
-        self._points_coordinates = points_coordinates
+    @region_key.setter
+    def region_key(self, region_key: str) -> None:
+        self._region_key = region_key
 
     @property
-    def points_var(self) -> pd.Series:  # noqa: D102
-        return self._points_var
+    def instance_key(self) -> Optional[str]:  # noqa: D102
+        return self._instance_key
 
-    @points_var.setter
-    def points_var(self, points_var: pd.Series) -> None:
-        self._points_var = points_var
-
-    @property
-    def scale(self) -> Optional[float]:  # noqa: D102
-        return self._scale
-
-    @scale.setter
-    def scale(self, scale: float) -> None:
-        self._scale = scale
-
-    @property
-    def spot_diameter(self) -> Union[NDArrayA, float]:  # noqa: D102
-        return self._spot_diameter
-
-    @spot_diameter.setter
-    def spot_diameter(self, spot_diameter: Union[NDArrayA, float]) -> None:
-        self._spot_diameter = spot_diameter
-
-    @property
-    def point_diameter(self) -> Union[NDArrayA, float]:  # noqa: D102
-        return self._point_diameter
-
-    @point_diameter.setter
-    def point_diameter(self, point_diameter: Union[NDArrayA, float]) -> None:
-        self._point_diameter = point_diameter
-
-    @property
-    def labels_key(self) -> Optional[str]:  # noqa: D102
-        return self._labels_key
-
-    @labels_key.setter
-    def labels_key(self, region_key: str) -> None:
-        self._labels_key = region_key
+    @instance_key.setter
+    def instance_key(self, instance_key: str) -> None:
+        self._instance_key = instance_key
 
     @property
     def palette(self) -> Optional[str]:  # noqa: D102

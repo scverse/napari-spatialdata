@@ -9,7 +9,7 @@ import napari
 import numpy as np
 import pandas as pd
 from loguru import logger
-from napari.layers import Labels, Layer, Points, Shapes
+from napari.layers import Labels, Points, Shapes
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -19,13 +19,11 @@ from vispy import scene
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
 
-from napari_spatialdata._model import ImageModel
+from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import (
     NDArrayA,
-    _get_categorical,
     _min_max_norm,
-    _position_cluster_labels,
-    _set_palette,
+    generate_random_color_hex,
 )
 
 __all__ = [
@@ -99,9 +97,9 @@ class ListWidget(QtWidgets.QListWidget):
 class AListWidget(ListWidget):
     layerChanged = Signal()
 
-    def __init__(self, viewer: Viewer | None, model: ImageModel, attr: str, **kwargs: Any):
-        if attr not in ImageModel.VALID_ATTRIBUTES:
-            raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(ImageModel.VALID_ATTRIBUTES)}`.")
+    def __init__(self, viewer: Viewer | None, model: DataModel, attr: str, **kwargs: Any):
+        if attr not in DataModel.VALID_ATTRIBUTES:
+            raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(DataModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
 
         self._viewer = viewer
@@ -126,30 +124,15 @@ class AListWidget(ListWidget):
                 logger.error(e)
                 continue
 
-            if vec.ndim == 2:
-                self.viewer.add_points(
-                    vec,
-                    name=name,
-                    edge_color="white",
-                    face_color="white",
-                    size=self.model.point_diameter,
-                    symbol=self.model.symbol,
-                )
-            else:
+            if self.model.layer is not None:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-
+                self.model.color_by = "" if self.model.system_name is None else item
                 if isinstance(self.model.layer, (Points, Shapes)):
-                    self.model.layer.name = (
-                        "" if self.model.system_name is None else self.model.layer.name + ":"
-                    ) + item
                     self.model.layer.text = None  # needed because of the text-feature order of updates
-                    self.model.layer.features = properties.get("features", None)
+                    # self.model.layer.features = properties.get("features", None)
                     self.model.layer.face_color = properties["face_color"]
                     self.model.layer.text = properties["text"]
                 elif isinstance(self.model.layer, Labels):
-                    self.model.layer.name = (
-                        "" if self.model.system_name is None else self.model.layer.name + ":"
-                    ) + item
                     self.model.layer.color = properties["color"]
                     self.model.layer.properties = properties.get("properties", None)
                 else:
@@ -196,28 +179,74 @@ class AListWidget(ListWidget):
     def _get_points_properties(self, vec: NDArrayA | pd.Series, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError(type(vec))
 
+    @_get_points_properties.register(pd.Series)
+    def _(self, vec: pd.Series, **kwargs: Any) -> dict[str, Any]:
+        layer = kwargs.pop("layer", None)
+        layer_meta = self.model.layer.metadata if self.model.layer is not None else None
+        element_indices = pd.Series(layer_meta["indices"], name="element_indices")
+        if isinstance(layer, Labels):
+            element_indices = element_indices[element_indices != 0]
+        # When merging if the row is not present in the other table it will be nan so we can give it a default color
+        color_dict = {
+            cat: color if (color := generate_random_color_hex()) != "#808080FF" else generate_random_color_hex()
+            for cat in vec.cat.categories
+        }
+        color_dict.update({np.nan: "#808080ff"})
+
+        if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
+            merge_df = pd.merge(
+                element_indices, vec, left_on="element_indices", right_on=self.model.instance_key, how="left"
+            )
+        else:
+            merge_df = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")
+
+        merge_df["color"] = merge_df[vec.name].map(color_dict)
+        if layer is not None and isinstance(layer, Labels):
+            index_color_mapping = dict(zip(merge_df["element_indices"], merge_df["color"]))
+            index_color_mapping[0] = "#000000ff"
+            return {
+                "color": index_color_mapping,
+                "properties": {"value": vec},
+                "text": None,
+            }
+
+        return {
+            "text": None,
+            "face_color": merge_df["color"].to_list(),
+        }
+
     @_get_points_properties.register(np.ndarray)
     def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
-        cmap = plt.get_cmap(self.model.cmap)
-        norm_vec = _min_max_norm(vec)
-        color_vec = cmap(norm_vec)
-        if layer is not None and isinstance(layer, Labels):
-            cmap = plt.get_cmap(self.model.cmap)
-            norm_vec = _min_max_norm(vec)
-            color_vec = cmap(norm_vec)
+        instance_key_col = self.model.adata.obs[self.model.instance_key]
+        vec = pd.Series(vec, name="vec", index=instance_key_col)
+        layer_meta = self.model.layer.metadata if self.model.layer is not None else None
+        element_indices = pd.Series(layer_meta["indices"], name="element_indices")
+        if isinstance(layer, Labels):
+            vec = vec.drop(index=0) if 0 in vec.index else vec  # type:ignore[attr-defined]
+            # element_indices = element_indices[element_indices != 0]
+        diff_element_table = set(vec.index).symmetric_difference(element_indices)  # type:ignore[attr-defined]
+        merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
+            "vec"
+        ].fillna(0, axis=0)
 
+        cmap = plt.get_cmap(self.model.cmap)
+        norm_vec = _min_max_norm(merge_vec)
+        color_vec = cmap(norm_vec)
+        for i in diff_element_table:
+            change_index = element_indices.to_list().index(i)
+            color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
+        if isinstance(layer, Labels):
+            color_vec[0] = np.array([0.0, 0.0, 0.0, 1.0])
+
+        if layer is not None and isinstance(layer, Labels):
             return {
-                "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, color_vec)),
+                "color": dict(zip(element_indices, color_vec)),
                 "properties": {"value": vec},
                 "text": None,
             }
 
         if layer is not None and isinstance(layer, Shapes):
-            cmap = plt.get_cmap(self.model.cmap)
-            norm_vec = _min_max_norm(vec)
-            color_vec = cmap(norm_vec)
-
             return {
                 "text": None,
                 "face_color": color_vec,
@@ -228,33 +257,33 @@ class AListWidget(ListWidget):
             "face_color": color_vec,
         }
 
-    @_get_points_properties.register(pd.Series)
-    def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
-        colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
-        face_color = _get_categorical(
-            self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
-        )
-
-        if layer is not None and isinstance(layer, Labels):
-            return {
-                "color": dict(zip(self.model.adata.obs[self.model.labels_key].values, face_color)),
-                "text": None,
-            }
-
-        if layer is not None and isinstance(layer, Shapes):
-            return {"face_color": face_color, "metadata": None, "text": None}
-
-        cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
-        return {
-            "text": {
-                "string": "{clusters}",
-                "size": 24,
-                "color": {"feature": "clusters", "colormap": colortypes},
-                "anchor": "center",
-            },
-            "face_color": face_color,
-            "features": cluster_labels,
-        }
+    # @_get_points_properties.register(pd.Series)
+    # def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
+    #     colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
+    #     face_color = _get_categorical(
+    #         self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
+    #     )
+    #
+    #     if layer is not None and isinstance(layer, Labels):
+    #         return {
+    #             "color": dict(zip(self.model.adata.obs[self.model.instance_key].values, face_color)),
+    #             "text": None,
+    #         }
+    #
+    #     if layer is not None and isinstance(layer, Shapes):
+    #         return {"face_color": face_color, "metadata": None, "text": None}
+    #
+    #     cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
+    #     return {
+    #         "text": {
+    #             "string": "{clusters}",
+    #             "size": 24,
+    #             "color": {"feature": "clusters", "colormap": colortypes},
+    #             "anchor": "center",
+    #         },
+    #         "face_color": face_color,
+    #         "features": cluster_labels,
+    #     }
 
     @property
     def viewer(self) -> napari.Viewer:
@@ -262,13 +291,13 @@ class AListWidget(ListWidget):
         return self._viewer
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
 
 
 class ComponentWidget(QtWidgets.QComboBox):
-    def __init__(self, model: ImageModel, attr: str, max_visible: int = 4, **kwargs: Any):
+    def __init__(self, model: DataModel, attr: str, max_visible: int = 4, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._model = model
@@ -350,7 +379,7 @@ class CBarWidget(QtWidgets.QWidget):
 
     def __init__(
         self,
-        model: ImageModel,
+        model: DataModel,
         cmap: str = "viridis",
         label: str | None = None,
         width: int | None = 250,
@@ -463,7 +492,7 @@ class CBarWidget(QtWidgets.QWidget):
 
 
 class RangeSliderWidget(QRangeSlider):
-    def __init__(self, viewer: Viewer, model: ImageModel, colorbar: CBarWidget, **kwargs: Any):
+    def __init__(self, viewer: Viewer, model: DataModel, colorbar: CBarWidget, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._viewer = viewer
@@ -521,6 +550,6 @@ class RangeSliderWidget(QRangeSlider):
         return self._viewer
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
