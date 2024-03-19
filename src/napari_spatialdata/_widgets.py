@@ -193,9 +193,13 @@ class AListWidget(ListWidget):
         }
         color_dict.update({np.nan: "#808080ff"})
 
-        merge_df = pd.merge(
-            element_indices, vec, left_on="element_indices", right_on=self.model.instance_key, how="left"
-        )
+        if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
+            merge_df = pd.merge(
+                element_indices, vec, left_on="element_indices", right_on=self.model.instance_key, how="left"
+            )
+        else:
+            merge_df = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")
+
         merge_df["color"] = merge_df[vec.name].map(color_dict)
         if layer is not None and isinstance(layer, Labels):
             index_color_mapping = dict(zip(merge_df["element_indices"], merge_df["color"]))

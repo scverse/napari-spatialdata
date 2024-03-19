@@ -5,7 +5,7 @@ from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
-from napari.layers import Labels
+from napari.layers import Labels, Points
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
@@ -293,6 +293,7 @@ class QtAdataViewWidget(QWidget):
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
+        self.points_widget.clear()
         self.obs_widget._onChange()
         self.var_widget._onChange()
         self.obsm_widget._onChange()
@@ -305,10 +306,16 @@ class QtAdataViewWidget(QWidget):
             if hasattr(self, "obs_widget"):
                 self.table_name_widget.clear()
                 self.adata_layer_widget.clear()
+                self.points_widget.clear()
                 self.obs_widget.clear()
                 self.var_widget.clear()
                 self.obsm_widget.clear()
                 self.color_by.clear()
+                if (
+                    isinstance(layer, Points)
+                    and len(cols := layer.metadata["sdata"][layer.metadata["name"]].columns.drop(["x", "y"])) != 0
+                ):
+                    self.points_widget.addItems(map(str, cols))
             return
 
         if layer is not None and "adata" in layer.metadata:
