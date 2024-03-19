@@ -198,8 +198,10 @@ class AListWidget(ListWidget):
         )
         merge_df["color"] = merge_df[vec.name].map(color_dict)
         if layer is not None and isinstance(layer, Labels):
+            index_color_mapping = dict(zip(merge_df["element_indices"], merge_df["color"]))
+            index_color_mapping[0] = "#000000ff"
             return {
-                "color": dict(zip(merge_df["element_indices"], merge_df["color"])),
+                "color": index_color_mapping,
                 "properties": {"value": vec},
                 "text": None,
             }
@@ -218,7 +220,7 @@ class AListWidget(ListWidget):
         element_indices = pd.Series(layer_meta["indices"], name="element_indices")
         if isinstance(layer, Labels):
             vec = vec.drop(index=0) if 0 in vec.index else vec  # type:ignore[attr-defined]
-            element_indices = element_indices[element_indices != 0]
+            # element_indices = element_indices[element_indices != 0]
         diff_element_table = set(vec.index).symmetric_difference(element_indices)  # type:ignore[attr-defined]
         merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
             "vec"
@@ -230,6 +232,8 @@ class AListWidget(ListWidget):
         for i in diff_element_table:
             change_index = element_indices.to_list().index(i)
             color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
+        if isinstance(layer, Labels):
+            color_vec[0] = np.array([0.0, 0.0, 0.0, 1.0])
 
         if layer is not None and isinstance(layer, Labels):
             return {
