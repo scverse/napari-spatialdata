@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 
 from qtpy.QtCore import Qt
 
@@ -36,7 +36,9 @@ def get_center_pos_listitem(widget: QListWidget, text: str) -> QPoint:
     return widget.visualRect(model_index).center()
 
 
-def click_list_widget_item(qtbot: QtBot, widget: QListWidget, position: QPoint, wait_signal: str) -> None:
+def click_list_widget_item(
+    qtbot: QtBot, widget: QListWidget, position: QPoint, wait_signal: str, click: Literal["single", "double"] = "single"
+) -> None:
     """Simulate click on position in list widget.
 
     Parameters
@@ -52,12 +54,22 @@ def click_list_widget_item(qtbot: QtBot, widget: QListWidget, position: QPoint, 
     """
     wait_signal = getattr(widget, wait_signal)
     with qtbot.wait_signal(wait_signal):
-        qtbot.mouseClick(
-            widget.viewport(),
-            Qt.MouseButton.LeftButton,
-            Qt.KeyboardModifier.NoModifier,
-            pos=position,
-        )
+        if click == "single":
+            qtbot.mouseClick(
+                widget.viewport(),
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                pos=position,
+            )
+        elif click == "double":
+            qtbot.mouseDClick(
+                widget.viewport(),
+                Qt.MouseButton.LeftButton,
+                Qt.KeyboardModifier.NoModifier,
+                pos=position,
+            )
+        else:
+            raise ValueError(f"{click} is not a valid click")
 
 
 def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> NDArrayA | Any:
