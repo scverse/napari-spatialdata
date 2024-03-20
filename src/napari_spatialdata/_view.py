@@ -1,14 +1,12 @@
 from typing import Any, FrozenSet, Optional, Sequence
 
 import napari
-import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
-
-from napari.layers import Labels, Shapes, Points
+from napari.layers import Labels, Points, Shapes
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (

@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Optional, Sequence, Tuple, Union
+from typing import Any, Optional, Sequence, Tuple, Union
+
 import numpy as np
 import pandas as pd
 from anndata import AnnData

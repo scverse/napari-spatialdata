@@ -13,7 +13,6 @@ from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
-
 from spatialdata._core.query.relational_query import (
     _get_element_annotators,
     _get_unique_label_values_as_index,

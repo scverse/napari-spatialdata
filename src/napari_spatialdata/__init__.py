@@ -14,4 +14,4 @@ del version, parse
 
 from napari_spatialdata._interactive import Interactive as Interactive  # noqa: E402
 from napari_spatialdata._reader import get_reader  # noqa: E402
-from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget, QtAdataAnnotationWidget  # noqa: E402
+from napari_spatialdata._view import QtAdataAnnotationWidget, QtAdataScatterWidget, QtAdataViewWidget  # noqa: E402

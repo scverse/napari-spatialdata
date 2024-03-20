@@ -93,7 +93,6 @@ def test_sdatawidget_labels(make_napari_viewer: Any, blobs_extra_cs: SpatialData
     assert widget.viewer_model.viewer.layers[0].metadata.get("region_key") is not None
 
 
-
 def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     config.POINT_THRESHOLD = 400
     blobs_extra_cs.points["many_points"] = PointsModel.parse(
