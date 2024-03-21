@@ -75,6 +75,10 @@ Distributed under the terms of the [BSD-3] license,
 
 If you encounter any problems, please file an [issue] along with a detailed description.
 
+## Citation
+
+Marconato, L., Palla, G., Yamauchi, K.A. et al. SpatialData: an open and universal data framework for spatial omics. Nat Methods (2024). https://doi.org/10.1038/s41592-024-02212-x
+
 [napari]: https://github.com/napari/napari
 [cookiecutter]: https://github.com/audreyr/cookiecutter
 [@napari]: https://github.com/napari

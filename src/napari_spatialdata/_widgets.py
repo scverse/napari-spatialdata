@@ -8,11 +8,13 @@ import matplotlib.pyplot as plt
 import napari
 import numpy as np
 import pandas as pd
+from anndata import AnnData
 from loguru import logger
 from napari.layers import Labels, Points, Shapes
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
+from scanpy.plotting._utils import _set_colors_for_categorical_obs
 from sklearn.preprocessing import MinMaxScaler
 from superqt import QRangeSlider
 from vispy import scene
@@ -23,7 +25,6 @@ from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import (
     NDArrayA,
     _min_max_norm,
-    generate_random_color_hex,
 )
 
 __all__ = [
@@ -187,10 +188,10 @@ class AListWidget(ListWidget):
         if isinstance(layer, Labels):
             element_indices = element_indices[element_indices != 0]
         # When merging if the row is not present in the other table it will be nan so we can give it a default color
-        color_dict = {
-            cat: color if (color := generate_random_color_hex()) != "#808080FF" else generate_random_color_hex()
-            for cat in vec.cat.categories
-        }
+        colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
+        _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
+        colors = colorer.uns["vec_colors"]
+        color_dict = dict(zip(vec.cat.categories, colors))
         color_dict.update({np.nan: "#808080ff"})
 
         if self.model.instance_key is not None and self.model.instance_key == vec.index.name:

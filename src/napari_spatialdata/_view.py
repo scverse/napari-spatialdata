@@ -3,6 +3,7 @@ from typing import Any, FrozenSet, Optional, Sequence
 import napari
 import pandas as pd
 from anndata import AnnData
+from dask.dataframe.core import DataFrame as DaskDataFrame
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
@@ -324,6 +325,7 @@ class QtAdataViewWidget(QWidget):
                 self.color_by.clear()
                 if (
                     isinstance(layer, Points)
+                    and isinstance(layer.metadata["sdata"][layer.metadata["name"]], DaskDataFrame)
                     and len(cols := layer.metadata["sdata"][layer.metadata["name"]].columns.drop(["x", "y"])) != 0
                 ):
                     self.points_widget.addItems(map(str, cols))
