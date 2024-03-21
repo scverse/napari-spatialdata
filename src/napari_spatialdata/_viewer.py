@@ -25,7 +25,6 @@ from spatialdata.transformations._utils import scale_radii
 from napari_spatialdata._constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
-    _calc_default_radii,
     _get_ellipses_from_circles,
     _get_init_metadata_adata,
     _get_transform,
@@ -458,7 +457,8 @@ class SpatialDataViewer(QObject):
             )
         xy = subsample_points[["y", "x"]].values
         np.fliplr(xy)
-        radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
+        # radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
+        radii_size = 3
         layer = self.viewer.add_points(
             xy,
             name=key,
