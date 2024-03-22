@@ -44,7 +44,7 @@ class DataModel:
             color_by=Event,
         )
 
-    def get_items(self, attr: str) -> Tuple[str, ...]:
+    def get_items(self, attr: str) -> Optional[Tuple[str, ...]]:
         """
         Return valid keys for an attribute.
 
@@ -61,7 +61,7 @@ class DataModel:
             return tuple(map(str, getattr(self.adata, attr).keys()))
         if attr == "points" and self.layer is not None and (point_cols := self.layer.metadata.get("points_columns")):
             return tuple(map(str, point_cols.columns))
-        return tuple(map(str, getattr(self.adata, attr).index))
+        return None
 
     @_ensure_dense_vector
     def get_obs(

@@ -75,7 +75,9 @@ class ListWidget(QtWidgets.QListWidget):
     def _onAction(self, items: Iterable[str]) -> None:
         pass
 
-    def addItems(self, labels: str | Iterable[str]) -> None:
+    def addItems(self, labels: str | Iterable[str] | None) -> None:
+        if labels is None:
+            return
         if isinstance(labels, str):
             labels = (labels,)
         labels = tuple(labels)
