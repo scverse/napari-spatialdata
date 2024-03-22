@@ -319,6 +319,7 @@ class QtAdataViewWidget(QWidget):
                     and (cols_df := layer.metadata["_columns_df"]) is not None
                 ):
                     self.points_widget.addItems(map(str, cols_df.columns))
+                    self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
             return
 
         if layer is not None and "adata" in layer.metadata:
