@@ -335,6 +335,9 @@ class SpatialDataViewer(QObject):
             "_current_cs": selected_cs,
             "_n_indices": len(df),
             "indices": df.index.to_list(),
+            "_columns_df": df_sub_columns
+            if (df_sub_columns := df.drop(columns=["geometry", "radius"])).shape[1] != 0
+            else None,
         }
 
         CIRCLES_AS_POINTS = True
@@ -404,6 +407,9 @@ class SpatialDataViewer(QObject):
                 "_current_cs": selected_cs,
                 "_n_indices": len(df),
                 "indices": indices,
+                "_columns_df": df_sub_columns
+                if (df_sub_columns := df.drop(columns="geometry")).shape[1] != 0
+                else None,
             },
         )
 
@@ -476,7 +482,7 @@ class SpatialDataViewer(QObject):
                 "_current_cs": selected_cs,
                 "_n_indices": len(points),
                 "indices": subsample_points.index.to_list(),
-                "points_columns": subsample_excl_coords
+                "_columns_df": subsample_excl_coords
                 if (subsample_excl_coords := subsample_points.drop(["x", "y"], axis=1)).shape[1] != 0
                 else None,
             },

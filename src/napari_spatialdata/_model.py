@@ -59,7 +59,7 @@ class DataModel:
         """
         if attr in ("obs", "obsm"):
             return tuple(map(str, getattr(self.adata, attr).keys()))
-        if attr == "points" and self.layer is not None and (point_cols := self.layer.metadata.get("points_columns")):
+        if attr == "points" and self.layer is not None and (point_cols := self.layer.metadata.get("_columns_df")):
             return tuple(map(str, point_cols.columns))
         return None
 
@@ -92,7 +92,7 @@ class DataModel:
     def get_points(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
         if self.layer is None:
             raise ValueError("Layer must be present")
-        return self.layer.metadata["points_columns"][name], self._format_key(name)
+        return self.layer.metadata["_columns_df"][name], self._format_key(name)
 
     @_ensure_dense_vector
     def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring

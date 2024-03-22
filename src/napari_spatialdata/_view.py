@@ -3,10 +3,11 @@ from typing import Any, FrozenSet, Optional, Sequence
 import napari
 from anndata import AnnData
 from dask.dataframe.core import DataFrame as DaskDataFrame
+from geopandas.geodataframe import GeoDataFrame as gdf
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
-from napari.layers import Labels, Points
+from napari.layers import Labels, Points, Shapes
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
@@ -313,11 +314,11 @@ class QtAdataViewWidget(QWidget):
                 self.obsm_widget.clear()
                 self.color_by.clear()
                 if (
-                    isinstance(layer, Points)
-                    and isinstance(layer.metadata["sdata"][layer.metadata["name"]], DaskDataFrame)
-                    and len(cols := layer.metadata["sdata"][layer.metadata["name"]].columns.drop(["x", "y"])) != 0
+                    isinstance(layer, (Points, Shapes))
+                    and isinstance(layer.metadata["sdata"][layer.metadata["name"]], (DaskDataFrame, gdf))
+                    and (cols_df := layer.metadata["_columns_df"]) is not None
                 ):
-                    self.points_widget.addItems(map(str, cols))
+                    self.points_widget.addItems(map(str, cols_df.columns))
             return
 
         if layer is not None and "adata" in layer.metadata:
