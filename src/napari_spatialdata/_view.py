@@ -260,8 +260,8 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obsm_index_widget)
 
         # Points columns
-        points_label = QLabel("Points columns:")
-        points_label.setToolTip("Columns in points element excluding dimension columns.")
+        points_label = QLabel("Dataframe columns:")
+        points_label.setToolTip("Columns in points/shapes element excluding dimension columns.")
         self.points_widget = AListWidget(self.viewer, self.model, attr="points", multiselect=False)
         self.layout().addWidget(points_label)
         self.layout().addWidget(self.points_widget)
