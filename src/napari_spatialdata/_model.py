@@ -34,7 +34,7 @@ class DataModel:
     _cmap: str = field(init=False, default="viridis", repr=False)
     _symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
-    VALID_ATTRIBUTES = ("obs", "var", "obsm", "points")
+    VALID_ATTRIBUTES = ("obs", "var", "obsm", "columns_df")
 
     def __post_init__(self) -> None:
         self.events = EmitterGroup(
@@ -44,7 +44,7 @@ class DataModel:
             color_by=Event,
         )
 
-    def get_items(self, attr: str) -> Tuple[str, ...]:
+    def get_items(self, attr: str) -> Optional[Tuple[str, ...]]:
         """
         Return valid keys for an attribute.
 
@@ -59,9 +59,11 @@ class DataModel:
         """
         if attr in ("obs", "obsm"):
             return tuple(map(str, getattr(self.adata, attr).keys()))
-        if attr == "points" and self.layer is not None and (point_cols := self.layer.metadata.get("points_columns")):
-            return tuple(map(str, point_cols.columns))
-        return tuple(map(str, getattr(self.adata, attr).index))
+        if attr == "columns_df" and self.layer is not None and (df_cols := self.layer.metadata.get("_columns_df")):
+            return tuple(map(str, df_cols.columns))
+        if attr == "var":
+            return tuple(map(str, getattr(self.adata, attr).index))
+        return None
 
     @_ensure_dense_vector
     def get_obs(
@@ -89,10 +91,10 @@ class DataModel:
         return adata_obs[name], self._format_key(name)
 
     @_ensure_dense_vector
-    def get_points(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
+    def get_columns_df(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
         if self.layer is None:
             raise ValueError("Layer must be present")
-        return self.layer.metadata["points_columns"][name], self._format_key(name)
+        return self.layer.metadata["_columns_df"][name], self._format_key(name)
 
     @_ensure_dense_vector
     def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring

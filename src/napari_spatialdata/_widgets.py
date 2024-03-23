@@ -75,7 +75,9 @@ class ListWidget(QtWidgets.QListWidget):
     def _onAction(self, items: Iterable[str]) -> None:
         pass
 
-    def addItems(self, labels: str | Iterable[str]) -> None:
+    def addItems(self, labels: str | Iterable[str] | None) -> None:
+        if labels is None:
+            return
         if isinstance(labels, str):
             labels = (labels,)
         labels = tuple(labels)
@@ -219,26 +221,40 @@ class AListWidget(ListWidget):
     @_get_points_properties.register(np.ndarray)
     def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
-        instance_key_col = self.model.adata.obs[self.model.instance_key]
-        vec = pd.Series(vec, name="vec", index=instance_key_col)
-        layer_meta = self.model.layer.metadata if self.model.layer is not None else None
-        element_indices = pd.Series(layer_meta["indices"], name="element_indices")
-        if isinstance(layer, Labels):
-            vec = vec.drop(index=0) if 0 in vec.index else vec  # type:ignore[attr-defined]
+
+        # Here kwargs['key'] is actually the column name.
+        column_df = False
+        if (
+            (adata := self.model.adata) is not None
+            and kwargs["key"] not in adata.obs.columns
+            and kwargs["key"] not in adata.var.index
+        ) or adata is None:
+            merge_vec = layer.metadata["_columns_df"][kwargs["key"]]
+            element_indices = merge_vec.index
+            column_df = True
+        else:
+            instance_key_col = self.model.adata.obs[self.model.instance_key]
+            vec = pd.Series(vec, name="vec", index=instance_key_col)
+            layer_meta = self.model.layer.metadata if self.model.layer is not None else None
+            element_indices = pd.Series(layer_meta["indices"], name="element_indices")
+            if isinstance(layer, Labels):
+                vec = vec.drop(index=0) if 0 in vec.index else vec  # type:ignore[attr-defined]
             # element_indices = element_indices[element_indices != 0]
-        diff_element_table = set(vec.index).symmetric_difference(element_indices)  # type:ignore[attr-defined]
-        merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
-            "vec"
-        ].fillna(0, axis=0)
+            diff_element_table = set(vec.index).symmetric_difference(element_indices)  # type:ignore[attr-defined]
+            merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
+                "vec"
+            ].fillna(0, axis=0)
 
         cmap = plt.get_cmap(self.model.cmap)
         norm_vec = _min_max_norm(merge_vec)
         color_vec = cmap(norm_vec)
-        for i in diff_element_table:
-            change_index = element_indices.to_list().index(i)
-            color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
-        if isinstance(layer, Labels):
-            color_vec[0] = np.array([0.0, 0.0, 0.0, 1.0])
+
+        if not column_df:
+            for i in diff_element_table:
+                change_index = element_indices.to_list().index(i)
+                color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
+            if isinstance(layer, Labels):
+                color_vec[0] = np.array([0.0, 0.0, 0.0, 1.0])
 
         if layer is not None and isinstance(layer, Labels):
             return {
@@ -257,34 +273,6 @@ class AListWidget(ListWidget):
             "text": None,
             "face_color": color_vec,
         }
-
-    # @_get_points_properties.register(pd.Series)
-    # def _(self, vec: pd.Series, key: str, layer: Layer) -> dict[str, Any]:
-    #     colortypes = _set_palette(self.model.adata, key=key, palette=self.model.palette, vec=vec)
-    #     face_color = _get_categorical(
-    #         self.model.adata, key=key, palette=self.model.palette, colordict=colortypes, vec=vec
-    #     )
-    #
-    #     if layer is not None and isinstance(layer, Labels):
-    #         return {
-    #             "color": dict(zip(self.model.adata.obs[self.model.instance_key].values, face_color)),
-    #             "text": None,
-    #         }
-    #
-    #     if layer is not None and isinstance(layer, Shapes):
-    #         return {"face_color": face_color, "metadata": None, "text": None}
-    #
-    #     cluster_labels = _position_cluster_labels(self.model.coordinates, vec)
-    #     return {
-    #         "text": {
-    #             "string": "{clusters}",
-    #             "size": 24,
-    #             "color": {"feature": "clusters", "colormap": colortypes},
-    #             "anchor": "center",
-    #         },
-    #         "face_color": face_color,
-    #         "features": cluster_labels,
-    #     }
 
     @property
     def viewer(self) -> napari.Viewer:
