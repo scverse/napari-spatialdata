@@ -259,12 +259,12 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
 
-        # Points columns
-        points_label = QLabel("Dataframe columns:")
-        points_label.setToolTip("Columns in points/shapes element excluding dimension columns.")
-        self.points_widget = AListWidget(self.viewer, self.model, attr="points", multiselect=False)
-        self.layout().addWidget(points_label)
-        self.layout().addWidget(self.points_widget)
+        # Dataframe columns columns
+        dataframe_columns_label = QLabel("Dataframe columns:")
+        dataframe_columns_label.setToolTip("Columns in points/shapes element excluding dimension columns.")
+        self.dataframe_columns_widget = AListWidget(self.viewer, self.model, attr="columns_df", multiselect=False)
+        self.layout().addWidget(dataframe_columns_label)
+        self.layout().addWidget(self.dataframe_columns_widget)
 
         # color by
         self.color_by = QLabel("Colored by:")
@@ -295,9 +295,9 @@ class QtAdataViewWidget(QWidget):
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
-        self.points_widget.clear()
+        self.dataframe_columns_widget.clear()
         if self.model.layer is not None and (cols_df := self.model.layer.metadata.get("_columns_df")) is not None:
-            self.points_widget.addItems(map(str, cols_df.columns))
+            self.dataframe_columns_widget.addItems(map(str, cols_df.columns))
         self.obs_widget._onChange()
         self.var_widget._onChange()
         self.obsm_widget._onChange()
@@ -310,7 +310,7 @@ class QtAdataViewWidget(QWidget):
             if hasattr(self, "obs_widget"):
                 self.table_name_widget.clear()
                 self.adata_layer_widget.clear()
-                self.points_widget.clear()
+                self.dataframe_columns_widget.clear()
                 self.obs_widget.clear()
                 self.var_widget.clear()
                 self.obsm_widget.clear()
@@ -320,7 +320,7 @@ class QtAdataViewWidget(QWidget):
                     and isinstance(layer.metadata["sdata"][layer.metadata["name"]], (DaskDataFrame, GeoDataFrame))
                     and (cols_df := layer.metadata["_columns_df"]) is not None
                 ):
-                    self.points_widget.addItems(map(str, cols_df.columns))
+                    self.dataframe_columns_widget.addItems(map(str, cols_df.columns))
                     self.model.system_name = layer.metadata.get("name", None)
             return
 

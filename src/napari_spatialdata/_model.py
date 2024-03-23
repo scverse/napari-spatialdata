@@ -34,7 +34,7 @@ class DataModel:
     _cmap: str = field(init=False, default="viridis", repr=False)
     _symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
-    VALID_ATTRIBUTES = ("obs", "var", "obsm", "points")
+    VALID_ATTRIBUTES = ("obs", "var", "obsm", "columns_df")
 
     def __post_init__(self) -> None:
         self.events = EmitterGroup(
@@ -59,8 +59,8 @@ class DataModel:
         """
         if attr in ("obs", "obsm"):
             return tuple(map(str, getattr(self.adata, attr).keys()))
-        if attr == "points" and self.layer is not None and (point_cols := self.layer.metadata.get("_columns_df")):
-            return tuple(map(str, point_cols.columns))
+        if attr == "columns_df" and self.layer is not None and (df_cols := self.layer.metadata.get("_columns_df")):
+            return tuple(map(str, df_cols.columns))
         return None
 
     @_ensure_dense_vector
