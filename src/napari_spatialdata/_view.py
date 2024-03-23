@@ -3,7 +3,7 @@ from typing import Any, FrozenSet, Optional, Sequence
 import napari
 from anndata import AnnData
 from dask.dataframe.core import DataFrame as DaskDataFrame
-from geopandas.geodataframe import GeoDataFrame as gdf
+from geopandas.geodataframe import GeoDataFrame
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
@@ -315,7 +315,7 @@ class QtAdataViewWidget(QWidget):
                 self.color_by.clear()
                 if (
                     isinstance(layer, (Points, Shapes))
-                    and isinstance(layer.metadata["sdata"][layer.metadata["name"]], (DaskDataFrame, gdf))
+                    and isinstance(layer.metadata["sdata"][layer.metadata["name"]], (DaskDataFrame, GeoDataFrame))
                     and (cols_df := layer.metadata["_columns_df"]) is not None
                 ):
                     self.points_widget.addItems(map(str, cols_df.columns))
