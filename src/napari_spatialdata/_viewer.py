@@ -476,9 +476,11 @@ class SpatialDataViewer(QObject):
                 "_current_cs": selected_cs,
                 "_n_indices": len(points),
                 "indices": subsample_points.index.to_list(),
-                "points_columns": subsample_excl_coords
-                if (subsample_excl_coords := subsample_points.drop(["x", "y"], axis=1)).shape[1] != 0
-                else None,
+                "points_columns": (
+                    subsample_excl_coords
+                    if (subsample_excl_coords := subsample_points.drop(["x", "y"], axis=1)).shape[1] != 0
+                    else None
+                ),
             },
         )
         assert affine is not None
