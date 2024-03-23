@@ -296,6 +296,8 @@ class QtAdataViewWidget(QWidget):
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
         self.points_widget.clear()
+        if self.model.layer is not None and (cols_df := self.model.layer.metadata.get("_columns_df")) is not None:
+            self.points_widget.addItems(map(str, cols_df.columns))
         self.obs_widget._onChange()
         self.var_widget._onChange()
         self.obsm_widget._onChange()
