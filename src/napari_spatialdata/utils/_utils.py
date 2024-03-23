@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import Counter
 from functools import wraps
+from random import randint
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
@@ -13,8 +14,9 @@ from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
+from napari.layers import Layer
 from numba import njit, prange
-from pandas.api.types import infer_dtype, is_categorical_dtype
+from pandas.api.types import CategoricalDtype, infer_dtype
 from pandas.core.dtypes.common import (
     is_bool_dtype,
     is_integer_dtype,
@@ -25,7 +27,7 @@ from pandas.core.dtypes.common import (
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
-from spatialdata import SpatialData
+from spatialdata import SpatialData, get_extent, join_sdata_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -35,6 +37,7 @@ from napari_spatialdata.utils._categoricals_utils import (
 )
 
 if TYPE_CHECKING:
+    from napari import Viewer
     from napari.utils.events import EventedList
     from qtpy.QtWidgets import QListWidgetItem
     from xarray import DataArray
@@ -62,7 +65,7 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
             return None, None
 
         if isinstance(res, pd.Series):
-            if is_categorical_dtype(res):
+            if isinstance(res.dtype, pd.CategoricalDtype):
                 return res, fmt
             if is_string_dtype(res) or is_object_dtype(res) or is_bool_dtype(res):
                 return res.astype("category"), fmt
@@ -110,7 +113,7 @@ def _set_palette(
     palette: str | None = None,
     vec: pd.Series | None = None,
 ) -> dict[Any, Any]:
-    if vec is not None and not is_categorical_dtype(vec):
+    if vec is not None and not isinstance(vec.dtype, CategoricalDtype):
         raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
 
     add_colors_for_categorical_sample_annotation(
@@ -150,12 +153,12 @@ def _get_categorical(
 
 
 def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str, NDArrayA]:
-    if not is_categorical_dtype(clusters):
+    if clusters is not None and not isinstance(clusters.dtype, pd.CategoricalDtype):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
     coords = coords[:, 1:]
     df = pd.DataFrame(coords)
     df["clusters"] = clusters.values
-    df = df.groupby("clusters")[[0, 1]].apply(lambda g: list(np.median(g.values, axis=0)))
+    df = df.groupby("clusters", observed=True)[[0, 1]].apply(lambda g: list(np.median(g.values, axis=0)))
     df = pd.DataFrame(list(df), index=df.index).dropna()
     kdtree = KDTree(coords)
     clusters = np.full(len(coords), fill_value="", dtype=object)
@@ -371,17 +374,18 @@ def get_elements_meta_mapping(
     return elements, name_to_add
 
 
-def _get_metadata_adata(sdata: SpatialData, key: str) -> None | AnnData:
+def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: str) -> None | AnnData:
     """
     Retrieve AnnData to be used in layer metadata.
 
-    Get the AnnData table in the SpatialData object based on the element
+    Get the AnnData table in the SpatialData object based on table_name and return a table with only those rows that
+    annotate the element. For this a left join is performed.
     """
-    if sdata.table:
-        adata = sdata.table[sdata.table.obs[sdata.table.uns["spatialdata_attrs"]["region_key"]] == key]
-        if adata.shape[0] == 0:
-            return None
-    else:
+    if not table_name:
+        return None
+    _, adata = join_sdata_spatialelement_table(sdata, element_name, table_name, how="left", match_rows="left")
+
+    if adata.shape[0] == 0:
         return None
     return adata
 
@@ -395,3 +399,57 @@ def get_itemindex_by_text(
         if widget_item_text == item_text:
             widget_item = list_widget.item(index)
     return widget_item
+
+
+def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
+    table_names: Sequence[str | None] | None
+    if table_names := layer.metadata.get("table_names"):
+        return table_names  # type: ignore[no-any-return]
+    return None
+
+
+def _calc_default_radii(viewer: Viewer, sdata: SpatialData, selected_cs: str) -> int:
+    w_win, h_win = viewer.window.geometry()[-2:]
+    extent = get_extent(sdata, coordinate_system=selected_cs, exact=False)
+    w_data = extent["x"][1] - extent["x"][0]
+    h_data = extent["y"][1] - extent["y"][0]
+    fit_w = w_data / w_win * h_win <= h_data
+    fit_h = h_data / h_win * w_win <= w_data
+    assert fit_w or fit_h
+    points_size_in_pixels = 5
+    if fit_h:
+        return int(points_size_in_pixels / w_win * w_data)
+    return int(points_size_in_pixels / h_win * h_data)
+
+
+def generate_random_color_hex() -> str:
+    # Generate a random hex color code with alpha set to max
+    return f"#{randint(0, 255):02x}{randint(0, 255):02x}{randint(0, 255):02x}ff"
+
+
+def _get_ellipses_from_circles(yx: NDArrayA, radii: NDArrayA) -> NDArrayA:
+    """Convert circles to ellipses.
+
+    Parameters
+    ----------
+    yx
+        Centroids of the circles.
+    radii
+        Radii of the circles.
+
+    Returns
+    -------
+    NDArrayA
+        Ellipses.
+    """
+    ndim = yx.shape[1]
+    assert ndim == 2
+    r = np.stack([radii] * ndim, axis=1)
+    lower_left = yx - r
+    upper_right = yx + r
+    r[:, 0] = -r[:, 0]
+    lower_right = yx - r
+    upper_left = yx + r
+    ellipses = np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
+    assert isinstance(ellipses, np.ndarray)
+    return ellipses

@@ -60,6 +60,11 @@ def adata_labels() -> AnnData:
 
 
 @pytest.fixture
+def blobs_extra_cs() -> SpatialData:
+    return blobs(extra_coord_system="space")
+
+
+@pytest.fixture
 def adata_shapes() -> AnnData:
     n_obs_shapes = 100
     n_var = 50
@@ -112,7 +117,7 @@ def labels():
 
 
 def _get_blobs_galaxy() -> Tuple[NDArrayA, NDArrayA]:
-    blobs = data.binary_blobs(seed=SEED)
+    blobs = data.binary_blobs(rng=SEED)
     blobs = ndi.label(blobs)[0]
     return blobs, data.hubble_deep_field()[: blobs.shape[0], : blobs.shape[0]]
 

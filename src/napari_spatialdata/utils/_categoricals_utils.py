@@ -10,7 +10,7 @@ from matplotlib import cm, colors, rcParams
 from matplotlib import pyplot as pl
 from matplotlib.axes import Axes
 from matplotlib.colors import is_color_like, to_hex
-from pandas.api.types import is_categorical_dtype
+from pandas.api.types import CategoricalDtype
 
 # Colorblindness adjusted vega_10
 # See https://github.com/scverse/scanpy/issues/387
@@ -373,9 +373,9 @@ def add_colors_for_categorical_sample_annotation(
 ) -> None:
     """Add colors for categorical annotation."""
     color_key = f"{key}_colors"
-    if not is_categorical_dtype(adata.obs[key]) and is_categorical_dtype(vec):
+    if not isinstance(adata.obs[key].dtype, CategoricalDtype) and isinstance(vec.dtype, CategoricalDtype):
         categories = vec.cat.categories
-    elif is_categorical_dtype(adata.obs[key]):
+    elif isinstance(adata.obs[key].dtype, CategoricalDtype):
         categories = adata.obs[key].cat.categories
     colors_needed = len(categories)
     if palette and force_update_colors:
