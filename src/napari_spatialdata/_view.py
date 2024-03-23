@@ -134,7 +134,7 @@ class QtAdataScatterWidget(QWidget):
         self.model.region_key = layer.metadata["region_key"] = (
             table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
         )
-        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
+        self.model.system_name = layer.metadata.get("name", None)
 
         self.x_widget.widget._onChange()
         self.x_widget.component_widget._onChange()
@@ -328,7 +328,7 @@ class QtAdataViewWidget(QWidget):
 
         self.model._region_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
         self.model._instance_key = layer.metadata["instance_key"] if isinstance(layer, Labels) else None
-        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
+        self.model.system_name = layer.metadata.get("name", None)
 
         if hasattr(
             self, "obs_widget"
@@ -363,7 +363,7 @@ class QtAdataViewWidget(QWidget):
         self.model.region_key = layer.metadata["region_key"] = (
             table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
         )
-        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
+        self.model.system_name = layer.metadata.get("name", None)
 
         if hasattr(
             self, "obs_widget"
