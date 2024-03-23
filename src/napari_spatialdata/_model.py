@@ -89,7 +89,7 @@ class DataModel:
         return adata_obs[name], self._format_key(name)
 
     @_ensure_dense_vector
-    def get_points(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
+    def get_columns_df(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
         if self.layer is None:
             raise ValueError("Layer must be present")
         return self.layer.metadata["_columns_df"][name], self._format_key(name)
