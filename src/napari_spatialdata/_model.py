@@ -61,6 +61,8 @@ class DataModel:
             return tuple(map(str, getattr(self.adata, attr).keys()))
         if attr == "columns_df" and self.layer is not None and (df_cols := self.layer.metadata.get("_columns_df")):
             return tuple(map(str, df_cols.columns))
+        if attr == "var":
+            return tuple(map(str, getattr(self.adata, attr).index))
         return None
 
     @_ensure_dense_vector

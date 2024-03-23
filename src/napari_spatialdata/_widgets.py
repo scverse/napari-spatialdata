@@ -227,7 +227,7 @@ class AListWidget(ListWidget):
         if (
             (adata := self.model.adata) is not None
             and kwargs["key"] not in adata.obs.columns
-            and kwargs["key"] not in adata.var
+            and kwargs["key"] not in adata.var.index
         ) or adata is None:
             merge_vec = layer.metadata["_columns_df"][kwargs["key"]]
             element_indices = merge_vec.index
