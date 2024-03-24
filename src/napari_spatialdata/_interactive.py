@@ -34,6 +34,19 @@ class Interactive:
     """
 
     def add_element(self, element: str, element_coordinate_system: str, view_element_system: bool = False) -> None:
+        """
+        Add an element of a spatial data object being visualized with interactive to the viewer.
+
+        Parameters
+        ----------
+        element
+            The name of the element in the spatial data object to add as napari layer.
+        element_coordinate_system
+            The coordinate system in which the layer should be visualized.
+        view_element_system
+            Whether to switch to element_coordinate_system or to switch back to current active coordinate system
+            after adding an element as layer.
+        """
         duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
         elements, name_to_add = get_elements_meta_mapping(
             self._sdata, element_coordinate_system, duplicate_element_names, element
@@ -58,6 +71,7 @@ class Interactive:
             raise ValueError(f"Element {element} not found in coordinate system {element_coordinate_system}.")
 
     def switch_coordinate_system(self, coordinate_system: str) -> None:
+        """Switch to a coordinate system present in the spatialdata object(s)."""
         widget_item = get_itemindex_by_text(self._sdata_widget.coordinate_system_widget, coordinate_system)
         if widget_item:
             self._sdata_widget.coordinate_system_widget.setCurrentItem(widget_item)
@@ -80,7 +94,9 @@ class Interactive:
             self.run()
 
     def run(self) -> None:
+        """Run the napari application."""
         napari.run()
 
     def screenshot(self) -> NDArrayA | Any:
+        """Take a screenshot of the viewer in its current state."""
         return self._viewer.screenshot(canvas_only=False)
