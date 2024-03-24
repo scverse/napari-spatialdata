@@ -393,6 +393,22 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: 
 def get_itemindex_by_text(
     list_widget: CoordinateSystemWidget | ElementWidget, item_text: str
 ) -> None | QListWidgetItem:
+    """
+    Get the item in a listwidget based on its text.
+
+    Parameters
+    ----------
+    list_widget
+        Either the coordinate system widget or the element widget from which to get the
+        list item.
+    item_text
+        The text of the item for which to get the corresponding list item.
+
+    Returns
+    -------
+    widget_item
+        The retrieved list item.
+    """
     widget_item = None
     for index in range(list_widget.count()):
         widget_item_text = list_widget.item(index).text()
@@ -402,6 +418,18 @@ def get_itemindex_by_text(
 
 
 def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
+    """
+    Get the table names annotating the SpatialElement upon creating the napari layer.
+
+    Parameters
+    ----------
+    layer
+        The napari layer.
+
+    Return
+    ------
+    The list of table names annotating the SpatialElement if any.
+    """
     table_names: Sequence[str | None] | None
     if table_names := layer.metadata.get("table_names"):
         return table_names  # type: ignore[no-any-return]
@@ -423,7 +451,7 @@ def _calc_default_radii(viewer: Viewer, sdata: SpatialData, selected_cs: str) ->
 
 
 def generate_random_color_hex() -> str:
-    # Generate a random hex color code with alpha set to max
+    """Generate a random hex color with max alpha."""
     return f"#{randint(0, 255):02x}{randint(0, 255):02x}{randint(0, 255):02x}ff"
 
 
