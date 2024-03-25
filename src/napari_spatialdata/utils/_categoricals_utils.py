@@ -371,7 +371,21 @@ def _set_default_colors_for_categorical_obs(
 def add_colors_for_categorical_sample_annotation(
     adata: AnnData, key: str, vec: pd.Series, palette: Optional[List[str]] = None, force_update_colors: bool = False
 ) -> None:
-    """Add colors for categorical annotation."""
+    """Add colors for categorical annotation.
+
+    Adds colors for categorical annotation to table.uns.
+
+    Parameters
+    ----------
+    adata
+        The AnnData table.
+    key
+        The column in the table containing the categorical values.
+    palette
+        The palette to create the colors from.
+    force_update_colors
+        Force to overwrite colors in table.uns if already present.
+    """
     color_key = f"{key}_colors"
     if not isinstance(adata.obs[key].dtype, CategoricalDtype) and isinstance(vec.dtype, CategoricalDtype):
         categories = vec.cat.categories

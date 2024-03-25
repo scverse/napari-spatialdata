@@ -25,7 +25,6 @@ from spatialdata.transformations._utils import scale_radii
 from napari_spatialdata._constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
-    _calc_default_radii,
     _get_ellipses_from_circles,
     _get_init_metadata_adata,
     _get_transform,
@@ -134,7 +133,10 @@ class SpatialDataViewer(QObject):
 
     def save_to_sdata(self, layers: list[Layer]) -> None:
         """
-        Add the current napari layer to the SpatialData object.
+        Add the current selected napari layer(s) to the SpatialData object.
+
+        If the layer is newly added and not yet linked with a spatialdata object it will be automatically
+        linked if only 1 spatialdata object is being visualized in the viewer.
 
         Notes
         -----
@@ -144,10 +146,8 @@ class SpatialDataViewer(QObject):
             - the selected layer (needs to be exactly one) will be saved;
             - if more than one SpatialData object is being shown with napari, before saving the layer you need to link
               it to a layer with a SpatialData object. This can be done by selecting both layers and pressing Shift+L.
-
-        Limitations:
-
-            - with the current implementation replacing existing or previously saved layers is not allowed.
+            - Currently images and labels are not supported.
+            - Currently updating existing elements is not supported.
         """
         # TODO: change the logic to match the new docstring
 
@@ -245,9 +245,9 @@ class SpatialDataViewer(QObject):
         # This function calls inherit_metadata by setting a default value for ref_layer.
         layers = list(viewer.layers.selection)
         ref_layer = self._get_layer_for_unique_sdata(viewer)
-        self.inherit_metadata(layers, ref_layer, show_tooltip=show_tooltip)
+        self.inherit_metadata(layers, ref_layer)
 
-    def inherit_metadata(self, layers: list[Layer], ref_layer: Layer, show_tooltip: bool = True) -> None:
+    def inherit_metadata(self, layers: list[Layer], ref_layer: Layer) -> None:
         """
         Inherit metadata from active layer.
 
@@ -293,6 +293,20 @@ class SpatialDataViewer(QObject):
         return adata, table_name, table_names
 
     def add_sdata_image(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        """
+        Add an image in a spatial data object to the viewer.
+
+        Parameters
+        ----------
+        sdata
+            The spatial data object containing the image.
+        key
+            The name of the image in the spatialdata object.
+        selected_cs
+            The coordinate system in which the image layer is to be loaded.
+        multi
+            Whether there are multiple spatialdata objects present in the viewer.
+        """
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -315,6 +329,20 @@ class SpatialDataViewer(QObject):
         )
 
     def add_sdata_circles(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        """
+        Add a shapes layer to the viewer to visualize Point geometries.
+
+        Parameters
+        ----------
+        sdata
+            The spatial data object containing the Point geometries.
+        key
+            The name of the Shapes element in the spatialdata object.
+        selected_cs
+            The coordinate system in which the shapes layer is to be loaded.
+        multi
+            Whether there are multiple spatialdata objects present in the viewer.
+        """
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -338,6 +366,9 @@ class SpatialDataViewer(QObject):
             "_current_cs": selected_cs,
             "_n_indices": len(df),
             "indices": df.index.to_list(),
+            "_columns_df": (
+                df_sub_columns if (df_sub_columns := df.drop(columns=["geometry", "radius"])).shape[1] != 0 else None
+            ),
         }
 
         CIRCLES_AS_POINTS = True
@@ -367,6 +398,20 @@ class SpatialDataViewer(QObject):
             )
 
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        """
+        Add shapes element in a spatial data object to the viewer.
+
+        Parameters
+        ----------
+        sdata
+            The spatial data object containing the shapes element.
+        key
+            The name of the shapes element in the spatialdata object.
+        selected_cs
+            The coordinate system in which the shapes element layer is to be loaded.
+        multi
+            Whether there are multiple spatialdata objects present in the viewer.
+        """
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -407,10 +452,27 @@ class SpatialDataViewer(QObject):
                 "_current_cs": selected_cs,
                 "_n_indices": len(df),
                 "indices": indices,
+                "_columns_df": (
+                    df_sub_columns if (df_sub_columns := df.drop(columns="geometry")).shape[1] != 0 else None
+                ),
             },
         )
 
     def add_sdata_labels(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        """
+        Add a label element in a spatial data object to the viewer.
+
+        Parameters
+        ----------
+        sdata
+            The spatial data object containing the label element.
+        key
+            The name of the label element in the spatialdata object.
+        selected_cs
+            The coordinate system in which the labels layer is to be loaded.
+        multi
+            Whether there are multiple spatialdata objects present in the viewer.
+        """
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -439,6 +501,20 @@ class SpatialDataViewer(QObject):
         )
 
     def add_sdata_points(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        """
+        Add a points element in a spatial data object to the viewer.
+
+        Parameters
+        ----------
+        sdata
+            The spatial data object containing the points element.
+        key
+            The name of the points element in the spatialdata object.
+        selected_cs
+            The coordinate system in which the points layer is to be loaded.
+        multi
+            Whether there are multiple spatialdata objects present in the viewer.
+        """
         original_name = key
         if multi:
             original_name = original_name[: original_name.rfind("_")]
@@ -461,7 +537,8 @@ class SpatialDataViewer(QObject):
             )
         xy = subsample_points[["y", "x"]].values
         np.fliplr(xy)
-        radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
+        # radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
+        radii_size = 3
         layer = self.viewer.add_points(
             xy,
             name=key,
@@ -479,9 +556,11 @@ class SpatialDataViewer(QObject):
                 "_current_cs": selected_cs,
                 "_n_indices": len(points),
                 "indices": subsample_points.index.to_list(),
-                "points_columns": subsample_excl_coords
-                if (subsample_excl_coords := subsample_points.drop(["x", "y"], axis=1)).shape[1] != 0
-                else None,
+                "_columns_df": (
+                    subsample_excl_coords
+                    if (subsample_excl_coords := subsample_points.drop(["x", "y"], axis=1)).shape[1] != 0
+                    else None
+                ),
             },
         )
         assert affine is not None

@@ -8,7 +8,21 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [0.3.2] - TBD
+## [0.4.0] - 2023-03-24
+
+### Added
+
+- Multi table support #199 @melonora
+- Color shapes and points by values in dataframe in addition to tables #216
+
+### Fixed
+
+- Avoid exception when registering shortcuts #201 @aeisenbarth
+- Fix wrong point size when affine specified #193
+- Wrong element visiblity when changing coordinate system #207
+- Cleaned up data model #180
+- Fixes correct matching of geometies and annoations via join #208
+- Better docstrings #219
 
 ## [0.3.1] - 2023-11-11
 

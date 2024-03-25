@@ -34,7 +34,7 @@ class DataModel:
     _cmap: str = field(init=False, default="viridis", repr=False)
     _symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
-    VALID_ATTRIBUTES = ("obs", "var", "obsm", "points")
+    VALID_ATTRIBUTES = ("obs", "var", "obsm", "columns_df")
 
     def __post_init__(self) -> None:
         self.events = EmitterGroup(
@@ -44,24 +44,27 @@ class DataModel:
             color_by=Event,
         )
 
-    def get_items(self, attr: str) -> Tuple[str, ...]:
+    def get_items(self, attr: str) -> Optional[Tuple[str, ...]]:
         """
         Return valid keys for an attribute.
 
         Parameters
         ----------
         attr
-            Attribute of :mod:`anndata.AnnData` to access.
+            Attribute of :mod:`anndata.AnnData` to access or if columns_df indicates
+            the column is part of the SpatialElement dataframe and this will be retrieved.
 
         Returns
         -------
-        The available items.
+        The available items coerced to a tuple of strings.
         """
         if attr in ("obs", "obsm"):
             return tuple(map(str, getattr(self.adata, attr).keys()))
-        if attr == "points" and self.layer is not None and (point_cols := self.layer.metadata.get("points_columns")):
-            return tuple(map(str, point_cols.columns))
-        return tuple(map(str, getattr(self.adata, attr).index))
+        if attr == "columns_df" and self.layer is not None and (df_cols := self.layer.metadata.get("_columns_df")):
+            return tuple(map(str, df_cols.columns))
+        if attr == "var":
+            return tuple(map(str, getattr(self.adata, attr).index))
+        return None
 
     @_ensure_dense_vector
     def get_obs(
@@ -89,15 +92,27 @@ class DataModel:
         return adata_obs[name], self._format_key(name)
 
     @_ensure_dense_vector
-    def get_points(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
+    def get_columns_df(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
+        """
+        Return a column of the dataframe of the SpatialElement.
+
+        Parameters
+        ----------
+        name
+            Name of the column in the dataframe to retrieve.
+
+        Returns
+        -------
+        The dataframe column of interest and the formatted name of the column.
+        """
         if self.layer is None:
             raise ValueError("Layer must be present")
-        return self.layer.metadata["points_columns"][name], self._format_key(name)
+        return self.layer.metadata["_columns_df"][name], self._format_key(name)
 
     @_ensure_dense_vector
     def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
         """
-        Return a gene.
+        Return a column in anndata.var_names.
 
         Parameters
         ----------
@@ -169,6 +184,7 @@ class DataModel:
 
     @property
     def color_by(self) -> str:
+        """The name by which the layer is currently colored."""
         return self._color_by
 
     @color_by.setter
@@ -178,6 +194,7 @@ class DataModel:
 
     @property
     def table_names(self) -> Sequence[Optional[str]]:
+        """The table names annotating the current active napari layer, if any."""
         return self._table_names
 
     @table_names.setter
@@ -186,6 +203,7 @@ class DataModel:
 
     @property
     def layer(self) -> Optional[Layer]:  # noqa: D102
+        """The current active napari layer."""
         return self._layer
 
     @layer.setter
@@ -195,6 +213,7 @@ class DataModel:
 
     @property
     def active_table_name(self) -> Optional[str]:
+        """The table name currently active in the widget."""
         return self._active_table_name
 
     @active_table_name.setter
@@ -203,6 +222,7 @@ class DataModel:
 
     @property
     def adata(self) -> AnnData:  # noqa: D102
+        """The anndata object corresponding to the current active table name."""
         return self._adata
 
     @adata.setter
@@ -212,6 +232,7 @@ class DataModel:
 
     @property
     def adata_layer(self) -> Optional[str]:  # noqa: D102
+        """The current anndata layer."""
         return self._adata_layer
 
     @adata_layer.setter
@@ -220,6 +241,7 @@ class DataModel:
 
     @property
     def region_key(self) -> Optional[str]:  # noqa: D102
+        """The region key of the currently active table in the widget."""
         return self._region_key
 
     @region_key.setter
@@ -228,6 +250,7 @@ class DataModel:
 
     @property
     def instance_key(self) -> Optional[str]:  # noqa: D102
+        """The instance key of the currently active table in the widget."""
         return self._instance_key
 
     @instance_key.setter
@@ -236,6 +259,7 @@ class DataModel:
 
     @property
     def palette(self) -> Optional[str]:  # noqa: D102
+        """The palette from which to draw the colors."""
         return self._palette
 
     @palette.setter
@@ -244,6 +268,7 @@ class DataModel:
 
     @property
     def cmap(self) -> str:  # noqa: D102
+        """The continuous color map to draw colors from."""
         return self._cmap
 
     @cmap.setter
@@ -268,6 +293,7 @@ class DataModel:
 
     @property
     def system_name(self) -> Optional[str]:  # noqa: D102
+        """The layer name."""
         return self._system_name
 
     @system_name.setter

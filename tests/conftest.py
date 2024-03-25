@@ -23,7 +23,7 @@ SEED = 42
 
 EXPECTED = HERE / "plots/groundtruth"
 ACTUAL = HERE / "plots/generated"
-TOL = 50
+TOL = 70
 DPI = 40
 
 

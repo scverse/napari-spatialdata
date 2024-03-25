@@ -79,9 +79,12 @@ def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> NDArray
     ----------
     viewer
         Instance of napari Viewer.
-
     canvas_only
         If True, only the canvas is saved, not the viewer window.
+
+    Returns
+    -------
+    The screenshot as an NDArray
     """
     logger.info("Taking screenshot of viewer")
     # to distinguish between the black of the image background and the black of the napari background (now white)
@@ -102,7 +105,6 @@ def save_image(image_np: NDArrayA, file_path: str) -> None:
     ----------
     image_np
         Image as numpy array.
-
     file_path
         File path of the image.
     """

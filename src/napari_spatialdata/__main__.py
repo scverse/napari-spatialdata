@@ -32,6 +32,8 @@ def view(path: tuple[str], headless: bool) -> None:
     ----------
     path
         Path to one or more SpatialData datasets.
+    headless
+        Whether to run the napari application or to run in headless mode.
     """
     assert type(path) == tuple
 

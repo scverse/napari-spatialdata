@@ -4,6 +4,7 @@ import napari
 import pandas as pd
 from anndata import AnnData
 from dask.dataframe.core import DataFrame as DaskDataFrame
+from geopandas.geodataframe import GeoDataFrame
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
@@ -137,7 +138,7 @@ class QtAdataScatterWidget(QWidget):
         self.model.region_key = layer.metadata["region_key"] = (
             table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
         )
-        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
+        self.model.system_name = layer.metadata.get("name", None)
 
         self.x_widget.widget._onChange()
         self.x_widget.component_widget._onChange()
@@ -269,12 +270,12 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(self.obsm_widget)
         self.layout().addWidget(self.obsm_index_widget)
 
-        # Points columns
-        points_label = QLabel("Points columns:")
-        points_label.setToolTip("Columns in points element excluding dimension columns.")
-        self.points_widget = AListWidget(self.viewer, self.model, attr="points", multiselect=False)
-        self.layout().addWidget(points_label)
-        self.layout().addWidget(self.points_widget)
+        # Dataframe columns columns
+        dataframe_columns_label = QLabel("Dataframe columns:")
+        dataframe_columns_label.setToolTip("Columns in points/shapes element excluding dimension columns.")
+        self.dataframe_columns_widget = AListWidget(self.viewer, self.model, attr="columns_df", multiselect=False)
+        self.layout().addWidget(dataframe_columns_label)
+        self.layout().addWidget(self.dataframe_columns_widget)
 
         # color by
         self.color_by = QLabel("Colored by:")
@@ -305,7 +306,9 @@ class QtAdataViewWidget(QWidget):
         self.adata_layer_widget.clear()
         self.adata_layer_widget.addItem("X", None)
         self.adata_layer_widget.addItems(self._get_adata_layer())
-        self.points_widget.clear()
+        self.dataframe_columns_widget.clear()
+        if self.model.layer is not None and (cols_df := self.model.layer.metadata.get("_columns_df")) is not None:
+            self.dataframe_columns_widget.addItems(map(str, cols_df.columns))
         self.obs_widget._onChange()
         self.var_widget._onChange()
         self.obsm_widget._onChange()
@@ -318,17 +321,18 @@ class QtAdataViewWidget(QWidget):
             if hasattr(self, "obs_widget"):
                 self.table_name_widget.clear()
                 self.adata_layer_widget.clear()
-                self.points_widget.clear()
+                self.dataframe_columns_widget.clear()
                 self.obs_widget.clear()
                 self.var_widget.clear()
                 self.obsm_widget.clear()
                 self.color_by.clear()
                 if (
-                    isinstance(layer, Points)
-                    and isinstance(layer.metadata["sdata"][layer.metadata["name"]], DaskDataFrame)
-                    and len(cols := layer.metadata["sdata"][layer.metadata["name"]].columns.drop(["x", "y"])) != 0
+                    isinstance(layer, (Points, Shapes))
+                    and isinstance(layer.metadata["sdata"][layer.metadata["name"]], (DaskDataFrame, GeoDataFrame))
+                    and (cols_df := layer.metadata["_columns_df"]) is not None
                 ):
-                    self.points_widget.addItems(map(str, cols))
+                    self.dataframe_columns_widget.addItems(map(str, cols_df.columns))
+                    self.model.system_name = layer.metadata.get("name", None)
             return
 
         if layer is not None and "adata" in layer.metadata:
@@ -339,7 +343,7 @@ class QtAdataViewWidget(QWidget):
 
         self.model._region_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
         self.model._instance_key = layer.metadata["instance_key"] if isinstance(layer, Labels) else None
-        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
+        self.model.system_name = layer.metadata.get("name", None)
 
         if hasattr(
             self, "obs_widget"
@@ -375,7 +379,7 @@ class QtAdataViewWidget(QWidget):
         self.model.region_key = layer.metadata["region_key"] = (
             table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
         )
-        self.model.system_name = layer.metadata["name"] if "name" in layer.metadata else None
+        self.model.system_name = layer.metadata.get("name", None)
 
         if hasattr(
             self, "obs_widget"
