@@ -43,7 +43,7 @@ class ElementWidget(QListWidget):
             if (
                 element_type == "shapes"
                 and type((element := sdata.shapes[element_name]).iloc[0].geometry) == shapely.geometry.point.Point
-                and len(element) > 100000
+                and len(element) > 1000000
             ):
                 item.setIcon(self._icon)
                 item.setToolTip(
