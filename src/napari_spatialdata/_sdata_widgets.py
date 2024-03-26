@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
 import shapely
 from napari.utils.events import EventedList
+from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
@@ -14,10 +16,13 @@ if TYPE_CHECKING:
     from napari import Viewer
     from napari.utils.events.event import Event
 
+icon_path = Path(__file__).parent / "resources/exclamation.png"
+
 
 class ElementWidget(QListWidget):
     def __init__(self, sdata: EventedList):
         super().__init__()
+        self._icon = QIcon(str(icon_path))
         self._sdata = sdata
         self._duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
         self._elements: None | dict[str, dict[str, str | int]] = None
@@ -25,8 +30,26 @@ class ElementWidget(QListWidget):
     def _onItemChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self.clear()
         elements, _ = get_elements_meta_mapping(self._sdata, selected_coordinate_system, self._duplicate_element_names)
-        self.addItems(elements.keys())
+        self._set_element_widget_items(elements)
         self._elements = elements
+
+    def _set_element_widget_items(self, elements: dict[str, dict[str, str | int]]) -> None:
+        for key, dict_val in elements.items():
+            sdata = self._sdata[dict_val["sdata_index"]]
+            element_type = dict_val["element_type"]
+            element_name = dict_val["original_name"]
+            # element = sdata[dict_val["original_name"]]
+            item = QListWidgetItem(key)
+            if (
+                element_type == "shapes"
+                and type((element := sdata.shapes[element_name]).iloc[0].geometry) == shapely.geometry.point.Point
+                and len(element) > 100000
+            ):
+                item.setIcon(self._icon)
+                item.setToolTip(
+                    "Visualizing this many points is currently slow in napari. Consider whether you want to visualize."
+                )
+            self.addItem(item)
 
 
 class CoordinateSystemWidget(QListWidget):
