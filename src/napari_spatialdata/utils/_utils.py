@@ -27,7 +27,7 @@ from pandas.core.dtypes.common import (
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
-from spatialdata import SpatialData, get_extent, join_sdata_spatialelement_table
+from spatialdata import SpatialData, get_extent, join_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
@@ -383,7 +383,9 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: 
     """
     if not table_name:
         return None
-    _, adata = join_sdata_spatialelement_table(sdata, element_name, table_name, how="left", match_rows="left")
+    _, adata = join_spatialelement_table(
+        sdata=sdata, spatial_element_names=element_name, table_name=table_name, how="left", match_rows="left"
+    )
 
     if adata.shape[0] == 0:
         return None

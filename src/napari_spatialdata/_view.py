@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from spatialdata import join_sdata_spatialelement_table
+from spatialdata import join_spatialelement_table
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
@@ -119,7 +119,9 @@ class QtAdataScatterWidget(QWidget):
 
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
-            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, "left")
+            _, table = join_spatialelement_table(
+                sdata=sdata, spatial_element_names=element_name, table_name=table_name, how="left"
+            )
             layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
@@ -351,7 +353,9 @@ class QtAdataViewWidget(QWidget):
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
             how = "left" if isinstance(layer, Labels) else "inner"
-            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, how)
+            _, table = join_spatialelement_table(
+                sdata=sdata, spatial_element_names=element_name, table_name=table_name, how=how
+            )
             layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
