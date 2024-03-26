@@ -38,7 +38,6 @@ class ElementWidget(QListWidget):
             sdata = self._sdata[dict_val["sdata_index"]]
             element_type = dict_val["element_type"]
             element_name = dict_val["original_name"]
-            # element = sdata[dict_val["original_name"]]
             item = QListWidgetItem(key)
             if (
                 element_type == "shapes"
