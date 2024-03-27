@@ -11,6 +11,7 @@ from qtpy.QtWidgets import (
     QTreeView,
     QVBoxLayout,
     QWidget,
+    QTableWidget,
 )
 
 __all__ = ["MainWindow"]
@@ -41,6 +42,11 @@ class MainWindow(QWidget):
         self.addGroup(color="white", name="undefined", shape="Polygon")
 
         self.layout.addWidget(self.tree_view)
+
+        self.table_widget = QTableWidget()
+        self.table_widget.setColumnCount(4)
+        self.table_widget.setHorizontalHeaderLabels(["index", "class", "annotator", "color"])
+        self.layout.addWidget(self.table_widget)
 
         self.add_annotator_widget = QLineEdit(placeholderText="Add annotator")
         self.add_annotator_widget.editingFinished.connect(self._add_annotator)
