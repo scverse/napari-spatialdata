@@ -8,10 +8,10 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QPushButton,
     QRadioButton,
+    QTableWidget,
     QTreeView,
     QVBoxLayout,
     QWidget,
-    QTableWidget,
 )
 
 __all__ = ["MainWindow"]
