@@ -23,7 +23,6 @@ class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
-        self.index_to_color = {}
         self.layout = QVBoxLayout()
 
         self.tree_view = QTreeView()
@@ -89,13 +88,11 @@ class MainWindow(QWidget):
         i = self.model.rowCount()
 
         if color:
-            self.index_to_color[i] = color
             color_button = ColorButton(color)
             name_field = QLineEdit(name)
         else:
-            color = self.generate_random_color_hex()
-            self.index_to_color[i] = color
-            color_button = ColorButton(color)
+            random_color = self.generate_random_color_hex()
+            color_button = ColorButton(random_color)
             name_field = QLineEdit(name + "_" + str(i))
 
         radio_button = QRadioButton("")
@@ -129,7 +126,6 @@ class MainWindow(QWidget):
         button = self.sender()
         if button:
             row = self.tree_view.indexAt(button.pos()).row()
-            del self.index_to_color[row]
             self.model.removeRow(row)
             self.button_group.removeButton(button)
 
