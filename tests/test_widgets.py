@@ -100,6 +100,7 @@ def test_change_layer(
 
     widget = widget(viewer)
     widget._select_layer()
+
     assert isinstance(widget.model, DataModel)
     assert isinstance(widget.model.layer, Image)
     assert widget.table_name_widget.currentText() == ""
