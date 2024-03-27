@@ -19,7 +19,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from spatialdata import join_sdata_spatialelement_table
+from spatialdata import join_spatialelement_table
 
 from napari_spatialdata._annotationwidgets import MainWindow
 from napari_spatialdata._model import DataModel
@@ -122,7 +122,9 @@ class QtAdataScatterWidget(QWidget):
 
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
-            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, "left")
+            _, table = join_spatialelement_table(
+                sdata=sdata, spatial_element_names=element_name, table_name=table_name, how="left"
+            )
             layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
@@ -363,7 +365,9 @@ class QtAdataViewWidget(QWidget):
         if sdata := layer.metadata.get("sdata"):
             element_name = layer.metadata.get("name")
             how = "left" if isinstance(layer, Labels) else "inner"
-            _, table = join_sdata_spatialelement_table(sdata, element_name, table_name, how)
+            _, table = join_spatialelement_table(
+                sdata=sdata, spatial_element_names=element_name, table_name=table_name, how=how
+            )
             layer.metadata["adata"] = table
 
         if layer is not None and "adata" in layer.metadata:
@@ -465,7 +469,7 @@ class QtAdataAnnotationWidget(QWidget):
             layer.features.loc[len(layer.features) - 1] = row
 
     def _on_click(self):
-        if isinstance(layer := self.viewer.layers.selection.active, Shapes):
+        if isinstance(self.viewer.layers.selection.active, Shapes):
             # We have five columns with at position 1 the color button
             color_ind = self.annotation_widget.tree_view.selectedIndexes()[1]
             color_button = self.annotation_widget.tree_view.indexWidget(color_ind)
