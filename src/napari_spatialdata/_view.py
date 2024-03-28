@@ -9,6 +9,7 @@ from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Labels, Points, Shapes
+from napari.utils.events import Event
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
@@ -16,6 +17,7 @@ from qtpy.QtWidgets import (
     QGridLayout,
     QLabel,
     QPushButton,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -330,6 +332,7 @@ class QtAdataViewWidget(QWidget):
                 self.color_by.clear()
                 if (
                     isinstance(layer, (Points, Shapes))
+                    and layer.metadata.get("sdata")
                     and isinstance(layer.metadata["sdata"][layer.metadata["name"]], (DaskDataFrame, GeoDataFrame))
                     and (cols_df := layer.metadata["_columns_df"]) is not None
                 ):
@@ -432,6 +435,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.setLayout(QGridLayout())
         self._current_color = None
         self._current_class = None
+        self._current_annotator = ""
 
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
@@ -462,9 +466,29 @@ class QtAdataAnnotationWidget(QWidget):
             df = pd.DataFrame({"class": [], "color": []})
             layer.features = df
 
-    def _update_annotations(self, event):
+    def _update_annotations(self, event: Event) -> None:
         layer = event.source
-        if event.action == "added":
+        if event.action == "added" and len(event.data_indices) == 1:
+            self._update_layer_features(layer, event.action)
+            self._set_table_widget_item(event)
+        elif len(event.data_indices) > 1:
+            raise ValueError(f"Can only add one annotation at the time, got {len(event.data_indices)}")
+
+    def _set_table_widget_item(self, event: Event) -> None:
+        table = self.annotation_widget.table_widget
+        table_index = table.rowCount()
+
+        # when data is being added by the user the index is always -1
+        index = event.data_indices[0] if event.data_indices[0] != -1 else len(event.value)
+
+        table.insertRow(table_index)
+        table.setItem(table_index, 0, QTableWidgetItem(str(index)))
+        table.setItem(table_index, 1, QTableWidgetItem(self._current_class))
+        table.setItem(table_index, 2, QTableWidgetItem(self._current_annotator))
+        table.setItem(table_index, 3, QTableWidgetItem(self._current_color))
+
+    def _update_layer_features(self, layer, action: str) -> None:
+        if action == "added":
             row = [self._current_class, self._current_color]
             layer.features.loc[len(layer.features) - 1] = row
 
