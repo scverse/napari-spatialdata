@@ -9,6 +9,7 @@ from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
+from napari_spatialdata._constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
 from napari_spatialdata._viewer import SpatialDataViewer
 from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names, get_elements_meta_mapping
 
@@ -39,15 +40,27 @@ class ElementWidget(QListWidget):
             element_type = dict_val["element_type"]
             element_name = dict_val["original_name"]
             item = QListWidgetItem(key)
-            if (
-                element_type == "shapes"
-                and type((element := sdata.shapes[element_name]).iloc[0].geometry) == shapely.geometry.point.Point
-                and len(element) > 1000000
-            ):
-                item.setIcon(self._icon)
-                item.setToolTip(
-                    "Visualizing this many points is currently slow in napari. Consider whether you want to visualize."
-                )
+            if element_type == "shapes":
+                if (
+                    type((element := sdata.shapes[element_name]).iloc[0].geometry) == shapely.Point
+                    and len(element) > N_CIRCLES_WARNING_THRESHOLD
+                ):
+                    item.setIcon(self._icon)
+                    item.setToolTip(
+                        "Visualizing this many circles is currently slow in napari. Consider whether you want to "
+                        "visualize."
+                    )
+                    self.addItem(item)
+                elif (
+                    type((element := sdata.shapes[element_name]).iloc[0].geometry)
+                    in [shapely.Polygon, shapely.MultiPolygon]
+                    and len(element) > N_SHAPES_WARNING_THRESHOLD
+                ):
+                    item.setIcon(self._icon)
+                    item.setToolTip(
+                        "Visualizing this many shapes is currently slow in napari. Consider whether you want to "
+                        "visualize."
+                    )
             self.addItem(item)
 
 
