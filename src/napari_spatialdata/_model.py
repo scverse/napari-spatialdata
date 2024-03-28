@@ -6,6 +6,7 @@ import pandas as pd
 from anndata import AnnData
 from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
+from qtpy.QtCore import QAbstractTableModel, QModelIndex, Qt
 
 from napari_spatialdata._constants._constants import Symbol
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
@@ -299,3 +300,73 @@ class DataModel:
     @system_name.setter
     def system_name(self, system_name: str) -> None:
         self._system_name = system_name
+
+
+class LayerFeatureModel(QAbstractTableModel):
+    """Model to interface a QTableModel with the pandas dataframe in layer.features when annotating."""
+
+    def __init__(self, layer_features_df: pd.DataFrame = None, parent=None) -> None:
+        super(LayerFeatureModel, self).__init__()
+        self._dataframe = df if (df := layer_features_df) is not None else pd.DataFrame({})
+
+    @property
+    def dataframe(self) -> pd.DataFrame:
+        return self._dataframe
+
+    @dataframe.setter
+    def dataframe(self, dataframe: pd.DataFrame) -> None:
+        self._dataframe = dataframe
+
+    def rowCount(self, parent=QModelIndex()) -> int:
+        """Override method from QAbstractTableModel
+
+        Return row count of the pandas DataFrame
+        """
+        if parent == QModelIndex():
+            return len(self._dataframe)
+
+        return 0
+
+    def columnCount(self, parent=QModelIndex()) -> int:
+        """Override method from QAbstractTableModel
+
+        Return column count of the pandas DataFrame
+        """
+        if parent == QModelIndex():
+            return len(self._dataframe.columns)
+        return 0
+
+    def data(self, index: QModelIndex, role=Qt.ItemDataRole):
+        """Override method from QAbstractTableModel
+
+        Return data cell from the pandas DataFrame
+        """
+        if not index.isValid():
+            return None
+
+        if role == Qt.DisplayRole:
+            return str(self._dataframe.iloc[index.row(), index.column()])
+
+        return None
+
+    def headerData(self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole):
+        """Override method from QAbstractTableModel
+
+        Return dataframe index as vertical header data and columns as horizontal header data.
+        """
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return str(self._dataframe.columns[section])
+
+            if orientation == Qt.Vertical:
+                return str(self._dataframe.index[section])
+
+        return None
+
+    def setData(self, index, value, role):
+        if role == Qt.EditRole:
+            # Set the value into the frame.
+            self._data.iloc[index.row(), index.column()] = value
+            return True
+
+        return False

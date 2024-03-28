@@ -8,7 +8,7 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QPushButton,
     QRadioButton,
-    QTableWidget,
+    QTableView,
     QTreeView,
     QVBoxLayout,
     QWidget,
@@ -38,13 +38,14 @@ class MainWindow(QWidget):
 
         self.tree_view.setFixedWidth(400)
         self.button_group = QButtonGroup()
-        self.addGroup(color="white", name="undefined", shape="Polygon")
+        self.addGroup(color="#FFFFFF", name="undefined", shape="Polygon")
 
         self.layout.addWidget(self.tree_view)
 
-        self.table_widget = QTableWidget()
-        self.table_widget.setColumnCount(4)
-        self.table_widget.setHorizontalHeaderLabels(["index", "class", "annotator", "color"])
+        # We use a tableview instead of table widget as the setModel tablewidget method is private.
+        self.table_widget = QTableView()  # QTableWidget()
+        # self.table_widget.setColumnCount(4)
+        # self.table_widget.setHorizontalHeaderLabels(["index", "class", "annotator", "color"])
         self.layout.addWidget(self.table_widget)
 
         self.add_annotator_widget = QLineEdit(placeholderText="Add annotator")

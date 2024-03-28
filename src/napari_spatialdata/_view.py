@@ -7,7 +7,6 @@ from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Labels, Points, Shapes
-from napari.utils.events import Event
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
@@ -15,14 +14,13 @@ from qtpy.QtWidgets import (
     QGridLayout,
     QLabel,
     QPushButton,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 from spatialdata import join_spatialelement_table
 
 from napari_spatialdata._annotationwidgets import MainWindow
-from napari_spatialdata._model import DataModel
+from napari_spatialdata._model import DataModel, LayerFeatureModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._widgets import (
     AListWidget,
@@ -426,12 +424,28 @@ class QtAdataAnnotationWidget(QWidget):
         self._viewer = input
 
         self.setLayout(QGridLayout())
-        self._current_color = None
-        self._current_class = None
+        self._current_color = "#FFFFFF"
+        self._current_class = "undefined"
         self._current_annotator = ""
+
+        # just for testing purposes
+        df = pd.DataFrame(
+            [
+                [1, 9, 2],
+                [1, 0, -1],
+                [3, 5, 2],
+                [3, 3, 2],
+                [5, 8, 9],
+            ],
+            columns=["A", "B", "C"],
+            index=["Row 1", "Row 2", "Row 3", "Row 4", "Row 5"],
+        )
+
+        self.feature_model = LayerFeatureModel(layer_features_df=df)
 
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
+        self.annotation_widget.table_widget.setModel(self.feature_model)
         self.annotation_widget.button_group.buttonClicked.connect(self._on_click)
         self.viewer.layers.events.inserted.connect(self._on_inserted)
         self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
@@ -441,9 +455,18 @@ class QtAdataAnnotationWidget(QWidget):
         if isinstance(layer, Shapes):
             if sdata := layer.metadata.get("sdata"):
                 self._set_tables(sdata)
-            layer.events.data.connect(self._update_annotations)
-            df = pd.DataFrame({"class": [], "color": []})
+            # layer.events.data.connect(self._update_annotations)
+            df = pd.DataFrame(
+                {
+                    "class": pd.Series([], dtype="str"),
+                    "color": pd.Series([], dtype="str"),
+                    "description": pd.Series([], dtype="str"),
+                }
+            )
             layer.features = df
+            self._viewer.layers.selection.active.current_face_color = self._current_color
+            self.feature_model.dataframe = df
+            self.annotation_widget.table_widget.setModel(self.feature_model)
 
     @property
     def viewer(self) -> napari.Viewer:
@@ -455,30 +478,39 @@ class QtAdataAnnotationWidget(QWidget):
         if isinstance(layer, Shapes):
             if sdata := layer.metadata.get("sdata"):
                 self._set_tables(sdata)
-            layer.events.data.connect(self._update_annotations)
-            df = pd.DataFrame({"class": [], "color": []})
+            # layer.events.data.connect(self._update_annotations)
+            df = pd.DataFrame(
+                {
+                    "class": pd.Series([], dtype="category"),
+                    "color": pd.Series([], dtype="str"),
+                    "description": pd.Series([], dtype="str"),
+                }
+            )
             layer.features = df
+            self.feature_model.dataframe = df
 
-    def _update_annotations(self, event: Event) -> None:
-        layer = event.source
-        if event.action == "added" and len(event.data_indices) == 1:
-            self._update_layer_features(layer, event.action)
-            self._set_table_widget_item(event)
-        elif len(event.data_indices) > 1:
-            raise ValueError(f"Can only add one annotation at the time, got {len(event.data_indices)}")
+    # def _update_annotations(self, event: Event) -> None:
+    #     layer = event.source
+    #     if event.action == "added" and len(event.data_indices) == 1:
+    #         self._update_layer_features(layer, event.action)
+    #         self._insert_table_widget_row(event)
+    #     elif len(event.data_indices) > 1:
+    #         raise ValueError(f"Can only add one annotation at the time, got {len(event.data_indices)}")
 
-    def _set_table_widget_item(self, event: Event) -> None:
-        table = self.annotation_widget.table_widget
-        table_index = table.rowCount()
+    # def _insert_table_widget_row(self, event: Event) -> None:
+    #     table = self.annotation_widget.table_widget
+    #     table_index = table.rowCount()
+    #
+    #     # when data is being added by the user the index is always -1
+    #     index = event.data_indices[0] if event.data_indices[0] != -1 else len(event.value)
+    #
+    #     table.insertRow(table_index)
+    #     table.setItem(table_index, 0, QTableWidgetItem(str(index)))
+    #     table.setItem(table_index, 1, QTableWidgetItem(self._current_class))
+    #     table.setItem(table_index, 2, QTableWidgetItem(self._current_annotator))
+    #     table.setItem(table_index, 3, QTableWidgetItem(self._current_color))
 
-        # when data is being added by the user the index is always -1
-        index = event.data_indices[0] if event.data_indices[0] != -1 else len(event.value)
-
-        table.insertRow(table_index)
-        table.setItem(table_index, 0, QTableWidgetItem(str(index)))
-        table.setItem(table_index, 1, QTableWidgetItem(self._current_class))
-        table.setItem(table_index, 2, QTableWidgetItem(self._current_annotator))
-        table.setItem(table_index, 3, QTableWidgetItem(self._current_color))
+    # def _remove_table_widget_row(self, event: Event) -> None:
 
     def _update_layer_features(self, layer, action: str) -> None:
         if action == "added":
@@ -498,8 +530,8 @@ class QtAdataAnnotationWidget(QWidget):
             # .name() converts the QColor in hexadecimal
             palette = color_button.palette()
             color = palette.color(color_button.backgroundRole()).name()
-            self._viewer.layers.selection.active.current_face_color = color
             self._current_color = color
+            self._viewer.layers.selection.active.current_face_color = color
 
     def _set_tables(self, sdata):
         self.annotation_widget.table_name_widget.clear()
