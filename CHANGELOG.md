@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning][].
 
 ## [0.4.x] - 2024-xx-xx
 
-## [0.4.1] - 2024-03-24
+## [0.4.1] - 2024-03-30
 
 ### Fixed
 
