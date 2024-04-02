@@ -65,15 +65,11 @@ class MainWindow(QWidget):
         self.layout = QVBoxLayout()
 
         self.tree_view = TreeView()
-        # self.model = QStandardItemModel()
-        #
-        # self.tree_view.setModel(self.model)
-        # self.model.setHorizontalHeaderLabels(COLUMNS)
         self.tree_view.setColumnWidth(0, 10)
         self.tree_view.setColumnWidth(1, 15)
-        self.tree_view.setColumnWidth(2, 50)
+        self.tree_view.setColumnWidth(2, 123)
 
-        self.tree_view.setFixedWidth(120)
+        self.tree_view.setFixedWidth(150)
         self.tree_view.addGroup(color="#FFFFFF", name="undefined")
 
         self.layout.addWidget(self.tree_view)

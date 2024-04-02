@@ -471,7 +471,7 @@ class QtAdataAnnotationWidget(QWidget):
                     "class": pd.Series([], dtype="category"),
                     "color": pd.Series([], dtype="category"),
                     "description": pd.Series([], dtype="str"),
-                    "annotator": pd.Series([], dtype="category"),
+                    # "annotator": pd.Series([], dtype="category"),
                 }
             )
 
