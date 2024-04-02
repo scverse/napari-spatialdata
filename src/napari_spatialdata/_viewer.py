@@ -193,6 +193,10 @@ class SpatialDataViewer(QObject):
                     Polygon(i) for i in _transform_coordinates(selected.data, f=lambda x: x[::-1])
                 ]
                 gdf = GeoDataFrame({"geometry": polygons})
+                if "color" in selected.features.columns:
+                    pass
+                    # gdf["color"] = selected.features["color"]
+                    # gdf["class"] = selected.features["class"]
                 force_2d(gdf)
                 parsed = ShapesModel.parse(gdf, transformations=transformation)
                 sdata.shapes[selected.name] = parsed
