@@ -446,7 +446,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
         self.annotation_widget.table_widget.setModel(self.feature_model)
-        self.annotation_widget.button_group.buttonClicked.connect(self._on_click)
+        self.annotation_widget.tree_view.button_group.buttonClicked.connect(self._on_click)
         self.viewer.layers.events.inserted.connect(self._on_inserted)
         self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
 

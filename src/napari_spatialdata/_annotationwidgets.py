@@ -16,7 +16,47 @@ from qtpy.QtWidgets import (
 
 __all__ = ["MainWindow"]
 
-COLUMNS = ["", "", "Name", "Type", "Delete"]
+COLUMNS = [None, "Color", "Name"]
+
+
+class TreeView(QTreeView):
+    def __init__(self):
+        super().__init__()
+        self.model = QStandardItemModel()
+        self.setModel(self.model)
+        self.model.setHorizontalHeaderLabels(COLUMNS)
+
+        self.button_group = QButtonGroup()
+
+    def addGroup(self, color=None, name="Class", auto_exclusive=True):
+        i = self.model.rowCount()
+
+        if color:
+            color_button = ColorButton(color)
+            name_field = QLineEdit(name)
+        else:
+            random_color = self.generate_random_color_hex()
+            color_button = ColorButton(random_color)
+            name_field = QLineEdit(name + "_" + str(i))
+
+        radio_button = QRadioButton("")
+        self.button_group.addButton(radio_button)
+        if i == 0:
+            radio_button.setChecked(True)
+        radio_button.setAutoExclusive(auto_exclusive)
+
+        self.model.insertRow(i)
+        radio_index = self.model.index(i, 0)
+        color_index = self.model.index(i, 1)
+        name_index = self.model.index(i, 2)
+
+        self.setIndexWidget(color_index, color_button)
+        self.setIndexWidget(name_index, name_field)
+        self.setIndexWidget(radio_index, radio_button)
+
+    def generate_random_color_hex(self):
+        # Generate a random hex color code
+        return "#{:02x}{:02x}{:02x}".format(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
 
 class MainWindow(QWidget):
@@ -25,27 +65,22 @@ class MainWindow(QWidget):
 
         self.layout = QVBoxLayout()
 
-        self.tree_view = QTreeView()
-        self.model = QStandardItemModel()
+        self.tree_view = TreeView()
+        # self.model = QStandardItemModel()
+        #
+        # self.tree_view.setModel(self.model)
+        # self.model.setHorizontalHeaderLabels(COLUMNS)
+        self.tree_view.setColumnWidth(0, 10)
+        self.tree_view.setColumnWidth(1, 15)
+        self.tree_view.setColumnWidth(2, 50)
 
-        self.tree_view.setModel(self.model)
-        self.model.setHorizontalHeaderLabels(COLUMNS)
-        self.tree_view.setColumnWidth(0, 50)
-        self.tree_view.setColumnWidth(1, 50)
-        self.tree_view.setColumnWidth(2, 75)
-        self.tree_view.setColumnWidth(3, 75)
-        self.tree_view.setColumnWidth(4, 50)
-
-        self.tree_view.setFixedWidth(400)
-        self.button_group = QButtonGroup()
-        self.addGroup(color="#FFFFFF", name="undefined", shape="Polygon")
+        self.tree_view.setFixedWidth(120)
+        self.tree_view.addGroup(color="#FFFFFF", name="undefined")
 
         self.layout.addWidget(self.tree_view)
 
         # We use a tableview instead of table widget as the setModel tablewidget method is private.
         self.table_widget = QTableView()  # QTableWidget()
-        # self.table_widget.setColumnCount(4)
-        # self.table_widget.setHorizontalHeaderLabels(["index", "class", "annotator", "color"])
         self.layout.addWidget(self.table_widget)
 
         self.add_annotator_widget = QLineEdit(placeholderText="Add annotator")
@@ -56,7 +91,7 @@ class MainWindow(QWidget):
 
         self._table_names = []
         self.add_button = QPushButton("Add annotation group")
-        self.add_button.clicked.connect(lambda: self.addGroup())
+        self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
         self.table_name_widget = QComboBox()
         self.import_button = QPushButton("import annotation classes from table")
         self.import_button.clicked.connect(self._import_table)
@@ -84,55 +119,6 @@ class MainWindow(QWidget):
     @table_names.setter
     def table_names(self, table_list):
         self._table_names = table_list
-
-    def addGroup(self, color=None, name="Class", shape="Polygon"):
-        i = self.model.rowCount()
-
-        if color:
-            color_button = ColorButton(color)
-            name_field = QLineEdit(name)
-        else:
-            random_color = self.generate_random_color_hex()
-            color_button = ColorButton(random_color)
-            name_field = QLineEdit(name + "_" + str(i))
-
-        radio_button = QRadioButton("")
-        self.button_group.addButton(radio_button)
-        if i == 0:
-            radio_button.setChecked(True)
-        radio_button.setAutoExclusive(True)
-
-        type_text = QLineEdit(shape)
-        type_text.setDisabled(True)
-        delete_button = QPushButton("Delete")
-        delete_button.clicked.connect(lambda: self.deleteGroup())
-
-        if color:
-            delete_button.setDisabled(True)
-
-        self.model.insertRow(i)
-        radio_index = self.model.index(i, 0)
-        color_index = self.model.index(i, 1)
-        name_index = self.model.index(i, 2)
-        type_index = self.model.index(i, 3)
-        delete_index = self.model.index(i, 4)
-
-        self.tree_view.setIndexWidget(color_index, color_button)
-        self.tree_view.setIndexWidget(name_index, name_field)
-        self.tree_view.setIndexWidget(type_index, type_text)
-        self.tree_view.setIndexWidget(delete_index, delete_button)
-        self.tree_view.setIndexWidget(radio_index, radio_button)
-
-    def deleteGroup(self):
-        button = self.sender()
-        if button:
-            row = self.tree_view.indexAt(button.pos()).row()
-            self.model.removeRow(row)
-            self.button_group.removeButton(button)
-
-    def generate_random_color_hex(self):
-        # Generate a random hex color code
-        return "#{:02x}{:02x}{:02x}".format(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
 
     def _add_annotator(self):
         annotator = self.add_annotator_widget.text()

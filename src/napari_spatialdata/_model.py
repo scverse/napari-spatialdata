@@ -315,7 +315,9 @@ class LayerFeatureModel(QAbstractTableModel):
 
     @dataframe.setter
     def dataframe(self, dataframe: pd.DataFrame) -> None:
+        self.beginResetModel()
         self._dataframe = dataframe
+        self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()) -> int:
         """Override method from QAbstractTableModel
