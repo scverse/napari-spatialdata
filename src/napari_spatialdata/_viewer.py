@@ -18,7 +18,7 @@ from spatialdata._core.query.relational_query import (
     _get_unique_label_values_as_index,
     _left_join_spatialelement_table,
 )
-from spatialdata.models import PointsModel, ShapesModel
+from spatialdata.models import PointsModel, ShapesModel, force_2d
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
 
@@ -35,7 +35,6 @@ from napari_spatialdata.utils._viewer_utils import _get_polygons_properties
 
 if TYPE_CHECKING:
     import numpy.typing as npt
-    from dask.dataframe.core import DataFrame as DaskDataFrame
     from napari.layers import Layer
     from napari.utils.events import Event, EventedList
     from spatialdata import SpatialData
@@ -49,8 +48,8 @@ class SpatialDataViewer(QObject):
         self.viewer = viewer
         self.sdata = sdata
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
-        self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=False)
-        self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=False)
+        self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=True)
+        self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=True)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
         self._active_layer_table_names = None
         self.viewer.layers.events.removed.connect(self._on_layer_removed)
@@ -182,8 +181,11 @@ class SpatialDataViewer(QObject):
                     raise ValueError("Cannot export a points element with no points")
                 transformed_data = np.array([selected.data_to_world(xy) for xy in selected.data])
                 swap_data = np.fliplr(transformed_data)
-                model = PointsModel.parse(swap_data, transformations=transformation)
-                sdata.points[selected.name] = model
+                # ignore z axis if present
+                if swap_data.shape[1] == 3:
+                    swap_data = swap_data[:, :2]
+                parsed = PointsModel.parse(swap_data, transformations=transformation)
+                sdata.points[selected.name] = parsed
             if type(selected) == Shapes:
                 if len(selected.data) == 0:
                     raise ValueError("Cannot export a shapes element with no shapes")
@@ -191,15 +193,16 @@ class SpatialDataViewer(QObject):
                     Polygon(i) for i in _transform_coordinates(selected.data, f=lambda x: x[::-1])
                 ]
                 gdf = GeoDataFrame({"geometry": polygons})
-                model = ShapesModel.parse(gdf, transformations=transformation)
-                sdata.shapes[selected.name] = model
+                force_2d(gdf)
+                parsed = ShapesModel.parse(gdf, transformations=transformation)
+                sdata.shapes[selected.name] = parsed
                 swap_data = None
             if type(selected) == Image or type(selected) == Labels:
                 raise NotImplementedError
 
             self.layer_names.add(selected.name)
             self._layer_event_caches[selected.name] = []
-            self._update_metadata(selected, model, swap_data)
+            self._update_metadata(selected, parsed, swap_data)
             selected.events.data.connect(self._update_cache_indices)
             selected.events.name.connect(self._validate_name)
             self.layer_saved.emit(coordinate_system)

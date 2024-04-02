@@ -8,7 +8,15 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [0.4.0] - 2023-03-24
+## [0.4.x] - 2024-xx-xx
+
+## [0.4.1] - 2024-03-30
+
+### Fixed
+
+- Saving shapes and points with `Shift + E` now saves 2D data (a z dim was wrongly added)
+
+## [0.4.0] - 2024-03-24
 
 ### Added
 
