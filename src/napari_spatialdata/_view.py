@@ -419,6 +419,8 @@ class QtAdataAnnotationWidget(QWidget):
         self._current_class = "undefined"
         self._current_annotator = ""
         self._current_description = ""
+        self._class_categories = []
+        self._annotator_categories = []
 
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
@@ -434,10 +436,10 @@ class QtAdataAnnotationWidget(QWidget):
             layer.events.data.connect(self._update_annotations)
             df = pd.DataFrame(
                 {
-                    "class": pd.Series([], dtype="str"),
-                    "color": pd.Series([], dtype="str"),
+                    "class": pd.Series(pd.Categorical([]), dtype="category"),
+                    "class_color": pd.Series([], dtype="category"),
                     "description": pd.Series([], dtype="str"),
-                    "annotator": pd.Series([], dtype="category"),
+                    "annotator": pd.Series(pd.Categorical([]), dtype="category"),
                 }
             )
             layer.features = df
@@ -456,9 +458,21 @@ class QtAdataAnnotationWidget(QWidget):
             raise ValueError(f"Can only add one annotation at the time, got {len(event.data_indices)}")
 
     def _update_layer_features(self, layer, action: str) -> None:
+        self._add_categories(layer)
         if action == "added":
-            row = [self._current_class, self._current_color, self._current_description]
+            row = [self._current_class, self._current_color, self._current_description, self._current_annotator]
             layer.features.loc[len(layer.features) - 1] = row
+
+    def _add_categories(self, layer):
+        """Add new categories of class and annotator."""
+        if self._current_class not in layer.features["class"].cat.categories:
+            self._class_categories.append(self._current_class)
+            layer.features["class"] = layer.features["class"].cat.add_categories(self._current_class)
+        if self._current_annotator not in layer.features["annotator"].cat.categories:
+            self._annotator_categories.append(self._current_annotator)
+            layer.features["annotator"] = layer.features["annotator"].cat.add_categories(self._current_annotator)
+        if self._current_color not in layer.features["class_color"].cat.categories:
+            layer.features["class_color"] = layer.features["class_color"].cat.add_categories([self._current_color])
 
     def _on_layer_selection_changed(self):
         layer = self._viewer.layers.selection.active
@@ -469,9 +483,9 @@ class QtAdataAnnotationWidget(QWidget):
             df = pd.DataFrame(
                 {
                     "class": pd.Series([], dtype="category"),
-                    "color": pd.Series([], dtype="category"),
+                    "class_color": pd.Series([], dtype="category"),
                     "description": pd.Series([], dtype="str"),
-                    # "annotator": pd.Series([], dtype="category"),
+                    "annotator": pd.Series([], dtype="category"),
                 }
             )
 
