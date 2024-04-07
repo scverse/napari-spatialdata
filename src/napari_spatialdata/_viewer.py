@@ -18,7 +18,7 @@ from spatialdata._core.query.relational_query import (
     _get_unique_label_values_as_index,
     _left_join_spatialelement_table,
 )
-from spatialdata.models import PointsModel, ShapesModel, force_2d
+from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
 
@@ -193,10 +193,23 @@ class SpatialDataViewer(QObject):
                     Polygon(i) for i in _transform_coordinates(selected.data, f=lambda x: x[::-1])
                 ]
                 gdf = GeoDataFrame({"geometry": polygons})
-                if "color" in selected.features.columns:
-                    pass
-                    # gdf["color"] = selected.features["color"]
-                    # gdf["class"] = selected.features["class"]
+                if any("color" in column for column in selected.features.columns):
+                    copy_table = selected.features.copy()
+                    if all(row == "" for row in copy_table["description"]):
+                        copy_table.drop(columns=["description"], inplace=True)
+                    if len(categories := copy_table["annotator"].cat.categories) and categories[0] == "":
+                        copy_table.drop(columns=["annotator"], inplace=True)
+
+                    copy_table.reset_index(names="instance_id", inplace=True)
+                    copy_table["region"] = selected.name
+                    copy_table["region"] = copy_table["region"].astype("category")
+
+                    copy_table = AnnData(obs=copy_table)
+                    sdata_table = TableModel.parse(
+                        copy_table, region=selected.name, region_key="region", instance_key="instance_id"
+                    )
+                    sdata["annotation_" + selected.name] = sdata_table
+
                 force_2d(gdf)
                 parsed = ShapesModel.parse(gdf, transformations=transformation)
                 sdata.shapes[selected.name] = parsed
