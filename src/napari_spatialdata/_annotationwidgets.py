@@ -55,13 +55,14 @@ class TreeView(QTreeView):
 
     def generate_random_color_hex(self):
         # Generate a random hex color code
-        return "#{:02x}{:02x}{:02x}".format(random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
+        return f"#{random.randint(0, 255):02x}{random.randint(0, 255):02x}{random.randint(0, 255):02x}"
 
 
 class MainWindow(QWidget):
     def __init__(self):
         super().__init__()
 
+        self._annotators = []
         self.layout = QVBoxLayout()
 
         self.tree_view = TreeView()
@@ -84,37 +85,26 @@ class MainWindow(QWidget):
         self.add_button = QPushButton("Add annotation group")
         self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
         self.table_name_widget = QComboBox()
-        self.import_button = QPushButton("import annotation classes from table")
-        self.import_button.clicked.connect(self._import_table)
-        self.export_name = QLineEdit("annotation_classes")
-        self.export_button = QPushButton("export annotation classes to sdata table")
+        self.import_button = QPushButton("Set annotation table")
 
         self.layout.addWidget(self.add_button)
         self.layout.addWidget(self.table_name_widget)
         self.layout.addWidget(self.import_button)
-        self.layout.addWidget(self.export_name)
-        self.layout.addWidget(self.export_button)
 
         # Set the layout on the application's window
         self.setLayout(self.layout)
         self.setWindowTitle("Annotation")
         self.show()
 
-    def _import_table(self):
-        pass
-
-    @property
-    def table_names(self):
-        return self._table_names
-
-    @table_names.setter
-    def table_names(self, table_list):
-        self._table_names = table_list
-
     def _add_annotator(self):
         annotator = self.add_annotator_widget.text()
-        if annotator:
+
+        # Have to do this because editing finished does not distinguish between enter and loss of focus causing
+        # annotator to be added twice otherwise.
+        if annotator and annotator not in self._annotators:
+            self._annotators.append(annotator)
             self.annotators.addItem(annotator)
+        self.annotators.setCurrentText(annotator)
 
 
 class ColorButton(QPushButton):

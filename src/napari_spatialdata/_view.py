@@ -425,6 +425,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
         self.annotation_widget.tree_view.button_group.buttonClicked.connect(self._on_click)
+        self.annotation_widget.annotators.currentTextChanged.connect(self._set_current_annotator)
         self.viewer.layers.events.inserted.connect(self._on_inserted)
         self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
 
@@ -506,6 +507,9 @@ class QtAdataAnnotationWidget(QWidget):
             color = palette.color(color_button.backgroundRole()).name()
             self._current_color = color
             self._viewer.layers.selection.active.current_face_color = color
+
+    def _set_current_annotator(self):
+        self._current_annotator = self.annotation_widget.annotators.currentText()
 
     def _set_tables(self, sdata):
         self.annotation_widget.table_name_widget.clear()
