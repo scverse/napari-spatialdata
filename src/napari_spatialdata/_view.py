@@ -7,6 +7,8 @@ from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Labels, Layer, Points, Shapes
+from qtpy.QtGui import QStandardItemModel
+from matplotlib.colors import to_rgba_array
 from napari.utils.events import Event
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
@@ -20,8 +22,9 @@ from qtpy.QtWidgets import (
 )
 from spatialdata import SpatialData, join_spatialelement_table
 from spatialdata._core.query.relational_query import _get_element_annotators
+from spatialdata.models import TableModel
 
-from napari_spatialdata._annotationwidgets import MainWindow
+from napari_spatialdata._annotationwidgets import MainWindow, COLUMNS
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._widgets import (
@@ -422,7 +425,7 @@ class QtAdataAnnotationWidget(QWidget):
         self._current_description = ""
         self._current_region = None
         self._current_region_key = "region"
-        self._current_instance_key_column = "instance_id"
+        self._current_instance_key = "instance_id"
 
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
@@ -465,6 +468,7 @@ class QtAdataAnnotationWidget(QWidget):
                 }
             )
             layer.features = df
+            self._current_region = layer.name
             self._viewer.layers.selection.active.current_face_color = self._current_color
         else:
             self.annotation_widget.table_name_widget.clear()
@@ -543,6 +547,7 @@ class QtAdataAnnotationWidget(QWidget):
                 }
             )
 
+            self._current_region = layer.name
             layer.features = df
             layer.metadata["annotation_region_key"] = self._current_region_key
             layer.metadata["annotation_instance_key"] = self._current_instance_key
@@ -582,4 +587,30 @@ class QtAdataAnnotationWidget(QWidget):
         table_name = self.annotation_widget.table_name_widget.currentText()
         layer = self.viewer.layers.selection.active
         sdata = layer.metadata["sdata"]
-        feature_df = sdata[table_name].obs
+        table = sdata[table_name]
+
+        self._current_region_key = table.uns[TableModel.ATTRS_KEY][TableModel.REGION_KEY_KEY]
+        self._current_instance_key = table.uns[TableModel.ATTRS_KEY][TableModel.INSTANCE_KEY]
+        layer.metadata["annotation_region_key"] = self._current_region_key
+        layer.metadata["annotation_instance_key"] = self._current_instance_key
+
+        feature_df = table.obs.copy().drop(columns=[self._current_instance_key])
+        color_column = [col for col in feature_df.columns if "color" in col][0]
+        class_column = color_column.split("_")[0]
+        layer.face_color = to_rgba_array(feature_df[color_column])
+        layer.features = feature_df
+
+        if "annotator" in feature_df.columns:
+            annotators = list(feature_df["annotator"].cat.categories)
+            self.annotation_widget.annotators.clear()
+            self.annotation_widget.annotators.addItems(annotators)
+            self.annotation_widget.annotators.setCurrentText(annotators[0])
+
+        class_to_color_mapping = feature_df.set_index(class_column)[color_column].to_dict()
+
+        for class_name, color in class_to_color_mapping.items():
+            self.annotation_widget.tree_view.addGroup(color, class_name)
+        # self.annotation_widget.tree_view.setModel(None)
+        # self.annotation_widget.tree_view.model = QStandardItemModel()
+        # self.annotation_widget.tree_view.setModel(self.annotation_widget.tree_view.model)
+        # self.annotation_widget.tree_view.model.setHorizontalHeaderLabels(COLUMNS)

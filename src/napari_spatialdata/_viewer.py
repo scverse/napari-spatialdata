@@ -197,7 +197,7 @@ class SpatialDataViewer(QObject):
                     copy_table = selected.features.copy()
                     if all(row == "" for row in copy_table["description"]):
                         copy_table.drop(columns=["description"], inplace=True)
-                    if len(categories := copy_table["annotator"].cat.categories) and categories[0] == "":
+                    if len(categories := copy_table["annotator"].cat.categories) == 1 and categories[0] == "":
                         copy_table.drop(columns=["annotator"], inplace=True)
 
                     copy_table.reset_index(names="instance_id", inplace=True)
