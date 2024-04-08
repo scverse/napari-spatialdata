@@ -201,12 +201,13 @@ class SpatialDataViewer(QObject):
                         copy_table.drop(columns=["annotator"], inplace=True)
 
                     copy_table.reset_index(names="instance_id", inplace=True)
-                    copy_table["region"] = selected.name
-                    copy_table["region"] = copy_table["region"].astype("category")
 
                     copy_table = AnnData(obs=copy_table)
                     sdata_table = TableModel.parse(
-                        copy_table, region=selected.name, region_key="region", instance_key="instance_id"
+                        copy_table,
+                        region=selected.name,
+                        region_key=selected.metadata["annotation_region_key"],
+                        instance_key=selected.metadata["annotation_instance_key"],
                     )
                     sdata["annotation_" + selected.name] = sdata_table
 

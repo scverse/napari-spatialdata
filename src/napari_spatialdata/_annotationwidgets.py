@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import random
 
 from qtpy.QtGui import QStandardItemModel
@@ -19,7 +21,7 @@ COLUMNS = [None, "Color", "Name"]
 
 
 class TreeView(QTreeView):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.model = QStandardItemModel()
         self.setModel(self.model)
@@ -27,7 +29,7 @@ class TreeView(QTreeView):
 
         self.button_group = QButtonGroup()
 
-    def addGroup(self, color=None, name="Class", auto_exclusive=True):
+    def addGroup(self, color: None | str = None, name: str = "Class", auto_exclusive: bool = True) -> None:
         i = self.model.rowCount()
 
         if color:
@@ -53,16 +55,16 @@ class TreeView(QTreeView):
         self.setIndexWidget(name_index, name_field)
         self.setIndexWidget(radio_index, radio_button)
 
-    def generate_random_color_hex(self):
+    def generate_random_color_hex(self) -> str:
         # Generate a random hex color code
         return f"#{random.randint(0, 255):02x}{random.randint(0, 255):02x}{random.randint(0, 255):02x}"
 
 
 class MainWindow(QWidget):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
 
-        self._annotators = []
+        self._annotators: list[str] = []
         self.layout = QVBoxLayout()
 
         self.tree_view = TreeView()
@@ -81,7 +83,7 @@ class MainWindow(QWidget):
         self.layout.addWidget(self.add_annotator_widget)
         self.layout.addWidget(self.annotators)
 
-        self._table_names = []
+        self._table_names: list[str] = []
         self.add_button = QPushButton("Add annotation group")
         self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
         self.table_name_widget = QComboBox()
@@ -96,7 +98,7 @@ class MainWindow(QWidget):
         self.setWindowTitle("Annotation")
         self.show()
 
-    def _add_annotator(self):
+    def _add_annotator(self) -> None:
         annotator = self.add_annotator_widget.text()
 
         # Have to do this because editing finished does not distinguish between enter and loss of focus causing
@@ -108,12 +110,12 @@ class MainWindow(QWidget):
 
 
 class ColorButton(QPushButton):
-    def __init__(self, color, parent=None):
+    def __init__(self, color: str, parent: QWidget | None = None) -> None:
         super().__init__("", parent)
         self.clicked.connect(self.openColorDialog)
         self.setStyleSheet(f"background-color: {color}")
 
-    def openColorDialog(self):
+    def openColorDialog(self) -> None:
         color = QColorDialog.getColor()
         if color.isValid():
             self.setStyleSheet(f"background-color: {color.name()}")

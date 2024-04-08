@@ -6,7 +6,7 @@ from anndata import AnnData
 from loguru import logger
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
-from napari.layers import Labels, Points, Shapes
+from napari.layers import Labels, Layer, Points, Shapes
 from napari.utils.events import Event
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from spatialdata import join_spatialelement_table
+from spatialdata import SpatialData, join_spatialelement_table
 from spatialdata._core.query.relational_query import _get_element_annotators
 
 from napari_spatialdata._annotationwidgets import MainWindow
@@ -420,13 +420,15 @@ class QtAdataAnnotationWidget(QWidget):
         self._current_class = "undefined"
         self._current_annotator = ""
         self._current_description = ""
-        self._class_categories = []
-        self._annotator_categories = []
+        self._current_region = None
+        self._current_region_key = "region"
+        self._current_instance_key_column = "instance_id"
 
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
         self.annotation_widget.tree_view.button_group.buttonClicked.connect(self._on_class_radio_click)
         self.annotation_widget.annotators.currentTextChanged.connect(self._set_current_annotator)
+        self.annotation_widget.import_button.clicked.connect(self._import_table_information)
 
         self.viewer.layers.events.inserted.connect(self._on_inserted)
         self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
@@ -459,6 +461,7 @@ class QtAdataAnnotationWidget(QWidget):
                     "class_color": pd.Series([], dtype="category"),
                     "description": pd.Series([], dtype="str"),
                     "annotator": pd.Series(pd.Categorical([]), dtype="category"),
+                    "region": pd.Series([], dtype="category"),
                 }
             )
             layer.features = df
@@ -489,14 +492,20 @@ class QtAdataAnnotationWidget(QWidget):
         elif event.action == "added" and len(event.data_indices) > 1:
             raise ValueError(f"Can only add one annotation at the time, got {len(event.data_indices)}")
 
-    def _update_layer_features(self, layer, action: str) -> None:
+    def _update_layer_features(self, layer: Layer, action: str) -> None:
         """Add categories to respective column if not present yet and update last row of layer.features."""
         self._add_categories(layer)
         if action == "added":
-            row = [self._current_class, self._current_color, self._current_description, self._current_annotator]
+            row = [
+                self._current_class,
+                self._current_color,
+                self._current_description,
+                self._current_annotator,
+                self._current_region,
+            ]
             layer.features.loc[len(layer.features) - 1] = row
 
-    def _add_categories(self, layer):
+    def _add_categories(self, layer: Layer) -> None:
         """
         Add new categories of class and annotator.
 
@@ -508,15 +517,15 @@ class QtAdataAnnotationWidget(QWidget):
         The napari shapes layer.
         """
         if self._current_class not in layer.features["class"].cat.categories:
-            self._class_categories.append(self._current_class)
             layer.features["class"] = layer.features["class"].cat.add_categories(self._current_class)
         if self._current_annotator not in layer.features["annotator"].cat.categories:
-            self._annotator_categories.append(self._current_annotator)
             layer.features["annotator"] = layer.features["annotator"].cat.add_categories(self._current_annotator)
         if self._current_color not in layer.features["class_color"].cat.categories:
-            layer.features["class_color"] = layer.features["class_color"].cat.add_categories([self._current_color])
+            layer.features["class_color"] = layer.features["class_color"].cat.add_categories(self._current_color)
+        if layer.name not in layer.features["region"].cat.categories:
+            layer.features["region"] = layer.features["region"].cat.add_categories(self._current_region)
 
-    def _on_layer_selection_changed(self):
+    def _on_layer_selection_changed(self) -> None:
         layer = self._viewer.layers.selection.active
         if isinstance(layer, Shapes):
             if sdata := layer.metadata.get("sdata"):
@@ -530,14 +539,17 @@ class QtAdataAnnotationWidget(QWidget):
                     "class_color": pd.Series([], dtype="category"),
                     "description": pd.Series([], dtype="str"),
                     "annotator": pd.Series([], dtype="category"),
+                    "region": pd.Series([], dtype="category"),
                 }
             )
 
             layer.features = df
+            layer.metadata["annotation_region_key"] = self._current_region_key
+            layer.metadata["annotation_instance_key"] = self._current_instance_key
         else:
             self.annotation_widget.table_name_widget.clear()
 
-    def _on_class_radio_click(self):
+    def _on_class_radio_click(self) -> None:
         if isinstance(self.viewer.layers.selection.active, Shapes):
             # We have five columns with at position 1 the color button
             color_ind = self.annotation_widget.tree_view.selectedIndexes()[1]
@@ -553,11 +565,11 @@ class QtAdataAnnotationWidget(QWidget):
             self._current_color = color
             self._viewer.layers.selection.active.current_face_color = color
 
-    def _set_current_annotator(self):
+    def _set_current_annotator(self) -> None:
         """Update current annotator when the text of the annotator dropdown has changed."""
         self._current_annotator = self.annotation_widget.annotators.currentText()
 
-    def _update_table_name_widget(self, sdata, element_name):
+    def _update_table_name_widget(self, sdata: SpatialData, element_name: str) -> None:
         table_names = list(_get_element_annotators(sdata, element_name))
 
         table_names_to_add = []
@@ -565,3 +577,9 @@ class QtAdataAnnotationWidget(QWidget):
             if any("color" in col_name for col_name in sdata[name].obs.columns):
                 table_names_to_add.append(name)
         self.annotation_widget.table_name_widget.addItems(table_names_to_add)
+
+    def _import_table_information(self) -> None:
+        table_name = self.annotation_widget.table_name_widget.currentText()
+        layer = self.viewer.layers.selection.active
+        sdata = layer.metadata["sdata"]
+        feature_df = sdata[table_name].obs
