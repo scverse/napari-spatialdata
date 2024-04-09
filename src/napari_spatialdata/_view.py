@@ -4,11 +4,10 @@ import napari
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
+from matplotlib.colors import to_rgba_array
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Labels, Layer, Points, Shapes
-from qtpy.QtGui import QStandardItemModel
-from matplotlib.colors import to_rgba_array
 from napari.utils.events import Event
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
@@ -24,7 +23,7 @@ from spatialdata import SpatialData, join_spatialelement_table
 from spatialdata._core.query.relational_query import _get_element_annotators
 from spatialdata.models import TableModel
 
-from napari_spatialdata._annotationwidgets import MainWindow, COLUMNS
+from napari_spatialdata._annotationwidgets import MainWindow
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
 from napari_spatialdata._widgets import (
