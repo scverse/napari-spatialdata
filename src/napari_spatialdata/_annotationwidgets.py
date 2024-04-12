@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 
+from PyQt5.QtWidgets import QLabel
 from qtpy.QtGui import QStandardItemModel
 from qtpy.QtWidgets import (
     QButtonGroup,
@@ -77,10 +78,13 @@ class MainWindow(QWidget):
 
         self.layout.addWidget(self.tree_view)
 
-        self.add_annotator_widget = QLineEdit(placeholderText="Add annotator")
-        self.add_annotator_widget.editingFinished.connect(self._add_annotator)
-        self.annotators = QComboBox()
-        self.layout.addWidget(self.add_annotator_widget)
+        annotator_label = QLabel("Add / set annotator:")
+        self.annotators = QComboBox(editable=True)
+        self.annotators.lineEdit().returnPressed.connect(self._clear_focus_on_add_annotator)
+        self.annotators.setToolTip(
+            "Add annotator by clicking on the dropdown, typing the name of the annotator and " "pressing enter."
+        )
+        self.layout.addWidget(annotator_label)
         self.layout.addWidget(self.annotators)
 
         self._table_names: list[str] = []
@@ -98,15 +102,8 @@ class MainWindow(QWidget):
         self.setWindowTitle("Annotation")
         self.show()
 
-    def _add_annotator(self) -> None:
-        annotator = self.add_annotator_widget.text()
-
-        # Have to do this because editing finished does not distinguish between enter and loss of focus causing
-        # annotator to be added twice otherwise.
-        if annotator and annotator not in self._annotators:
-            self._annotators.append(annotator)
-            self.annotators.addItem(annotator)
-        self.annotators.setCurrentText(annotator)
+    def _clear_focus_on_add_annotator(self) -> None:
+        self.annotators.clearFocus()
 
 
 class ColorButton(QPushButton):
