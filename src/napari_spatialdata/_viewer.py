@@ -42,6 +42,7 @@ if TYPE_CHECKING:
 
 class SpatialDataViewer(QObject):
     layer_saved = Signal(object)
+    layer_linked = Signal(object)
 
     def __init__(self, viewer: Viewer, sdata: EventedList) -> None:
         super().__init__()
@@ -199,10 +200,13 @@ class SpatialDataViewer(QObject):
                         copy_table.drop(columns=["description"], inplace=True)
                     if len(categories := copy_table["annotator"].cat.categories) == 1 and categories[0] == "":
                         copy_table.drop(columns=["annotator"], inplace=True)
+                    class_to_color_mapping = copy_table.set_index("class")["class_color"].to_dict()
+                    copy_table.drop(columns=["class"], inplace=True)
 
                     copy_table.reset_index(names="instance_id", inplace=True)
 
-                    copy_table = AnnData(obs=copy_table)
+                    # copy_table = AnnData(obs=copy_table)
+                    copy_table = AnnData()
                     sdata_table = TableModel.parse(
                         copy_table,
                         region=selected.name,
@@ -299,6 +303,7 @@ class SpatialDataViewer(QObject):
             if isinstance(layer, (Shapes, Points)):
                 layer.metadata["_n_indices"] = None
                 layer.metadata["indices"] = None
+            self.layer_linked.emit(layer)
 
         show_info(f"Layer(s) inherited info from {ref_layer}")
 

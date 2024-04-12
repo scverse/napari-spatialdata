@@ -623,7 +623,11 @@ class QtAdataAnnotationWidget(QWidget):
 
     def _set_editable_save_button(self) -> None:
         layer = self.viewer.layers.selection.active
-        if not isinstance(layer, Shapes) or layer.metadata.get("sdata") is None:
+        if (
+            not isinstance(layer, Shapes)
+            or layer.metadata.get("sdata") is None
+            or self.annotation_widget.table_name_widget.currentText() == ""
+        ):
             self.annotation_widget.save_button.setEnabled(False)
-        if self.annotation_widget.table_name_widget.currentText() == "":
-            self.annotation_widget.save_button.setEnabled(False)
+        else:
+            self.annotation_widget.save_button.setEnabled(True)

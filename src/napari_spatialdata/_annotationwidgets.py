@@ -68,6 +68,9 @@ class MainWindow(QWidget):
         self._annotators: list[str] = []
         self.layout = QVBoxLayout()
 
+        self.link_button = QPushButton("Link layer to sdata")
+        self.layout.addWidget(self.link_button)
+
         self.tree_view = TreeView()
         self.tree_view.setColumnWidth(0, 10)
         self.tree_view.setColumnWidth(1, 15)
