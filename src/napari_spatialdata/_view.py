@@ -431,9 +431,13 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.tree_view.button_group.buttonClicked.connect(self._on_class_radio_click)
         self.annotation_widget.annotators.currentTextChanged.connect(self._set_current_annotator)
         self.annotation_widget.import_button.clicked.connect(self._import_table_information)
+        self.annotation_widget.save_button.clicked.connect(self._save_annotations)
+        self._set_editable_save_button()
 
         self.viewer.layers.events.inserted.connect(self._on_inserted)
+        self.viewer.layers.events.inserted.connect(self._set_editable_save_button)
         self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
+        self.viewer.layers.selection.events.changed.connect(self._set_editable_save_button)
 
     def _on_inserted(self, event: Event) -> None:
         """
@@ -613,3 +617,13 @@ class QtAdataAnnotationWidget(QWidget):
         # self.annotation_widget.tree_view.model = QStandardItemModel()
         # self.annotation_widget.tree_view.setModel(self.annotation_widget.tree_view.model)
         # self.annotation_widget.tree_view.model.setHorizontalHeaderLabels(COLUMNS)
+
+    def _save_annotations(self) -> None:
+        pass
+
+    def _set_editable_save_button(self) -> None:
+        layer = self.viewer.layers.selection.active
+        if not isinstance(layer, Shapes) or layer.metadata.get("sdata") is None:
+            self.annotation_widget.save_button.setEnabled(False)
+        if self.annotation_widget.table_name_widget.currentText() == "":
+            self.annotation_widget.save_button.setEnabled(False)

@@ -97,6 +97,14 @@ class MainWindow(QWidget):
         self.layout.addWidget(self.table_name_widget)
         self.layout.addWidget(self.import_button)
 
+        self.save_button = QPushButton("Save annotations")
+        self.save_button.setToolTip(
+            "Save annotation as Shapes element with associated Table. Requires current active "
+            "layer to be a Shapes layer that is linked to a SpatialData object. Shortcut is "
+            "pressing shift + E."
+        )
+        self.layout.addWidget(self.save_button)
+
         # Set the layout on the application's window
         self.setLayout(self.layout)
         self.setWindowTitle("Annotation")
