@@ -619,10 +619,6 @@ class QtAdataAnnotationWidget(QWidget):
 
         for class_name, color in class_to_color_mapping.items():
             self.annotation_widget.tree_view.addGroup(color, class_name)
-        # self.annotation_widget.tree_view.setModel(None)
-        # self.annotation_widget.tree_view.model = QStandardItemModel()
-        # self.annotation_widget.tree_view.setModel(self.annotation_widget.tree_view.model)
-        # self.annotation_widget.tree_view.model.setHorizontalHeaderLabels(COLUMNS)
 
     def _save_annotations(self) -> None:
         pass
