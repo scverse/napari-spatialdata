@@ -542,3 +542,35 @@ class RangeSliderWidget(QRangeSlider):
     def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
+
+
+class SaveDialog(QtWidgets.QDialog):
+    def __init__(self, layer_name: str) -> None:
+        super().__init__()
+
+        self.setWindowTitle("Save Dialog")
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.table_name = f"annotation_{layer_name}"
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        self.line_edit = QtWidgets.QLineEdit(self.table_name)
+        layout.addWidget(self.line_edit)
+
+        save_button = QtWidgets.QPushButton("Save")
+        save_button.clicked.connect(self.save_clicked)
+        layout.addWidget(save_button)
+
+        cancel_button = QtWidgets.QPushButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        layout.addWidget(cancel_button)
+
+    def save_clicked(self) -> None:
+        self.accept()
+
+    def reject(self) -> None:
+        self.table_name = ""
+        self.accept()
+
+    def get_save_table_name(self) -> str | None:
+        return getattr(self, "table_name", None)

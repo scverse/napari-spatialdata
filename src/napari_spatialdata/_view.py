@@ -34,6 +34,7 @@ from napari_spatialdata._widgets import (
     CBarWidget,
     ComponentWidget,
     RangeSliderWidget,
+    SaveDialog,
 )
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
@@ -436,7 +437,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.tree_view.button_group.buttonClicked.connect(self._on_class_radio_click)
         self.annotation_widget.annotators.currentTextChanged.connect(self._set_current_annotator)
         self.annotation_widget.import_button.clicked.connect(self._import_table_information)
-        self.annotation_widget.save_button.clicked.connect(self._save_annotations)
+        self.annotation_widget.save_button.clicked.connect(self._open_save_dialog)
         self.annotation_widget.tree_view.header().sectionClicked.connect(self._header_clicked)
         self.annotation_widget.tree_view.model.headerDataChanged.connect(self._change_class_column_name)
         self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
@@ -651,8 +652,11 @@ class QtAdataAnnotationWidget(QWidget):
         for class_name, color in class_to_color_mapping.items():
             self.annotation_widget.tree_view.addGroup(color, class_name)
 
-    def _save_annotations(self) -> None:
-        pass
+    def _open_save_dialog(self) -> None:
+        save_dialog = SaveDialog(self.viewer.layers.selection.active.name)
+        save_dialog.exec_()
+        table_name = save_dialog.get_save_table_name()
+        # TODO: implement saving once partial save is implemented
 
     def _set_editable_save_button(self) -> None:
         layer = self.viewer.layers.selection.active
