@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import random
 
-from PyQt5.QtWidgets import QLabel
 from qtpy.QtGui import QStandardItemModel
 from qtpy.QtWidgets import (
     QButtonGroup,
     QColorDialog,
     QComboBox,
+    QLabel,
     QLineEdit,
     QPushButton,
     QRadioButton,
@@ -69,6 +69,11 @@ class MainWindow(QWidget):
         self.layout = QVBoxLayout()
 
         self.link_button = QPushButton("Link layer to sdata")
+        self.link_button.setToolTip(
+            "Link layer to sdata object present in viewer if no sdata object is associated with"
+            " layer. Only 1 active spatialdata object must be present in viewer or in "
+            "selection."
+        )
         self.layout.addWidget(self.link_button)
 
         self.tree_view = TreeView()

@@ -416,6 +416,8 @@ class QtAdataAnnotationWidget(QWidget):
     def __init__(self, input: Viewer):
         super().__init__()
         self._viewer = input
+        # TODO: have to find another way to pass this
+        self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
 
         self.setLayout(QGridLayout())
         self._current_color = "#FFFFFF"
@@ -441,6 +443,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
         self.viewer.layers.selection.events.changed.connect(self._set_editable_save_button)
         self.viewer.layers.selection.events.changed.connect(self._set_clickable_link_button)
+        self.annotation_widget.link_button.clicked.connect(self._link_layer)
 
     def _on_inserted(self, event: Event) -> None:
         """
@@ -641,3 +644,8 @@ class QtAdataAnnotationWidget(QWidget):
             self.annotation_widget.link_button.setEnabled(False)
         else:
             self.annotation_widget.link_button.setEnabled(True)
+
+    def _link_layer(self) -> None:
+        self._viewer_model._inherit_metadata(self._viewer, show_tooltip=True)
+        self._set_clickable_link_button()
+        self._on_layer_selection_changed()
