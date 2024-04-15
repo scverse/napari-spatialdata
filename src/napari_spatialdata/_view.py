@@ -433,11 +433,14 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.import_button.clicked.connect(self._import_table_information)
         self.annotation_widget.save_button.clicked.connect(self._save_annotations)
         self._set_editable_save_button()
+        self._set_clickable_link_button()
 
         self.viewer.layers.events.inserted.connect(self._on_inserted)
         self.viewer.layers.events.inserted.connect(self._set_editable_save_button)
+        self.viewer.layers.events.inserted.connect(self._set_clickable_link_button)
         self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
         self.viewer.layers.selection.events.changed.connect(self._set_editable_save_button)
+        self.viewer.layers.selection.events.changed.connect(self._set_clickable_link_button)
 
     def _on_inserted(self, event: Event) -> None:
         """
@@ -631,3 +634,10 @@ class QtAdataAnnotationWidget(QWidget):
             self.annotation_widget.save_button.setEnabled(False)
         else:
             self.annotation_widget.save_button.setEnabled(True)
+
+    def _set_clickable_link_button(self) -> None:
+        layer = self.viewer.layers.selection.active
+        if layer is not None and layer.metadata.get("sdata") is not None:
+            self.annotation_widget.link_button.setEnabled(False)
+        else:
+            self.annotation_widget.link_button.setEnabled(True)
