@@ -86,6 +86,10 @@ class MainWindow(QWidget):
 
         self.layout.addWidget(self.tree_view)
 
+        self.add_button = QPushButton("Add annotation group")
+        self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
+        self.layout.addWidget(self.add_button)
+
         annotator_label = QLabel("Add / set annotator:")
         self.annotators = QComboBox(editable=True)
         self.annotators.lineEdit().returnPressed.connect(self._clear_focus_on_add_annotator)
@@ -96,16 +100,13 @@ class MainWindow(QWidget):
         self.layout.addWidget(self.annotators)
 
         self._table_names: list[str] = []
-        self.add_button = QPushButton("Add annotation group")
-        self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
         self.table_name_widget = QComboBox()
         self.import_button = QPushButton("Set annotation table")
 
-        self.layout.addWidget(self.add_button)
         self.layout.addWidget(self.table_name_widget)
         self.layout.addWidget(self.import_button)
 
-        self.save_button = QPushButton("Save annotations")
+        self.save_button = QPushButton("Save selected annotation layer")
         self.save_button.setToolTip(
             "Save annotation as Shapes element with associated Table. Requires current active "
             "layer to be a Shapes layer that is linked to a SpatialData object. Shortcut is "

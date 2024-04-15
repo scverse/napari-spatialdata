@@ -542,7 +542,8 @@ class QtAdataAnnotationWidget(QWidget):
         layer = self._viewer.layers.selection.active
         if isinstance(layer, Shapes):
             if sdata := layer.metadata.get("sdata"):
-                self._update_table_name_widget(sdata, layer.metadata["name"])
+                if layer.name in sdata.shapes:
+                    self._update_table_name_widget(sdata, layer.metadata["name"])
             else:
                 self.annotation_widget.table_name_widget.clear()
 
