@@ -18,7 +18,7 @@ from qtpy.QtWidgets import (
 
 __all__ = ["MainWindow"]
 
-COLUMNS = [None, "Color", "Name"]
+COLUMNS = [None, "color", "class"]
 
 
 class TreeView(QTreeView):
@@ -28,6 +28,7 @@ class TreeView(QTreeView):
         self.setModel(self.model)
         self.model.setHorizontalHeaderLabels(COLUMNS)
 
+        self.header().setSectionsClickable(True)
         self.button_group = QButtonGroup()
 
     def addGroup(self, color: None | str = None, name: str = "Class", auto_exclusive: bool = True) -> None:

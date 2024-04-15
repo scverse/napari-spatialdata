@@ -9,12 +9,15 @@ from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Labels, Layer, Points, Shapes
 from napari.utils.events import Event
+from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QGridLayout,
+    QInputDialog,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -434,6 +437,9 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.annotators.currentTextChanged.connect(self._set_current_annotator)
         self.annotation_widget.import_button.clicked.connect(self._import_table_information)
         self.annotation_widget.save_button.clicked.connect(self._save_annotations)
+        self.annotation_widget.tree_view.header().sectionClicked.connect(self._header_clicked)
+        self.annotation_widget.tree_view.model.headerDataChanged.connect(self._change_class_column_name)
+        self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
         self._set_editable_save_button()
         self._set_clickable_link_button()
 
@@ -469,18 +475,21 @@ class QtAdataAnnotationWidget(QWidget):
             layer.events.data.connect(self._update_annotations)
             df = pd.DataFrame(
                 {
-                    "class": pd.Series(pd.Categorical([]), dtype="category"),
-                    "class_color": pd.Series([], dtype="category"),
+                    self._current_class_column: pd.Series(pd.Categorical([]), dtype="category"),
+                    f"{self._current_class_column}_color": pd.Series([], dtype="category"),
                     "description": pd.Series([], dtype="str"),
                     "annotator": pd.Series(pd.Categorical([]), dtype="category"),
                     "region": pd.Series([], dtype="category"),
                 }
             )
             layer.features = df
+            layer.feature_defaults = self._create_feature_default(layer)
             self._current_region = layer.name
             self._viewer.layers.selection.active.current_face_color = self._current_color
         else:
             self.annotation_widget.table_name_widget.clear()
+
+        self._set_editable_save_button()
 
     @property
     def viewer(self) -> napari.Viewer:
@@ -518,6 +527,8 @@ class QtAdataAnnotationWidget(QWidget):
             ]
             layer.features.loc[len(layer.features) - 1] = row
 
+        self._set_editable_save_button()
+
     def _add_categories(self, layer: Layer) -> None:
         """
         Add new categories of class and annotator.
@@ -529,14 +540,30 @@ class QtAdataAnnotationWidget(QWidget):
         layer
         The napari shapes layer.
         """
-        if self._current_class not in layer.features["class"].cat.categories:
-            layer.features["class"] = layer.features["class"].cat.add_categories(self._current_class)
+        if self._current_class not in layer.features[self._current_class_column].cat.categories:
+            layer.features[self._current_class_column] = layer.features[self._current_class_column].cat.add_categories(
+                self._current_class
+            )
         if self._current_annotator not in layer.features["annotator"].cat.categories:
             layer.features["annotator"] = layer.features["annotator"].cat.add_categories(self._current_annotator)
-        if self._current_color not in layer.features["class_color"].cat.categories:
-            layer.features["class_color"] = layer.features["class_color"].cat.add_categories(self._current_color)
+        if self._current_color not in layer.features[f"{self._current_class_column}_color"].cat.categories:
+            layer.features[f"{self._current_class_column}_color"] = layer.features[
+                f"{self._current_class_column}_color"
+            ].cat.add_categories(self._current_color)
         if layer.name not in layer.features["region"].cat.categories:
             layer.features["region"] = layer.features["region"].cat.add_categories(self._current_region)
+
+    def _create_feature_default(self, layer: Layer) -> pd.DataFrame:
+        # TODO: fix issue upstream in napari with feature defaults not being properly set.
+        return pd.DataFrame(
+            {
+                self._current_class_column: pd.Series(pd.Categorical(["undefined"]), dtype="category"),
+                f"{self._current_class_column}_color": pd.Series(["#FFFFFF"], dtype="category"),
+                "description": pd.Series([""], dtype="str"),
+                "annotator": pd.Series([""], dtype="category"),
+                "region": pd.Series([layer.name], dtype="category"),
+            }
+        )
 
     def _on_layer_selection_changed(self) -> None:
         layer = self._viewer.layers.selection.active
@@ -549,8 +576,8 @@ class QtAdataAnnotationWidget(QWidget):
 
             df = pd.DataFrame(
                 {
-                    "class": pd.Series([], dtype="category"),
-                    "class_color": pd.Series([], dtype="category"),
+                    self._current_class_column: pd.Series(pd.Categorical([]), dtype="category"),
+                    f"{self._current_class_column}_color": pd.Series([], dtype="category"),
                     "description": pd.Series([], dtype="str"),
                     "annotator": pd.Series([], dtype="category"),
                     "region": pd.Series([], dtype="category"),
@@ -561,8 +588,11 @@ class QtAdataAnnotationWidget(QWidget):
             layer.features = df
             layer.metadata["annotation_region_key"] = self._current_region_key
             layer.metadata["annotation_instance_key"] = self._current_instance_key
+            layer.feature_defaults = self._create_feature_default(layer)
         else:
             self.annotation_widget.table_name_widget.clear()
+
+        self._set_editable_save_button()
 
     def _on_class_radio_click(self) -> None:
         if isinstance(self.viewer.layers.selection.active, Shapes):
@@ -626,11 +656,7 @@ class QtAdataAnnotationWidget(QWidget):
 
     def _set_editable_save_button(self) -> None:
         layer = self.viewer.layers.selection.active
-        if (
-            not isinstance(layer, Shapes)
-            or layer.metadata.get("sdata") is None
-            or self.annotation_widget.table_name_widget.currentText() == ""
-        ):
+        if not isinstance(layer, Shapes) or layer.metadata.get("sdata") is None or len(layer.features) == 0:
             self.annotation_widget.save_button.setEnabled(False)
         else:
             self.annotation_widget.save_button.setEnabled(True)
@@ -646,3 +672,35 @@ class QtAdataAnnotationWidget(QWidget):
         self._viewer_model._inherit_metadata(self._viewer, show_tooltip=True)
         self._set_clickable_link_button()
         self._on_layer_selection_changed()
+
+        layer = self.viewer.layers.selection.active
+        layer.events.data.connect(self._update_annotations)
+
+    def _header_clicked(self, index: int) -> None:
+        if index == 2:
+            layer = self.viewer.layers.selection.active
+            line_edit_widget = self.annotation_widget.tree_view.model.horizontalHeaderItem(2)
+            current_text = line_edit_widget.text()
+            new_text, ok = QInputDialog.getText(
+                self, "Edit column name", "Enter new column name:", QLineEdit.Normal, current_text
+            )
+            if ok and isinstance(layer, Shapes) and any("color" in col for col in layer.features):
+                # Set the new text to the line edit
+                line_edit_widget.setText(new_text)
+            else:
+                show_info("Cannot change the color name when no annotation shapes layer is selected / active.")
+
+    def _change_class_column_name(self) -> None:
+        self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
+        layer = self.viewer.layers.selection.active
+        layer.features.rename(
+            columns={
+                layer.features.columns[0]: self._current_class_column,
+                layer.features.columns[1]: f"{self._current_class_column}_color",
+            },
+            inplace=True,
+        )
+
+        # This has to be done because napari has an attribute for checking column names that is not
+        # updated when changing the column names.
+        layer.features = layer.features
