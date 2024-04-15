@@ -569,7 +569,7 @@ class SaveDialog(QtWidgets.QDialog):
         self.accept()
 
     def reject(self) -> None:
-        self.table_name = ""
+        self.table_name = None
         self.accept()
 
     def get_save_table_name(self) -> str | None:
