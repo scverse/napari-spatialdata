@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
-from napari.layers import Labels, Points, Shapes
+from napari.layers import Labels, Layer, Points, Shapes
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -545,32 +545,76 @@ class RangeSliderWidget(QRangeSlider):
 
 
 class SaveDialog(QtWidgets.QDialog):
-    def __init__(self, layer_name: str) -> None:
+    def __init__(self, layer: Layer) -> None:
         super().__init__()
 
         self.setWindowTitle("Save Dialog")
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        self.table_name = f"annotation_{layer_name}"
+        self.table_name: str | None = f"annotation_{layer.name}"
+        self.shape_name: str | None = layer.name
+        self.sdata = layer.metadata["sdata"]
 
         layout = QtWidgets.QVBoxLayout(self)
 
-        self.line_edit = QtWidgets.QLineEdit(self.table_name)
-        layout.addWidget(self.line_edit)
+        spatial_element_label = QtWidgets.QLabel("Spatial Element name:")
+        self.spatial_element_line_edit = QtWidgets.QLineEdit(layer.name)
+        layout.addWidget(spatial_element_label)
+        layout.addWidget(self.spatial_element_line_edit)
 
-        save_button = QtWidgets.QPushButton("Save")
-        save_button.clicked.connect(self.save_clicked)
-        layout.addWidget(save_button)
+        table_label = QtWidgets.QLabel("Table name:")
+        self.table_line_edit = QtWidgets.QLineEdit(self.table_name)
+        layout.addWidget(table_label)
+        layout.addWidget(self.table_line_edit)
 
-        cancel_button = QtWidgets.QPushButton("Cancel")
-        cancel_button.clicked.connect(self.reject)
-        layout.addWidget(cancel_button)
+        QBtn = QtWidgets.QDialogButtonBox.Save | QtWidgets.QDialogButtonBox.Cancel
+        self.button_box = QtWidgets.QDialogButtonBox(QBtn)
+        self.button_box.accepted.connect(self.save_clicked)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
 
     def save_clicked(self) -> None:
+        self.table_name = self.table_line_edit.text()
+        self.shape_name = self.spatial_element_line_edit.text()
+        if overwrite_table := (self.table_name in self.sdata.tables) or self.shape_name in self.sdata.shapes:
+            overwrite_shape = self.shape_name in self.sdata.shapes
+
+            if overwrite_table and overwrite_shape:
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Overwrite",
+                    f"{self.shape_name} and {self.table_name} already exist. Do you want to " f"overwrite them?",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No,
+                )
+            elif overwrite_shape:
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Overwrite",
+                    f"{self.shape_name}  already exists. Do you want to overwrite?",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No,
+                )
+            elif overwrite_table:
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Overwrite",
+                    f"{self.table_name}  already exists. Do you want to overwrite?",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No,
+                )
+            if reply == QtWidgets.QMessageBox.No:
+                self.reject()
+                return
+
         self.accept()
 
     def reject(self) -> None:
         self.table_name = None
+        self.shape_name = None
         self.accept()
 
     def get_save_table_name(self) -> str | None:
         return getattr(self, "table_name", None)
+
+    def get_save_shape_name(self) -> str | None:
+        return getattr(self, "shape_name", None)

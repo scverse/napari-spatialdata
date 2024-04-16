@@ -29,13 +29,7 @@ from spatialdata.models import TableModel
 from napari_spatialdata._annotationwidgets import MainWindow
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
-from napari_spatialdata._widgets import (
-    AListWidget,
-    CBarWidget,
-    ComponentWidget,
-    RangeSliderWidget,
-    SaveDialog,
-)
+from napari_spatialdata._widgets import AListWidget, CBarWidget, ComponentWidget, RangeSliderWidget, SaveDialog
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
@@ -653,9 +647,11 @@ class QtAdataAnnotationWidget(QWidget):
             self.annotation_widget.tree_view.addGroup(color, class_name)
 
     def _open_save_dialog(self) -> None:
-        save_dialog = SaveDialog(self.viewer.layers.selection.active.name)
+        layer = self.viewer.layers.selection.active
+        save_dialog = SaveDialog(layer)
         save_dialog.exec_()
         table_name = save_dialog.get_save_table_name()
+        shape_name = save_dialog.get_save_shape_name()
         # TODO: implement saving once partial save is implemented
 
     def _set_editable_save_button(self) -> None:
