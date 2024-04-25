@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 
+from PyQt5.QtWidgets import QTextEdit
 from qtpy.QtGui import QStandardItemModel
 from qtpy.QtWidgets import (
     QButtonGroup,
@@ -80,12 +81,16 @@ class MainWindow(QWidget):
         self.tree_view = TreeView()
         self.tree_view.setColumnWidth(0, 10)
         self.tree_view.setColumnWidth(1, 15)
-        self.tree_view.setColumnWidth(2, 123)
+        self.tree_view.setColumnWidth(2, 100)
 
-        self.tree_view.setFixedWidth(150)
         self.tree_view.addGroup(color="#FFFFFF", name="undefined")
 
         self.layout.addWidget(self.tree_view)
+
+        self.description_box = QTextEdit()
+        self.description_box.setPlaceholderText("Add your description for selected element here and press enter.")
+        self.description_box.setMaximumHeight(self.description_box.fontInfo().pixelSize() * 8)
+        self.layout.addWidget(self.description_box)
 
         self.add_button = QPushButton("Add annotation group")
         self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
