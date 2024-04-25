@@ -445,6 +445,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.viewer.layers.selection.events.changed.connect(self._set_editable_save_button)
         self.viewer.layers.selection.events.changed.connect(self._set_clickable_link_button)
         self.annotation_widget.link_button.clicked.connect(self._link_layer)
+        self._on_layer_selection_changed()
 
     def _on_inserted(self, event: Event) -> None:
         """
@@ -639,7 +640,9 @@ class QtAdataAnnotationWidget(QWidget):
             class_column = color_column.split("_")[0]
             feature_df[color_column] = feature_df[class_column].map(color_dict)
             feature_df[color_column] = feature_df[color_column].astype("category")
-            layer.face_color = to_rgba_array(feature_df[color_column])
+            color_array = to_rgba_array(feature_df[color_column])
+            layer.face_color = color_array
+            layer.edge_color = color_array
             layer.features = feature_df
 
             if "annotator" in feature_df.columns:
@@ -657,9 +660,10 @@ class QtAdataAnnotationWidget(QWidget):
         save_dialog.exec_()
         table_name = save_dialog.get_save_table_name()
         shape_name = save_dialog.get_save_shape_name()
-
-        self._viewer_model.save_to_sdata([layer], shape_name, table_name, overwrite=True)
-        # TODO: implement saving once partial save is implemented
+        if shape_name and table_name:
+            self._viewer_model.save_to_sdata([layer], shape_name, table_name, overwrite=True)
+        else:
+            show_info("Saving canceled.")
 
     def _set_editable_save_button(self) -> None:
         layer = self.viewer.layers.selection.active
