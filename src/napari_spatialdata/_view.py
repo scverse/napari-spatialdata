@@ -430,7 +430,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.layout().addWidget(self.annotation_widget)
         self.annotation_widget.tree_view.button_group.buttonClicked.connect(self._on_class_radio_click)
         self.annotation_widget.annotators.currentTextChanged.connect(self._set_current_annotator)
-        self.annotation_widget.import_button.clicked.connect(self._import_table_information)
+        self.annotation_widget.table_name_widget.currentTextChanged.connect(self._import_table_information)
         self.annotation_widget.save_button.clicked.connect(self._open_save_dialog)
         self.annotation_widget.tree_view.header().sectionClicked.connect(self._header_clicked)
         self.annotation_widget.tree_view.model.headerDataChanged.connect(self._change_class_column_name)
@@ -614,37 +614,42 @@ class QtAdataAnnotationWidget(QWidget):
 
         table_names_to_add = []
         for name in table_names:
-            if any("color" in col_name for col_name in sdata[name].obs.columns):
+            if any("color" in key for key in sdata[name].uns):
                 table_names_to_add.append(name)
         self.annotation_widget.table_name_widget.addItems(table_names_to_add)
 
     def _import_table_information(self) -> None:
         table_name = self.annotation_widget.table_name_widget.currentText()
         layer = self.viewer.layers.selection.active
-        sdata = layer.metadata["sdata"]
-        table = sdata[table_name]
+        if layer:
+            self.annotation_widget.tree_view.model.clear()
+            self.annotation_widget.tree_view.setModel(self.annotation_widget.tree_view.model)
 
-        self._current_region_key = table.uns[TableModel.ATTRS_KEY][TableModel.REGION_KEY_KEY]
-        self._current_instance_key = table.uns[TableModel.ATTRS_KEY][TableModel.INSTANCE_KEY]
-        layer.metadata["annotation_region_key"] = self._current_region_key
-        layer.metadata["annotation_instance_key"] = self._current_instance_key
+            sdata = layer.metadata["sdata"]
+            table = sdata[table_name]
+            color_column = [key for key in table.uns if "color" in key][0]
+            color_dict = table.uns[color_column]
 
-        feature_df = table.obs.copy().drop(columns=[self._current_instance_key])
-        color_column = [col for col in feature_df.columns if "color" in col][0]
-        class_column = color_column.split("_")[0]
-        layer.face_color = to_rgba_array(feature_df[color_column])
-        layer.features = feature_df
+            self._current_region_key = table.uns[TableModel.ATTRS_KEY][TableModel.REGION_KEY_KEY]
+            self._current_instance_key = table.uns[TableModel.ATTRS_KEY][TableModel.INSTANCE_KEY]
+            layer.metadata["annotation_region_key"] = self._current_region_key
+            layer.metadata["annotation_instance_key"] = self._current_instance_key
 
-        if "annotator" in feature_df.columns:
-            annotators = list(feature_df["annotator"].cat.categories)
-            self.annotation_widget.annotators.clear()
-            self.annotation_widget.annotators.addItems(annotators)
-            self.annotation_widget.annotators.setCurrentText(annotators[0])
+            feature_df = table.obs.copy().drop(columns=[self._current_instance_key])
+            class_column = color_column.split("_")[0]
+            feature_df[color_column] = feature_df[class_column].map(color_dict)
+            feature_df[color_column] = feature_df[color_column].astype("category")
+            layer.face_color = to_rgba_array(feature_df[color_column])
+            layer.features = feature_df
 
-        class_to_color_mapping = feature_df.set_index(class_column)[color_column].to_dict()
+            if "annotator" in feature_df.columns:
+                annotators = list(feature_df["annotator"].cat.categories)
+                self.annotation_widget.annotators.clear()
+                self.annotation_widget.annotators.addItems(annotators)
+                self.annotation_widget.annotators.setCurrentText(annotators[0])
 
-        for class_name, color in class_to_color_mapping.items():
-            self.annotation_widget.tree_view.addGroup(color, class_name)
+            for class_name, color in color_dict.items():
+                self.annotation_widget.tree_view.addGroup(color, class_name)
 
     def _open_save_dialog(self) -> None:
         layer = self.viewer.layers.selection.active
@@ -652,6 +657,8 @@ class QtAdataAnnotationWidget(QWidget):
         save_dialog.exec_()
         table_name = save_dialog.get_save_table_name()
         shape_name = save_dialog.get_save_shape_name()
+
+        self._viewer_model.save_to_sdata([layer], shape_name, table_name, overwrite=True)
         # TODO: implement saving once partial save is implemented
 
     def _set_editable_save_button(self) -> None:

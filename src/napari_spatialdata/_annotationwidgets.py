@@ -100,12 +100,12 @@ class MainWindow(QWidget):
         self.layout.addWidget(annotator_label)
         self.layout.addWidget(self.annotators)
 
+        table_label = QLabel("Set annotation table:")
         self._table_names: list[str] = []
         self.table_name_widget = QComboBox()
-        self.import_button = QPushButton("Set annotation table")
 
+        self.layout.addWidget(table_label)
         self.layout.addWidget(self.table_name_widget)
-        self.layout.addWidget(self.import_button)
 
         self.save_button = QPushButton("Save selected annotation layer")
         self.save_button.setToolTip(
