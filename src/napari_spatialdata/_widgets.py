@@ -561,10 +561,11 @@ class SaveDialog(QtWidgets.QDialog):
         layout.addWidget(spatial_element_label)
         layout.addWidget(self.spatial_element_line_edit)
 
-        table_label = QtWidgets.QLabel("Table name:")
-        self.table_line_edit = QtWidgets.QLineEdit(self.table_name)
-        layout.addWidget(table_label)
-        layout.addWidget(self.table_line_edit)
+        if any("color" in col for col in layer.features.columns):
+            table_label = QtWidgets.QLabel("Table name:")
+            self.table_line_edit = QtWidgets.QLineEdit(self.table_name)
+            layout.addWidget(table_label)
+            layout.addWidget(self.table_line_edit)
 
         QBtn = QtWidgets.QDialogButtonBox.Save | QtWidgets.QDialogButtonBox.Cancel
         self.button_box = QtWidgets.QDialogButtonBox(QBtn)
@@ -611,7 +612,7 @@ class SaveDialog(QtWidgets.QDialog):
     def reject(self) -> None:
         self.table_name = None
         self.shape_name = None
-        self.accept()
+        self.done(QtWidgets.QDialog.Rejected)
 
     def get_save_table_name(self) -> str | None:
         return getattr(self, "table_name", None)
