@@ -62,6 +62,11 @@ class TreeView(QTreeView):
         # Generate a random hex color code
         return f"#{random.randint(0, 255):02x}{random.randint(0, 255):02x}{random.randint(0, 255):02x}"
 
+    def reset_to_default_tree_view(self) -> None:
+        if self.model.rowCount() != 1:
+            count = self.model.rowCount()
+            self.model.removeRows(1, count - 1)
+
 
 class MainWindow(QWidget):
     def __init__(self) -> None:

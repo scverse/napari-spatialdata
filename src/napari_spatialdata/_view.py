@@ -414,7 +414,7 @@ class QtAdataAnnotationWidget(QWidget):
     def __init__(self, input: Viewer):
         super().__init__()
         self._viewer = input
-        # TODO: have to find another way to pass this
+        # TODO: have to find another way to pass this as this is deprecated from 0.5.0 onwards
         self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
 
         self.setLayout(QGridLayout())
@@ -463,25 +463,39 @@ class QtAdataAnnotationWidget(QWidget):
         """
         layer = event.value
         if isinstance(layer, Shapes):
+            layer.events.data.connect(self._update_annotations)
+            self._current_region = layer.name
+            self._viewer.layers.selection.active.current_face_color = self._current_color
+
+        self._set_editable_save_button()
+
+    def _on_layer_selection_changed(self) -> None:
+        layer = self._viewer.layers.selection.active
+        if isinstance(layer, Shapes):
             if sdata := layer.metadata.get("sdata"):
-                self._update_table_name_widget(sdata, layer.metadata["name"])
+                if layer.name in sdata.shapes:
+                    self._update_table_name_widget(sdata, layer.metadata["name"])
             else:
                 self.annotation_widget.table_name_widget.clear()
 
-            layer.events.data.connect(self._update_annotations)
-            df = pd.DataFrame(
-                {
-                    self._current_class_column: pd.Series(pd.Categorical([]), dtype="category"),
-                    f"{self._current_class_column}_color": pd.Series([], dtype="category"),
-                    "description": pd.Series([], dtype="str"),
-                    "annotator": pd.Series(pd.Categorical([]), dtype="category"),
-                    "region": pd.Series([], dtype="category"),
-                }
-            )
-            layer.features = df
-            layer.feature_defaults = self._create_feature_default(layer)
+            if self.annotation_widget.table_name_widget.currentText() == "":
+                self.annotation_widget.tree_view.reset_to_default_tree_view()
+                df = pd.DataFrame(
+                    {
+                        self._current_class_column: pd.Series(pd.Categorical([]), dtype="category"),
+                        f"{self._current_class_column}_color": pd.Series([], dtype="category"),
+                        "description": pd.Series([], dtype="str"),
+                        "annotator": pd.Series([], dtype="category"),
+                        "region": pd.Series([], dtype="category"),
+                    }
+                )
+                layer.features = df
+                layer.metadata["annotation_region_key"] = self._current_region_key
+                layer.metadata["annotation_instance_key"] = self._current_instance_key
+                layer.feature_defaults = self._create_feature_default(layer)
+
             self._current_region = layer.name
-            self._viewer.layers.selection.active.current_face_color = self._current_color
+
         else:
             self.annotation_widget.table_name_widget.clear()
 
@@ -561,35 +575,6 @@ class QtAdataAnnotationWidget(QWidget):
             }
         )
 
-    def _on_layer_selection_changed(self) -> None:
-        layer = self._viewer.layers.selection.active
-        if isinstance(layer, Shapes):
-            if sdata := layer.metadata.get("sdata"):
-                if layer.name in sdata.shapes:
-                    self._update_table_name_widget(sdata, layer.metadata["name"])
-            else:
-                self.annotation_widget.table_name_widget.clear()
-
-            df = pd.DataFrame(
-                {
-                    self._current_class_column: pd.Series(pd.Categorical([]), dtype="category"),
-                    f"{self._current_class_column}_color": pd.Series([], dtype="category"),
-                    "description": pd.Series([], dtype="str"),
-                    "annotator": pd.Series([], dtype="category"),
-                    "region": pd.Series([], dtype="category"),
-                }
-            )
-
-            self._current_region = layer.name
-            layer.features = df
-            layer.metadata["annotation_region_key"] = self._current_region_key
-            layer.metadata["annotation_instance_key"] = self._current_instance_key
-            layer.feature_defaults = self._create_feature_default(layer)
-        else:
-            self.annotation_widget.table_name_widget.clear()
-
-        self._set_editable_save_button()
-
     def _on_class_radio_click(self) -> None:
         if isinstance(self.viewer.layers.selection.active, Shapes):
             # We have five columns with at position 1 the color button
@@ -622,9 +607,8 @@ class QtAdataAnnotationWidget(QWidget):
     def _import_table_information(self) -> None:
         table_name = self.annotation_widget.table_name_widget.currentText()
         layer = self.viewer.layers.selection.active
-        if layer:
-            self.annotation_widget.tree_view.model.clear()
-            self.annotation_widget.tree_view.setModel(self.annotation_widget.tree_view.model)
+        if layer and table_name != "":
+            self.annotation_widget.tree_view.reset_to_default_tree_view()
 
             sdata = layer.metadata["sdata"]
             table = sdata[table_name]
@@ -652,7 +636,7 @@ class QtAdataAnnotationWidget(QWidget):
                 self.annotation_widget.annotators.setCurrentText(annotators[0])
 
             for class_name, color in color_dict.items():
-                self.annotation_widget.tree_view.addGroup(color, class_name)
+                self.annotation_widget.tree_view.addGroup(color=color, name=class_name)
 
     def _open_save_dialog(self) -> None:
         layer = self.viewer.layers.selection.active
@@ -702,16 +686,17 @@ class QtAdataAnnotationWidget(QWidget):
                 show_info("Cannot change the color name when no annotation shapes layer is selected / active.")
 
     def _change_class_column_name(self) -> None:
-        self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
-        layer = self.viewer.layers.selection.active
-        layer.features.rename(
-            columns={
-                layer.features.columns[0]: self._current_class_column,
-                layer.features.columns[1]: f"{self._current_class_column}_color",
-            },
-            inplace=True,
-        )
+        if self.annotation_widget.tree_view.model.horizontalHeader(2) is not None:
+            self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
+            layer = self.viewer.layers.selection.active
+            layer.features.rename(
+                columns={
+                    layer.features.columns[0]: self._current_class_column,
+                    layer.features.columns[1]: f"{self._current_class_column}_color",
+                },
+                inplace=True,
+            )
 
-        # This has to be done because napari has an attribute for checking column names that is not
-        # updated when changing the column names.
-        layer.features = layer.features
+            # This has to be done because napari has an attribute for checking column names that is not
+            # updated when changing the column names.
+            layer.features = layer.features
