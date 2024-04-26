@@ -66,6 +66,12 @@ class TreeView(QTreeView):
         if self.model.rowCount() != 1:
             count = self.model.rowCount()
             self.model.removeRows(1, count - 1)
+            self.reset_button_group()
+            self.button_group.buttons()[0].setChecked(True)
+
+    def reset_button_group(self) -> None:
+        for button in self.button_group.buttons()[1:]:
+            self.button_group.removeButton(button)
 
 
 class MainWindow(QWidget):

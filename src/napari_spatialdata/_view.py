@@ -567,6 +567,7 @@ class QtAdataAnnotationWidget(QWidget):
         # TODO: fix issue upstream in napari with feature defaults not being properly set.
         return pd.DataFrame(
             {
+                #                "instance_id": pd.Series([], dtype="int"),
                 self._current_class_column: pd.Series(pd.Categorical(["undefined"]), dtype="category"),
                 f"{self._current_class_column}_color": pd.Series(["#FFFFFF"], dtype="category"),
                 "description": pd.Series([""], dtype="str"),
@@ -686,17 +687,17 @@ class QtAdataAnnotationWidget(QWidget):
                 show_info("Cannot change the color name when no annotation shapes layer is selected / active.")
 
     def _change_class_column_name(self) -> None:
-        if self.annotation_widget.tree_view.model.horizontalHeader(2) is not None:
-            self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
-            layer = self.viewer.layers.selection.active
-            layer.features.rename(
-                columns={
-                    layer.features.columns[0]: self._current_class_column,
-                    layer.features.columns[1]: f"{self._current_class_column}_color",
-                },
-                inplace=True,
-            )
 
-            # This has to be done because napari has an attribute for checking column names that is not
-            # updated when changing the column names.
-            layer.features = layer.features
+        self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
+        layer = self.viewer.layers.selection.active
+        layer.features.rename(
+            columns={
+                layer.features.columns[0]: self._current_class_column,
+                layer.features.columns[1]: f"{self._current_class_column}_color",
+            },
+            inplace=True,
+        )
+
+        # This has to be done because napari has an attribute for checking column names that is not
+        # updated when changing the column names.
+        layer.features = layer.features
