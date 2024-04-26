@@ -479,11 +479,12 @@ class QtAdataAnnotationWidget(QWidget):
                 self.annotation_widget.table_name_widget.clear()
 
             if self.annotation_widget.table_name_widget.currentText() == "":
+                self.annotation_widget.tree_view.reset_class_column_header()
                 self.annotation_widget.tree_view.reset_to_default_tree_view()
                 df = pd.DataFrame(
                     {
-                        self._current_class_column: pd.Series(pd.Categorical([]), dtype="category"),
-                        f"{self._current_class_column}_color": pd.Series([], dtype="category"),
+                        "class": pd.Series(pd.Categorical([]), dtype="category"),
+                        "class_color": pd.Series([], dtype="category"),
                         "description": pd.Series([], dtype="str"),
                         "annotator": pd.Series([], dtype="category"),
                         "region": pd.Series([], dtype="category"),
@@ -550,16 +551,12 @@ class QtAdataAnnotationWidget(QWidget):
         layer
         The napari shapes layer.
         """
-        if self._current_class not in layer.features[self._current_class_column].cat.categories:
-            layer.features[self._current_class_column] = layer.features[self._current_class_column].cat.add_categories(
-                self._current_class
-            )
+        if self._current_class not in layer.features["class"].cat.categories:
+            layer.features["class"] = layer.features["class"].cat.add_categories(self._current_class)
         if self._current_annotator not in layer.features["annotator"].cat.categories:
             layer.features["annotator"] = layer.features["annotator"].cat.add_categories(self._current_annotator)
-        if self._current_color not in layer.features[f"{self._current_class_column}_color"].cat.categories:
-            layer.features[f"{self._current_class_column}_color"] = layer.features[
-                f"{self._current_class_column}_color"
-            ].cat.add_categories(self._current_color)
+        if self._current_color not in layer.features["class_color"].cat.categories:
+            layer.features["class_color"] = layer.features["class_color"].cat.add_categories(self._current_color)
         if layer.name not in layer.features["region"].cat.categories:
             layer.features["region"] = layer.features["region"].cat.add_categories(self._current_region)
 
@@ -568,8 +565,8 @@ class QtAdataAnnotationWidget(QWidget):
         return pd.DataFrame(
             {
                 #                "instance_id": pd.Series([], dtype="int"),
-                self._current_class_column: pd.Series(pd.Categorical(["undefined"]), dtype="category"),
-                f"{self._current_class_column}_color": pd.Series(["#FFFFFF"], dtype="category"),
+                "class": pd.Series(pd.Categorical(["undefined"]), dtype="category"),
+                "class_color": pd.Series(["#FFFFFF"], dtype="category"),
                 "description": pd.Series([""], dtype="str"),
                 "annotator": pd.Series([""], dtype="category"),
                 "region": pd.Series([layer.name], dtype="category"),
@@ -628,14 +625,21 @@ class QtAdataAnnotationWidget(QWidget):
             color_array = to_rgba_array(feature_df[color_column])
             layer.face_color = color_array
             layer.edge_color = color_array
-            layer.features = feature_df
+
+            if "description" not in feature_df.columns:
+                feature_df["description"] = pd.Series([""] * len(feature_df), dtype="str", index=feature_df.index)
 
             if "annotator" in feature_df.columns:
                 annotators = list(feature_df["annotator"].cat.categories)
                 self.annotation_widget.annotators.clear()
                 self.annotation_widget.annotators.addItems(annotators)
                 self.annotation_widget.annotators.setCurrentText(annotators[0])
+            else:
+                feature_df["annotator"] = pd.Series([""] * len(feature_df), dtype="category", index=feature_df.index)
 
+            layer.features = feature_df
+
+            self.annotation_widget.tree_view.set_class_column_header(class_column)
             for class_name, color in color_dict.items():
                 self.annotation_widget.tree_view.addGroup(color=color, name=class_name)
 
@@ -646,7 +650,13 @@ class QtAdataAnnotationWidget(QWidget):
         table_name = save_dialog.get_save_table_name()
         shape_name = save_dialog.get_save_shape_name()
         if shape_name and table_name:
-            self._viewer_model.save_to_sdata([layer], shape_name, table_name, overwrite=True)
+            self._viewer_model.save_to_sdata(
+                [layer],
+                shape_name,
+                table_name,
+                table_columns=[self._current_class_column, self._current_class_column + "_color"],
+                overwrite=True,
+            )
         else:
             show_info("Saving canceled.")
 
@@ -687,17 +697,4 @@ class QtAdataAnnotationWidget(QWidget):
                 show_info("Cannot change the color name when no annotation shapes layer is selected / active.")
 
     def _change_class_column_name(self) -> None:
-
         self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
-        layer = self.viewer.layers.selection.active
-        layer.features.rename(
-            columns={
-                layer.features.columns[0]: self._current_class_column,
-                layer.features.columns[1]: f"{self._current_class_column}_color",
-            },
-            inplace=True,
-        )
-
-        # This has to be done because napari has an attribute for checking column names that is not
-        # updated when changing the column names.
-        layer.features = layer.features

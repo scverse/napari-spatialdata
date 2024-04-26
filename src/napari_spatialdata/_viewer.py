@@ -142,7 +142,7 @@ class SpatialDataViewer(QObject):
         return str(spatial_element_name)
 
     def _delete_from_disk(self, sdata: SpatialData, element_name: str, overwrite: bool) -> None:
-        if len(sdata.locate_element(element_name)) != 0:
+        if len(sdata.locate_element(sdata[element_name])) != 0:
             if overwrite:
                 sdata.delete_element_from_disk(element_name)
             else:
@@ -173,7 +173,12 @@ class SpatialDataViewer(QObject):
         return parsed, coordinate_system
 
     def _save_table_to_sdata(
-        self, layer_to_save: Layer, table_name: str, spatial_element_name: str | None, overwrite: bool
+        self,
+        layer_to_save: Layer,
+        table_name: str,
+        spatial_element_name: str | None,
+        table_columns: list[str] | None,
+        overwrite: bool,
     ) -> None:
         sdata = layer_to_save.metadata["sdata"]
         feature_color_column = [column for column in layer_to_save.features.columns if "color" in column]
@@ -198,7 +203,9 @@ class SpatialDataViewer(QObject):
             if spatial_element_name not in copy_table["region"].cat.categories:
                 layer_to_save.name = spatial_element_name
                 copy_table["region"] = spatial_element_name
-
+            if table_columns:
+                color_column_name = table_columns[1]
+                copy_table.rename(columns={"class": table_columns[0]}, inplace=True)
             copy_table = AnnData(obs=copy_table, uns={color_column_name: class_to_color_mapping})
 
             sdata_table = TableModel.parse(
@@ -241,6 +248,7 @@ class SpatialDataViewer(QObject):
         layers: list[Layer] | None = None,
         spatial_element_name: str | None = None,
         table_name: str | None = None,
+        table_columns: list[str] | None = None,
         overwrite: bool = False,
     ) -> None:
         """
@@ -288,7 +296,7 @@ class SpatialDataViewer(QObject):
         elif isinstance(selected, Shapes):
             parsed, cs = self._save_shapes_to_sdata(selected, spatial_element_name, overwrite)
             if table_name:
-                self._save_table_to_sdata(selected, table_name, spatial_element_name, overwrite)
+                self._save_table_to_sdata(selected, table_name, spatial_element_name, table_columns, overwrite)
         elif isinstance(selected, (Image, Labels)):
             raise NotImplementedError
         else:

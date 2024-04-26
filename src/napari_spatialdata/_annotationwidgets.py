@@ -69,6 +69,14 @@ class TreeView(QTreeView):
             self.reset_button_group()
             self.button_group.buttons()[0].setChecked(True)
 
+    def set_class_column_header(self, class_col_name: str) -> None:
+        columns_to_set = COLUMNS.copy()
+        columns_to_set[-1] = class_col_name
+        self.model.setHorizontalHeaderLabels(columns_to_set)
+
+    def reset_class_column_header(self) -> None:
+        self.model.setHorizontalHeaderLabels(COLUMNS)
+
     def reset_button_group(self) -> None:
         for button in self.button_group.buttons()[1:]:
             self.button_group.removeButton(button)
