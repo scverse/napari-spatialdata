@@ -115,9 +115,6 @@ class MainWindow(QWidget):
         self.description_box.setMaximumHeight(self.description_box.fontInfo().pixelSize() * 8)
         self.layout.addWidget(self.description_box)
 
-        self.set_annotation = QPushButton("Set description and class")
-        self.layout.addWidget(self.set_annotation)
-
         annotator_label = QLabel("Add / set annotator:")
         self.annotators = QComboBox(editable=True)
         self.annotators.lineEdit().returnPressed.connect(self._clear_focus_on_add_annotator)
@@ -126,6 +123,9 @@ class MainWindow(QWidget):
         )
         self.layout.addWidget(annotator_label)
         self.layout.addWidget(self.annotators)
+
+        self.set_annotation = QPushButton("Set description, class and annotator")
+        self.layout.addWidget(self.set_annotation)
 
         table_label = QLabel("Annotation table:")
         self._table_names: list[str] = []

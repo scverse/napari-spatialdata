@@ -434,6 +434,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.save_button.clicked.connect(self._open_save_dialog)
         self.annotation_widget.tree_view.header().sectionClicked.connect(self._header_clicked)
         self.annotation_widget.tree_view.model.headerDataChanged.connect(self._change_class_column_name)
+        self.annotation_widget.set_annotation.clicked.connect(self._set_class_description)
         self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
         self._set_editable_save_button()
         self._set_clickable_link_button()
@@ -464,6 +465,7 @@ class QtAdataAnnotationWidget(QWidget):
         layer = event.value
         if isinstance(layer, Shapes):
             layer.events.data.connect(self._update_annotations)
+            layer.events.name.connect(self._change_region_on_name_change)
             self._current_region = layer.name
             self._viewer.layers.selection.active.current_face_color = self._current_color
 
@@ -574,7 +576,8 @@ class QtAdataAnnotationWidget(QWidget):
         )
 
     def _on_class_radio_click(self) -> None:
-        if isinstance(self.viewer.layers.selection.active, Shapes):
+        layer = self.viewer.layers.selection.active
+        if isinstance(layer, Shapes):
             # We have five columns with at position 1 the color button
             color_ind = self.annotation_widget.tree_view.selectedIndexes()[1]
             color_button = self.annotation_widget.tree_view.indexWidget(color_ind)
@@ -587,7 +590,10 @@ class QtAdataAnnotationWidget(QWidget):
             palette = color_button.palette()
             color = palette.color(color_button.backgroundRole()).name()
             self._current_color = color
-            self._viewer.layers.selection.active.current_face_color = color
+
+            if layer.mode != "select":
+                self._viewer.layers.selection.active.current_face_color = color
+                self._viewer.layers.selection.active.current_edge_color = color
 
     def _set_current_annotator(self) -> None:
         """Update current annotator when the text of the annotator dropdown has changed."""
@@ -626,6 +632,9 @@ class QtAdataAnnotationWidget(QWidget):
             layer.face_color = color_array
             layer.edge_color = color_array
 
+            self._current_class_column = class_column
+            self.annotation_widget.tree_view.set_class_column_header(class_column)
+
             if "description" not in feature_df.columns:
                 feature_df["description"] = pd.Series([""] * len(feature_df), dtype="str", index=feature_df.index)
 
@@ -637,9 +646,9 @@ class QtAdataAnnotationWidget(QWidget):
             else:
                 feature_df["annotator"] = pd.Series([""] * len(feature_df), dtype="category", index=feature_df.index)
 
+            feature_df.rename(columns={class_column: "class", class_column + "_color": "class_color"}, inplace=True)
             layer.features = feature_df
 
-            self.annotation_widget.tree_view.set_class_column_header(class_column)
             for class_name, color in color_dict.items():
                 self.annotation_widget.tree_view.addGroup(color=color, name=class_name)
 
@@ -698,3 +707,29 @@ class QtAdataAnnotationWidget(QWidget):
 
     def _change_class_column_name(self) -> None:
         self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
+
+    def _set_class_description(self) -> None:
+        layer = self.viewer.layers.selection.active
+        if len(elements := layer.selected_data) == 1:
+            self._add_categories(layer)
+            self._viewer.layers.selection.active.current_face_color = self._current_color
+            self._viewer.layers.selection.active.current_edge_color = self._current_color
+            description = self.annotation_widget.description_box.toPlainText()
+            self.annotation_widget.description_box.clear()
+            annotator = self.annotation_widget.annotators.currentText()
+
+            row = layer.features.loc[list(elements)]
+            row["class"] = self._current_class
+            row["class_color"] = self._current_color
+            row["description"] = description
+            row["annotator"] = annotator
+            layer.features.loc[list(elements)] = row
+        elif len(elements) >= 1:
+            show_info("Can only set the description and class of one element at the time")
+        else:
+            show_info("No element in the layer selected")
+
+    def _change_region_on_name_change(self, event: Event) -> None:
+        self._current_region = event.source.name
+        if len(event.source.features) != 0:
+            event.source.features[self._current_region_key] = self._current_region
