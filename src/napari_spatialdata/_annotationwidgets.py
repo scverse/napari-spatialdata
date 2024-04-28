@@ -101,30 +101,33 @@ class MainWindow(QWidget):
         self.tree_view.setColumnWidth(0, 10)
         self.tree_view.setColumnWidth(1, 15)
         self.tree_view.setColumnWidth(2, 100)
-
         self.tree_view.addGroup(color="#FFFFFF", name="undefined")
-
-        self.layout.addWidget(self.tree_view)
-
-        self.description_box = QTextEdit()
-        self.description_box.setPlaceholderText("Add your description for selected element here and press enter.")
-        self.description_box.setMaximumHeight(self.description_box.fontInfo().pixelSize() * 8)
-        self.layout.addWidget(self.description_box)
 
         self.add_button = QPushButton("Add annotation group")
         self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
         self.layout.addWidget(self.add_button)
+        self.layout.addWidget(self.tree_view)
+
+        self.description_box = QTextEdit()
+        self.description_box.setPlaceholderText(
+            "Add your description for selected element here and press button below."
+        )
+        self.description_box.setMaximumHeight(self.description_box.fontInfo().pixelSize() * 8)
+        self.layout.addWidget(self.description_box)
+
+        self.set_annotation = QPushButton("Set description and class")
+        self.layout.addWidget(self.set_annotation)
 
         annotator_label = QLabel("Add / set annotator:")
         self.annotators = QComboBox(editable=True)
         self.annotators.lineEdit().returnPressed.connect(self._clear_focus_on_add_annotator)
         self.annotators.setToolTip(
-            "Add annotator by clicking on the dropdown, typing the name of the annotator and " "pressing enter."
+            "Add annotator by clicking on the dropdown, typing the name of the annotator and pressing enter."
         )
         self.layout.addWidget(annotator_label)
         self.layout.addWidget(self.annotators)
 
-        table_label = QLabel("Set annotation table:")
+        table_label = QLabel("Annotation table:")
         self._table_names: list[str] = []
         self.table_name_widget = QComboBox()
 
