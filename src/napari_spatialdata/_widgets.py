@@ -190,11 +190,14 @@ class AListWidget(ListWidget):
         if isinstance(layer, Labels):
             element_indices = element_indices[element_indices != 0]
         # When merging if the row is not present in the other table it will be nan so we can give it a default color
-        colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
-        _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
-        colors = colorer.uns["vec_colors"]
-        color_dict = dict(zip(vec.cat.categories, colors))
-        color_dict.update({np.nan: "#808080ff"})
+        if (vec_color_name := vec.name + "_color") not in self.model.adata.uns:
+            colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
+            _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
+            colors = colorer.uns["vec_colors"]
+            color_dict = dict(zip(vec.cat.categories, colors))
+            color_dict.update({np.nan: "#808080ff"})
+        else:
+            color_dict = self.model.adata.uns[vec_color_name]
 
         if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
             merge_df = pd.merge(
