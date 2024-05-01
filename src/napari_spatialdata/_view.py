@@ -483,13 +483,14 @@ class QtAdataAnnotationWidget(QWidget):
             if self.annotation_widget.table_name_widget.currentText() == "":
                 self.annotation_widget.tree_view.reset_class_column_header()
                 self.annotation_widget.tree_view.reset_to_default_tree_view()
+                n_obs = len(layer.data)
                 df = pd.DataFrame(
                     {
-                        "class": pd.Series(pd.Categorical([]), dtype="category"),
-                        "class_color": pd.Series([], dtype="category"),
-                        "description": pd.Series([], dtype="str"),
-                        "annotator": pd.Series([], dtype="category"),
-                        "region": pd.Series([], dtype="category"),
+                        "class": pd.Series(pd.Categorical([self._current_class] * n_obs), dtype="category"),
+                        "class_color": pd.Series([self._current_color] * n_obs, dtype="category"),
+                        "description": pd.Series([""] * n_obs, dtype="str"),
+                        "annotator": pd.Series([""] * n_obs, dtype="category"),
+                        "region": pd.Series([layer.name] * n_obs, dtype="category"),
                     }
                 )
                 layer.features = df
