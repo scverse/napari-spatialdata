@@ -93,7 +93,7 @@ class MainWindow(QWidget):
         self.link_button.setToolTip(
             "Link layer to sdata object present in viewer if no sdata object is associated with"
             " layer. Only 1 active spatialdata object must be present in viewer or in "
-            "selection."
+            "selection. Press Shift+L for a shortcut."
         )
         self.layout.addWidget(self.link_button)
 
