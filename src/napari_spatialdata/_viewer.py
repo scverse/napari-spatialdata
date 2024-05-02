@@ -142,7 +142,7 @@ class SpatialDataViewer(QObject):
         return str(spatial_element_name)
 
     def _delete_from_disk(self, sdata: SpatialData, element_name: str, overwrite: bool) -> None:
-        if len(sdata.locate_element(sdata[element_name])) != 0:
+        if element_name in sdata and len(sdata.locate_element(sdata[element_name])) != 0:
             if overwrite:
                 sdata.delete_element_from_disk(element_name)
             else:
