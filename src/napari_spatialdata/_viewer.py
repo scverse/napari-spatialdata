@@ -314,8 +314,15 @@ class SpatialDataViewer(QObject):
         layer.metadata["name"] = layer.name
         layer.metadata["_n_indices"] = len(layer.data)
         layer.metadata["indices"] = list(i for i in range(len(layer.data)))  # noqa: C400
-        if type(layer) == Points:
-            layer.metadata["adata"] = AnnData(obs=model)
+
+        sdata = layer.metadata["sdata"]
+        adata, table_name, table_names = self._get_table_data(sdata, layer.metadata["name"])
+        if adata is not None:
+            layer.metadata["adata"] = adata
+            layer.metadata["region_key"] = adata.uns["spatialdata_attrs"]["region_key"] if table_name else None
+            layer.metadata["instance_key"] = adata.uns["spatialdata_attrs"]["instance_key"] if table_name else None
+            layer.metadata["table_names"] = table_names if table_name else None
+            layer.metadata["_columns_df"] = None
 
     def _get_layer_for_unique_sdata(self, viewer: Viewer) -> Layer:
         # If there is only one sdata object across all the layers, any layer containing the sdata object will be the

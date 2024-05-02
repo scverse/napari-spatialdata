@@ -281,6 +281,9 @@ class QtAdataViewWidget(QWidget):
         self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
         self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
 
+        if self.viewer.layers.selection.active:
+            self._on_layer_update()
+
         self.model.events.adata.connect(self._on_layer_update)
         self.model.events.color_by.connect(self._change_color_by)
 
