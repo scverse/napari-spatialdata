@@ -448,6 +448,9 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.link_button.clicked.connect(self._link_layer)
         self._on_layer_selection_changed()
 
+        if isinstance(layer := self.viewer.layers.selection.active, Shapes):
+            layer.events.name.connect(self._change_region_on_name_change)
+
     def _on_inserted(self, event: Event) -> None:
         """
         Update table name dropdown and set up feature df and face color update.
@@ -463,7 +466,7 @@ class QtAdataAnnotationWidget(QWidget):
             The napari event for a layer being inserted in the viewer layerlist.
         """
         layer = event.value
-        if isinstance(layer, Shapes):
+        if layer and isinstance(layer, Shapes):
             layer.events.data.connect(self._update_annotations)
             layer.events.name.connect(self._change_region_on_name_change)
             self._current_region = layer.name
