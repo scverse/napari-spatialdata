@@ -670,6 +670,7 @@ class QtAdataAnnotationWidget(QWidget):
                 table_columns=[self._current_class_column, self._current_class_column + "_color"],
                 overwrite=True,
             )
+            self._update_table_name_widget(layer.metadata["sdata"], layer.metadata["name"])
         else:
             show_info("Saving canceled.")
 
