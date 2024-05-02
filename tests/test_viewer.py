@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -105,8 +106,10 @@ def test_adata_metadata(qtbot, make_napari_viewer: any):
     assert not view_widget.obs_widget.item(0)
 
 
-def test_save_layer(qtbot, make_napari_viewer: any):
+def test_save_layer(qtbot, tmp_path: str, make_napari_viewer: any):
+    tmpdir = Path(tmp_path) / "tmp.zarr"
     sdata = blobs()
+    sdata.write(tmpdir)
     first_shapes = list(sdata.shapes.keys())[0]
     # I transform to a different coordinate system to reproduce and test the bug described here:
     # https://github.com/scverse/napari-spatialdata/pull/168#issuecomment-1803080280
@@ -153,10 +156,9 @@ def test_save_layer(qtbot, make_napari_viewer: any):
     widget.viewer_model._save_to_sdata(viewer)
     assert "Points" in sdata.points
 
-    # --- check that in-place update is not allowed ---
-    # check that we can't overwrite the shapes layer (for the time being)
-    with pytest.raises(NotImplementedError, match="updating existing elements in-place will soon be supported"):
-        widget.viewer_model._save_to_sdata(viewer)
+    # Check overwriting element works
+    layer_to_save = list(viewer.layers.selection)
+    widget.viewer_model.save_to_sdata(layer_to_save, overwrite=True)
 
     # --- check the shapes and points layers got correctly saved ---
     # check that the elements widget got update with the new shapes and points elements
@@ -203,8 +205,12 @@ def test_save_layer_no_sdata(qtbot, make_napari_viewer: any):
         widget.viewer_model._save_to_sdata(viewer)
 
 
-def test_save_layer_multiple_selection(qtbot, make_napari_viewer: any):
+def test_save_layer_multiple_selection(qtbot, tmp_path: str, make_napari_viewer: any):
+    tmpdir = Path(tmp_path) / "tmp.zarr"
+    tmpdir2 = Path(tmp_path) / "tmp2.zarr"
     sdata2 = blobs()
+    sdata.write(tmpdir)
+    sdata2.write(tmpdir2)
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([sdata, sdata2]))
 
