@@ -632,7 +632,7 @@ class QtAdataAnnotationWidget(QWidget):
             layer.metadata["annotation_instance_key"] = self._current_instance_key
 
             feature_df = table.obs.copy().drop(columns=[self._current_instance_key])
-            class_column = color_column.split("_")[0]
+            class_column = color_column.rpartition("_")[0]
             feature_df[color_column] = feature_df[class_column].map(color_dict)
             feature_df[color_column] = feature_df[color_column].astype("category")
             color_array = to_rgba_array(feature_df[color_column])
