@@ -85,10 +85,11 @@ class DataModel:
         if name not in self.adata.obs.columns:
             raise KeyError(f"Key `{name}` not found in `adata.obs`.")
         if name != self.instance_key:
-            adata_obs = self.adata.obs[[self.instance_key, name]]
+            adata_obs = self.adata.obs[[self.instance_key, name]].copy()
             adata_obs.set_index(self.instance_key, inplace=True)
         else:
-            adata_obs = self.adata.obs
+            adata_obs = self.adata.obs.copy()
+            adata_obs.index = adata_obs[self.instance_key]
         return adata_obs[name], self._format_key(name)
 
     @_ensure_dense_vector

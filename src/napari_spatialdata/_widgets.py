@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from collections import defaultdict
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING, Any, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import napari
 import numpy as np
+import packaging.version
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from napari.layers import Labels, Points, Shapes
+from napari.utils import DirectLabelColormap
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
@@ -22,10 +25,7 @@ from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
 
 from napari_spatialdata._model import DataModel
-from napari_spatialdata.utils._utils import (
-    NDArrayA,
-    _min_max_norm,
-)
+from napari_spatialdata.utils._utils import NDArrayA, _min_max_norm, get_napari_version
 
 __all__ = [
     "AListWidget",
@@ -121,11 +121,7 @@ class AListWidget(ListWidget):
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
-            try:
-                vec, name = self._getter(item, index=self.getIndex())
-            except Exception as e:  # noqa: BLE001
-                logger.error(e)
-                continue
+            vec, name = self._getter(item, index=self.getIndex())
 
             if self.model.layer is not None:
                 properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
@@ -136,8 +132,14 @@ class AListWidget(ListWidget):
                     self.model.layer.face_color = properties["face_color"]
                     self.model.layer.text = properties["text"]
                 elif isinstance(self.model.layer, Labels):
-                    self.model.layer.color = properties["color"]
-                    self.model.layer.properties = properties.get("properties", None)
+                    version = get_napari_version()
+                    if version < packaging.version.parse("0.4.19"):
+                        self.model.layer.color = properties["color"]
+                        self.model.layer.properties = properties.get("properties", None)
+                    else:
+                        ddict = defaultdict(lambda: np.zeros(4), properties["color"])
+                        cmap = DirectLabelColormap(color_dict=ddict)
+                        self.model.layer.colormap = cmap
                 else:
                     raise ValueError("TODO")
                 # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
