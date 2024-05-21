@@ -9,6 +9,7 @@
 [![codecov](https://codecov.io/gh/scverse/napari-spatialdata/branch/main/graph/badge.svg?token=ASqlOKnOj7)](https://codecov.io/gh/scverse/napari-spatialdata)
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/scverse/napari-spatialdata/main.svg)](https://results.pre-commit.ci/latest/github/scverse/napari-spatialdata/main)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatialdata)](https://napari-hub.org/plugins/napari-spatialdata)
+[![DOI](https://zenodo.org/badge/477021400.svg)](https://zenodo.org/badge/latestdoi/477021400)
 
 This repository contains a napari plugin for interactively exploring and annotating SpatialData objects. `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [documentation](https://spatialdata.scverse.org/).
 
@@ -23,7 +24,7 @@ The `extra` command will install the qt bindings `PyQt5`.
 Note: if you have an M1/M2 Mac then you may get an error when installing `PyQt5` via `pip`. A solution is to first install `napari` via conda (which will correctly install `PyQt5`), using
 
 ```
-mamba install -c conda-forge napari
+mamba install -c conda-forge napari pyqt
 ```
 
 and then install `napari-spatialdata` via `pip`, but without the `extra` option:
@@ -33,6 +34,11 @@ pip install napari-spatialdata
 ```
 
 You can find more details on this in the [installation instructions](https://spatialdata.scverse.org/en/latest/installation.html).
+
+## Using napari-spatialdata as default zarr reader
+
+If you would like to use the plugin as the default zarr reader, in napari please go to `File` -> `Preferences`
+-> `Plugins` and follow the instructions under `File extension readers`.
 
 ## Development Version
 
@@ -68,6 +74,10 @@ Distributed under the terms of the [BSD-3] license,
 ## Issues
 
 If you encounter any problems, please file an [issue] along with a detailed description.
+
+## Citation
+
+Marconato, L., Palla, G., Yamauchi, K.A. et al. SpatialData: an open and universal data framework for spatial omics. Nat Methods (2024). https://doi.org/10.1038/s41592-024-02212-x
 
 [napari]: https://github.com/napari/napari
 [cookiecutter]: https://github.com/audreyr/cookiecutter

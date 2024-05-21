@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Callable
 
 from loguru import logger
-from napari_plugin_engine import napari_hook_implementation
 from spatialdata import SpatialData
 
 from napari_spatialdata import Interactive
@@ -11,7 +10,6 @@ from napari_spatialdata import Interactive
 readable_extensions = (".zarr",)
 
 
-@napari_hook_implementation
 def get_reader(path: str) -> Callable[..., list[tuple[None]]] | None:
     """Napari hook specification that start the napari-spatialdata plugin with the given path."""
     # if we know we cannot read the file, we immediately return None.

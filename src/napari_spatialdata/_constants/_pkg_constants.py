@@ -1,4 +1,5 @@
 """Internal constants not exposed to the user."""
+
 from typing import Any, Callable, Optional
 
 from anndata import AnnData

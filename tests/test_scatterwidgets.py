@@ -2,14 +2,16 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from napari_spatialdata._model import ImageModel
+from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import MatplotlibWidget
+
+RNG = np.random.default_rng(seed=0)
 
 
 def prepare_test_data():
-    x_data = np.random.random((100, 100))
-    y_data = np.random.random((100, 100))
-    color_data = np.random.random(10000)
+    x_data = RNG.random((100, 100))
+    y_data = RNG.random((100, 100))
+    color_data = RNG.random(10000)
     x_label = "X-axis"
     y_label = "Y-axis"
     color_label = "Color Label"
@@ -20,16 +22,16 @@ def test_matplotlib_widget(make_napari_viewer: Any):
     # Smoke test: adding a matplotlib widget
 
     viewer = make_napari_viewer()
-    viewer.add_image(np.random.random((100, 100)))
+    viewer.add_image(RNG.random((100, 100)))
     viewer.add_labels(np.random.randint(0, 5, (100, 100)))  # noqa: NPY002
 
-    MatplotlibWidget(viewer, ImageModel)
+    MatplotlibWidget(viewer, DataModel)
 
 
 def test_matplotlib_widget_plot(make_napari_viewer: Any):
     viewer = make_napari_viewer()
     x_data, y_data, color_data, x_label, y_label, color_label = prepare_test_data()
-    mpl_widget = MatplotlibWidget(viewer, ImageModel)
+    mpl_widget = MatplotlibWidget(viewer, DataModel)
 
     mpl_widget._onClick(x_data, y_data, color_data, x_label, y_label, color_label)
 
@@ -44,7 +46,7 @@ def test_matplotlib_widget_plot(make_napari_viewer: Any):
 def test_interactivity_widget(make_napari_viewer: Any):
     viewer = make_napari_viewer()
     x_data, y_data, color_data, x_label, y_label, color_label = prepare_test_data()
-    mpl_widget = MatplotlibWidget(viewer, ImageModel)
+    mpl_widget = MatplotlibWidget(viewer, DataModel)
 
     mpl_widget._onClick(x_data, y_data, color_data, x_label, y_label, color_label)
     mpl_widget.selector.onselect(np.ones((100, 2)))

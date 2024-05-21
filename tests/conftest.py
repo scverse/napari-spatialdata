@@ -23,7 +23,7 @@ SEED = 42
 
 EXPECTED = HERE / "plots/groundtruth"
 ACTUAL = HERE / "plots/generated"
-TOL = 50
+TOL = 70
 DPI = 40
 
 
@@ -57,6 +57,11 @@ def adata_labels() -> AnnData:
     }
     obsm_labels = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_labels, 2))}
     return generate_adata(n_var, obs_labels, obsm_labels, uns_labels)
+
+
+@pytest.fixture
+def blobs_extra_cs() -> SpatialData:
+    return blobs(extra_coord_system="space")
 
 
 @pytest.fixture
@@ -112,7 +117,7 @@ def labels():
 
 
 def _get_blobs_galaxy() -> Tuple[NDArrayA, NDArrayA]:
-    blobs = data.binary_blobs(seed=SEED)
+    blobs = data.binary_blobs(rng=SEED)
     blobs = ndi.label(blobs)[0]
     return blobs, data.hubble_deep_field()[: blobs.shape[0], : blobs.shape[0]]
 

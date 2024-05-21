@@ -13,6 +13,11 @@ from pathlib import Path
 HERE = Path(__file__).parent
 sys.path.insert(0, str(HERE / "extensions"))
 
+import napari_spatialdata  # noqa: E402
+
+# Provides better error message in case of some doc build fails
+_ = napari_spatialdata  # noqa: F401
+print(napari_spatialdata.__file__)  # noqa: T201
 
 # -- Project information -----------------------------------------------------
 info = metadata("napari-spatialdata")
@@ -130,7 +135,7 @@ nitpick_ignore = [
     # ("py:obj", "napari_spatialdata.QtAdataViewWidget.insertAction"),
     # ("py:obj", "napari_spatialdata.QtAdataViewWidget.scroll"),
     # ("py:obj", "napari_spatialdata.QtAdataViewWidget.setTabOrder"),
-    # ("py:class", "napari_spatialdata._model.ImageModel"),
+    # ("py:class", "napari_spatialdata._model.DataModel"),
     # ("py:obj", "napari_spatialdata.QtAdataScatterWidget.scroll"),
     # ("py:obj", "napari_spatialdata.QtAdataScatterWidget.insertAction"),
     # If building the documentation fails because of a missing link that is outside your control,
