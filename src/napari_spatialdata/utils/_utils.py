@@ -6,6 +6,7 @@ from random import randint
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Sequence, Union
 
 import numpy as np
+import packaging.version
 import pandas as pd
 from anndata import AnnData
 from dask.dataframe.core import DataFrame as DaskDataFrame
@@ -14,6 +15,7 @@ from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
+from napari import __version__
 from napari.layers import Layer
 from numba import njit, prange
 from pandas.api.types import CategoricalDtype, infer_dtype
@@ -86,7 +88,7 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
         elif not isinstance(res, (np.ndarray, Sequence)):
             raise TypeError(f"Unable to process result of type `{type(res).__name__}`.")
 
-        res = np.asarray(np.squeeze(res))
+        res = np.atleast_1d(np.squeeze(res))
         if res.ndim != 1:
             raise ValueError(f"Expected 1-dimensional array, found `{res.ndim}`.")
 
@@ -483,3 +485,7 @@ def _get_ellipses_from_circles(yx: NDArrayA, radii: NDArrayA) -> NDArrayA:
     ellipses = np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
     assert isinstance(ellipses, np.ndarray)
     return ellipses
+
+
+def get_napari_version() -> packaging.version.Version:
+    return packaging.version.parse(__version__)

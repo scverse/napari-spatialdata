@@ -4,6 +4,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import packaging.version
 from anndata import AnnData
 from dask.dataframe.core import DataFrame as DaskDataFrame
 from geopandas import GeoDataFrame
@@ -30,6 +31,7 @@ from napari_spatialdata.utils._utils import (
     _get_transform,
     _transform_coordinates,
     get_duplicate_element_names,
+    get_napari_version,
 )
 from napari_spatialdata.utils._viewer_utils import _get_polygons_properties
 
@@ -372,29 +374,36 @@ class SpatialDataViewer(QObject):
         }
 
         CIRCLES_AS_POINTS = True
+        version = get_napari_version()
+        kwargs: dict[str, Any] = (
+            {"edge_width": 0.0} if version <= packaging.version.parse("0.4.20") else {"border_width": 0.0}
+        )
         if CIRCLES_AS_POINTS:
             layer = self.viewer.add_points(
                 yx,
                 name=key,
                 affine=affine,
                 size=1,  # the sise doesn't matter here since it will be adjusted in _adjust_radii_of_points_layer
-                edge_width=0.0,
                 metadata=metadata,
+                **kwargs,
             )
             assert affine is not None
             self._adjust_radii_of_points_layer(layer=layer, affine=affine)
         else:
+            if version <= packaging.version.parse("0.4.20"):
+                kwargs |= {"edge_color": "white"}
+            else:
+                kwargs |= {"border_color": "white"}
             # useful code to have readily available to debug the correct radius of circles when represented as points
             ellipses = _get_ellipses_from_circles(yx=yx, radii=radii)
             self.viewer.add_shapes(
                 ellipses,
                 shape_type="ellipse",
                 name=key,
-                edge_color="white",
                 face_color="white",
-                edge_width=0.0,
                 affine=affine,
                 metadata=metadata,
+                **kwargs,
             )
 
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
@@ -539,12 +548,13 @@ class SpatialDataViewer(QObject):
         np.fliplr(xy)
         # radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
         radii_size = 3
+        version = get_napari_version()
+        kwargs = {"edge_width": 0.0} if version <= packaging.version.parse("0.4.20") else {"border_width": 0.0}
         layer = self.viewer.add_points(
             xy,
             name=key,
             size=radii_size * 2,
             affine=affine,
-            edge_width=0.0,
             metadata={
                 "sdata": sdata,
                 "adata": adata,
@@ -562,6 +572,7 @@ class SpatialDataViewer(QObject):
                     else None
                 ),
             },
+            **kwargs,
         )
         assert affine is not None
         self._adjust_radii_of_points_layer(layer=layer, affine=affine)

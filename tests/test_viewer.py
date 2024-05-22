@@ -84,6 +84,7 @@ def test_layer_transform(qtbot, make_napari_viewer: any):
 
     assert np.array_equal(viewer.layers[0].affine.affine_matrix, affine_transform)
     assert np.array_equal(viewer.layers[1].affine.affine_matrix, no_transform)
+    viewer.close()
 
 
 def test_adata_metadata(qtbot, make_napari_viewer: any):
