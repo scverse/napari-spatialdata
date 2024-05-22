@@ -85,12 +85,12 @@ class DataModel:
         if name not in self.adata.obs.columns:
             raise KeyError(f"Key `{name}` not found in `adata.obs`.")
         if name != self.instance_key:
-            adata_obs = self.adata.obs[[self.instance_key, name]].copy()
-            adata_obs.set_index(self.instance_key, inplace=True)
+            obs_column = self.adata.obs[[self.instance_key, name]]
+            obs_column = obs_column.set_index(self.instance_key)[name]
         else:
-            adata_obs = self.adata.obs.copy()
-            adata_obs.index = adata_obs[self.instance_key]
-        return adata_obs[name], self._format_key(name)
+            obs_column = self.adata.obs[name].copy()
+            obs_column.index = self.adata.obs[self.instance_key]
+        return obs_column, self._format_key(name)
 
     @_ensure_dense_vector
     def get_columns_df(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
