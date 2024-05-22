@@ -390,7 +390,7 @@ class SpatialDataViewer(QObject):
             assert affine is not None
             self._adjust_radii_of_points_layer(layer=layer, affine=affine)
         else:
-            if version <= packaging.version.parse("0.4.19"):
+            if version <= packaging.version.parse("0.5.0"):
                 kwargs |= {"edge_color": "white"}
             else:
                 kwargs |= {"border_color": "white"}
