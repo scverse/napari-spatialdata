@@ -33,7 +33,7 @@ from spatialdata import SpatialData, get_extent, join_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
-from napari_spatialdata._constants._pkg_constants import Key
+from napari_spatialdata.constants._pkg_constants import Key
 from napari_spatialdata.utils._categoricals_utils import (
     add_colors_for_categorical_sample_annotation,
 )

@@ -2,7 +2,7 @@
 
 from enum import unique
 
-from napari_spatialdata._constants._utils import ModeEnum
+from napari_spatialdata.constants._utils import ModeEnum
 
 
 @unique
