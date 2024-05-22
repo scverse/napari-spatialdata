@@ -12,8 +12,8 @@ from multiscale_spatial_image import MultiscaleSpatialImage, to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
 from napari_spatialdata import QtAdataViewWidget
+from napari_spatialdata._constants import config
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
-from napari_spatialdata.constants import config
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
 from spatial_image import SpatialImage
@@ -91,7 +91,6 @@ def test_sdatawidget_labels(make_napari_viewer: Any, blobs_extra_cs: SpatialData
         ).sum()
     )
     assert widget.viewer_model.viewer.layers[0].metadata.get("region_key") is not None
-    widget.viewer.close()
 
 
 def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: SpatialData):

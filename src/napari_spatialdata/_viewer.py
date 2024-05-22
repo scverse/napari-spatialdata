@@ -376,7 +376,7 @@ class SpatialDataViewer(QObject):
         CIRCLES_AS_POINTS = True
         version = get_napari_version()
         kwargs: dict[str, Any] = (
-            {"edge_width": 0.0} if version <= packaging.version.parse("0.4.19") else {"border_width": 0.0}
+            {"edge_width": 0.0} if version <= packaging.version.parse("0.5.0") else {"border_width": 0.0}
         )
         if CIRCLES_AS_POINTS:
             layer = self.viewer.add_points(
@@ -549,7 +549,7 @@ class SpatialDataViewer(QObject):
         # radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
         radii_size = 3
         version = get_napari_version()
-        kwargs = {"edge_width": 0.0} if version <= packaging.version.parse("0.4.19") else {"border_width": 0.0}
+        kwargs = {"edge_width": 0.0} if version <= packaging.version.parse("0.5.0") else {"border_width": 0.0}
         layer = self.viewer.add_points(
             xy,
             name=key,
