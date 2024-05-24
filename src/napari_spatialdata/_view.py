@@ -7,7 +7,7 @@ from loguru import logger
 from matplotlib.colors import to_rgba_array
 from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
-from napari.layers import Labels, Layer, Points, Shapes
+from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
@@ -686,7 +686,7 @@ class QtAdataAnnotationWidget(QWidget):
 
     def _set_clickable_link_button(self) -> None:
         layer = self.viewer.layers.selection.active
-        if layer is not None and layer.metadata.get("sdata") is not None:
+        if layer is not None and layer.metadata.get("sdata") is not None and not isinstance(layer, Image):
             self.annotation_widget.link_button.setEnabled(False)
             self.annotation_widget.add_button.setEnabled(True)
         else:
@@ -742,4 +742,6 @@ class QtAdataAnnotationWidget(QWidget):
     def _change_region_on_name_change(self, event: Event) -> None:
         self._current_region = event.source.name
         if len(event.source.features) != 0:
-            event.source.features[self._current_region_key] = self._current_region
+            event.source.features[self._current_region_key] = pd.Series(
+                [self._current_region] * len(event.source.data), dtype="category"
+            )
