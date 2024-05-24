@@ -23,7 +23,7 @@ from spatialdata.models import PointsModel, ShapesModel, force_2d
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
 
-from napari_spatialdata._constants import config
+from napari_spatialdata.constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _get_ellipses_from_circles,
@@ -535,7 +535,12 @@ class SpatialDataViewer(QObject):
         if len(points) < config.POINT_THRESHOLD:
             subsample = None
         else:
-            logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
+            logger.info(
+                f"Subsampling points because the number of points exceeds the currently supported "
+                f"{config.POINT_THRESHOLD}. You can change this threshold with "
+                f"```from napari_spatialdata.constants import config\n"
+                f"config.POINT_THRESHOLD = <new_threshold>```"
+            )
             gen = np.random.default_rng()
             subsample = np.sort(gen.choice(len(points), size=config.POINT_THRESHOLD, replace=False))  # same as indices
 
