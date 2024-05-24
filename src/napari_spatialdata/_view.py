@@ -486,7 +486,7 @@ class QtAdataAnnotationWidget(QWidget):
             else:
                 self.annotation_widget.table_name_widget.clear()
 
-            if self.annotation_widget.table_name_widget.currentText() == "":
+            if self.annotation_widget.table_name_widget.currentText() == "" and len(layer.features.columns) == 0:
                 self.annotation_widget.tree_view.reset_class_column_header()
                 self.annotation_widget.tree_view.reset_to_default_tree_view()
                 n_obs = len(layer.data)
@@ -503,13 +503,21 @@ class QtAdataAnnotationWidget(QWidget):
                 layer.metadata["annotation_region_key"] = self._current_region_key
                 layer.metadata["annotation_instance_key"] = self._current_instance_key
                 layer.feature_defaults = self._create_feature_default(layer)
+            if len(layer.features.columns) != 0 and len(layer.features) != 0:
+                color_column_name = [col for col in layer.features.columns if "color" in col][0]
+                class_column_name = color_column_name.split("_")[0]
+                color_dict = layer.features.copy().set_index(class_column_name)[color_column_name].to_dict()
 
+                for class_name, color in color_dict.items():
+                    self.annotation_widget.tree_view.addGroup(color=color, name=class_name)
+                self.annotation_widget.annotators.addItems(layer.features["annotator"].cat.categories.to_list())
             self._current_region = layer.name
 
         else:
             self.annotation_widget.tree_view.reset_class_column_header()
             self.annotation_widget.tree_view.reset_to_default_tree_view()
             self.annotation_widget.table_name_widget.clear()
+            self.annotation_widget.annotators.clear()
             self._current_region = None
 
         self._set_editable_save_button()
