@@ -133,7 +133,7 @@ class AListWidget(ListWidget):
                     self.model.layer.text = properties["text"]
                 elif isinstance(self.model.layer, Labels):
                     version = get_napari_version()
-                    if version < packaging.version.parse("0.4.19"):
+                    if version < packaging.version.parse("0.4.20"):
                         self.model.layer.color = properties["color"]
                         self.model.layer.properties = properties.get("properties", None)
                     else:
