@@ -688,8 +688,10 @@ class QtAdataAnnotationWidget(QWidget):
         layer = self.viewer.layers.selection.active
         if layer is not None and layer.metadata.get("sdata") is not None:
             self.annotation_widget.link_button.setEnabled(False)
+            self.annotation_widget.add_button.setEnabled(True)
         else:
             self.annotation_widget.link_button.setEnabled(True)
+            self.annotation_widget.add_button.setEnabled(False)
 
     def _link_layer(self) -> None:
         self._viewer_model._inherit_metadata(self._viewer, show_tooltip=True)
