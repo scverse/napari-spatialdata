@@ -440,14 +440,14 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.set_annotation.clicked.connect(self._set_class_description)
         self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
         self._set_editable_save_button()
-        self._set_clickable_link_button()
+        self._set_clickable_buttons()
 
         self.viewer.layers.events.inserted.connect(self._on_inserted)
         self.viewer.layers.events.inserted.connect(self._set_editable_save_button)
-        self.viewer.layers.events.inserted.connect(self._set_clickable_link_button)
+        self.viewer.layers.events.inserted.connect(self._set_clickable_buttons)
         self.viewer.layers.selection.events.changed.connect(self._on_layer_selection_changed)
         self.viewer.layers.selection.events.changed.connect(self._set_editable_save_button)
-        self.viewer.layers.selection.events.changed.connect(self._set_clickable_link_button)
+        self.viewer.layers.selection.events.changed.connect(self._set_clickable_buttons)
         self.annotation_widget.link_button.clicked.connect(self._link_layer)
         self._on_layer_selection_changed()
 
@@ -507,7 +507,10 @@ class QtAdataAnnotationWidget(QWidget):
             self._current_region = layer.name
 
         else:
+            self.annotation_widget.tree_view.reset_class_column_header()
+            self.annotation_widget.tree_view.reset_to_default_tree_view()
             self.annotation_widget.table_name_widget.clear()
+            self._current_region = None
 
         self._set_editable_save_button()
 
@@ -684,7 +687,7 @@ class QtAdataAnnotationWidget(QWidget):
         else:
             self.annotation_widget.save_button.setEnabled(True)
 
-    def _set_clickable_link_button(self) -> None:
+    def _set_clickable_buttons(self) -> None:
         layer = self.viewer.layers.selection.active
         if layer is not None and layer.metadata.get("sdata") is not None and not isinstance(layer, Image):
             self.annotation_widget.link_button.setEnabled(False)
@@ -695,7 +698,7 @@ class QtAdataAnnotationWidget(QWidget):
 
     def _link_layer(self) -> None:
         self._viewer_model._inherit_metadata(self._viewer, show_tooltip=True)
-        self._set_clickable_link_button()
+        self._set_clickable_buttons()
         self._on_layer_selection_changed()
 
         layer = self.viewer.layers.selection.active
