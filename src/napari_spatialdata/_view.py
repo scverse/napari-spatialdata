@@ -473,7 +473,7 @@ class QtAdataAnnotationWidget(QWidget):
             layer.events.data.connect(self._update_annotations)
             layer.events.name.connect(self._change_region_on_name_change)
             self._current_region = layer.name
-            self._viewer.layers.selection.active.current_face_color = self._current_color
+            layer.current_face_color = self._current_color
 
         self._set_editable_save_button()
 
@@ -502,14 +502,18 @@ class QtAdataAnnotationWidget(QWidget):
                 layer.features = df
                 layer.metadata["annotation_region_key"] = self._current_region_key
                 layer.metadata["annotation_instance_key"] = self._current_instance_key
-                layer.feature_defaults = self._create_feature_default(layer)
-            if len(layer.features.columns) != 0 and len(layer.features) != 0:
-                color_column_name = [col for col in layer.features.columns if "color" in col][0]
+                # layer.feature_defaults = self._create_feature_default(layer)
+            elif (
+                len(color_cols := [col for col in layer.features.columns if "color" in col]) != 0
+                and len(layer.features) != 0
+            ):
+                color_column_name = color_cols[0]
                 class_column_name = color_column_name.split("_")[0]
                 color_dict = layer.features.copy().set_index(class_column_name)[color_column_name].to_dict()
 
                 for class_name, color in color_dict.items():
-                    self.annotation_widget.tree_view.addGroup(color=color, name=class_name)
+                    if class_name != "undefined":
+                        self.annotation_widget.tree_view.addGroup(color=color, name=class_name)
                 self.annotation_widget.annotators.addItems(layer.features["annotator"].cat.categories.to_list())
             self._current_region = layer.name
 
@@ -581,7 +585,6 @@ class QtAdataAnnotationWidget(QWidget):
             layer.features["region"] = layer.features["region"].cat.add_categories(self._current_region)
 
     def _create_feature_default(self, layer: Layer) -> pd.DataFrame:
-        # TODO: fix issue upstream in napari with feature defaults not being properly set.
         return pd.DataFrame(
             {
                 #                "instance_id": pd.Series([], dtype="int"),
@@ -589,7 +592,7 @@ class QtAdataAnnotationWidget(QWidget):
                 "class_color": pd.Series(["#FFFFFF"], dtype="category"),
                 "description": pd.Series([""], dtype="str"),
                 "annotator": pd.Series([""], dtype="category"),
-                "region": pd.Series([layer.name], dtype="category"),
+                self._current_region_key: pd.Series([layer.name], dtype="category"),
             }
         )
 
@@ -630,7 +633,7 @@ class QtAdataAnnotationWidget(QWidget):
         table_name = self.annotation_widget.table_name_widget.currentText()
         layer = self.viewer.layers.selection.active
         if layer and table_name != "":
-            self.annotation_widget.tree_view.reset_to_default_tree_view()
+            # self.annotation_widget.tree_view.reset_to_default_tree_view()
 
             sdata = layer.metadata["sdata"]
             table = sdata[table_name]
@@ -665,10 +668,13 @@ class QtAdataAnnotationWidget(QWidget):
                 feature_df["annotator"] = pd.Series([""] * len(feature_df), dtype="category", index=feature_df.index)
 
             feature_df.rename(columns={class_column: "class", class_column + "_color": "class_color"}, inplace=True)
+            feature_df = feature_df.reindex(
+                columns=["class", "class_color", "description", "annotator", self._current_region_key]
+            )
             layer.features = feature_df
 
-            for class_name, color in color_dict.items():
-                self.annotation_widget.tree_view.addGroup(color=color, name=class_name)
+            # for class_name, color in color_dict.items():
+            #     self.annotation_widget.tree_view.addGroup(color=color, name=class_name)
 
     def _open_save_dialog(self) -> None:
         layer = self.viewer.layers.selection.active
