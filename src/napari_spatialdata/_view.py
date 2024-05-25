@@ -11,6 +11,7 @@ from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
+from pandas.api.types import CategoricalDtype
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QComboBox,
@@ -544,6 +545,9 @@ class QtAdataAnnotationWidget(QWidget):
             "removing" or "removed". Here we only deal with "added" currently, but this could be changed later.
         """
         layer = event.source
+        columns_to_convert = ["class", "class_color", "annotator", self._current_region_key]
+        if not isinstance(layer.features["class"], CategoricalDtype):
+            layer.features[columns_to_convert] = layer.features[columns_to_convert].astype("category")
         if event.action == "added" and len(event.data_indices) == 1:
             self._update_layer_features(layer, event.action)
         elif event.action == "added" and len(event.data_indices) > 1:
