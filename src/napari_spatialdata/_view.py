@@ -622,11 +622,12 @@ class QtAdataAnnotationWidget(QWidget):
     def _on_class_radio_click(self) -> None:
         layer = self.viewer.layers.selection.active
         if isinstance(layer, Shapes):
+            radio_button = self.annotation_widget.tree_view.button_group.checkedButton()
             # We have five columns with at position 1 the color button
-            color_ind = self.annotation_widget.tree_view.selectedIndexes()[1]
+            color_ind = self.annotation_widget.tree_view.button_to_color_index[radio_button]
             color_button = self.annotation_widget.tree_view.indexWidget(color_ind)
 
-            class_ind = self.annotation_widget.tree_view.selectedIndexes()[2]
+            class_ind = self.annotation_widget.tree_view.button_to_class_index[radio_button]
             class_widget = self.annotation_widget.tree_view.indexWidget(class_ind)
             self._current_class = class_widget.text()
 

@@ -33,6 +33,10 @@ class TreeView(QTreeView):
         self.header().setSectionsClickable(True)
         self.button_group = QButtonGroup()
 
+        # Required as on mac the selected indexes never get updated.
+        self.button_to_color_index = {}
+        self.button_to_class_index = {}
+
     def addGroup(self, color: None | str = None, name: str = "Class", auto_exclusive: bool = True) -> None:
         i = self.model.rowCount()
 
@@ -55,6 +59,8 @@ class TreeView(QTreeView):
         color_index = self.model.index(i, 1)
         name_index = self.model.index(i, 2)
 
+        self.button_to_color_index[radio_button] = color_index
+        self.button_to_class_index[radio_button] = name_index
         self.setIndexWidget(color_index, color_button)
         self.setIndexWidget(name_index, name_field)
         self.setIndexWidget(radio_index, radio_button)
