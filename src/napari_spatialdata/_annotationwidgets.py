@@ -8,6 +8,7 @@ from qtpy.QtWidgets import (
     QButtonGroup,
     QColorDialog,
     QComboBox,
+    QHeaderView,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -98,11 +99,9 @@ class MainWindow(QWidget):
         self.layout.addWidget(self.link_button)
 
         self.tree_view = TreeView()
-        self.tree_view.setColumnWidth(0, 10)
-        self.tree_view.setColumnWidth(1, 15)
-        self.tree_view.setColumnWidth(2, 100)
         self.tree_view.addGroup(color="#FFFFFF", name="undefined")
-
+        self.tree_view.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.tree_view.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.add_button = QPushButton("Add annotation group")
         self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
         self.layout.addWidget(self.add_button)
@@ -158,6 +157,6 @@ class ColorButton(QPushButton):
         self.setStyleSheet(f"background-color: {color}")
 
     def openColorDialog(self) -> None:
-        color = QColorDialog.getColor()
+        color = QColorDialog.getColor(parent=self.parent())
         if color.isValid():
             self.setStyleSheet(f"background-color: {color.name()}")
