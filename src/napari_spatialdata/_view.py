@@ -34,7 +34,7 @@ from napari_spatialdata._widgets import AListWidget, CBarWidget, ComponentWidget
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
-from napari_spatialdata.utils._utils import _get_init_table_list
+from napari_spatialdata.utils._utils import _get_init_table_list, block_signals
 
 
 class QtAdataScatterWidget(QWidget):
@@ -439,6 +439,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.tree_view.header().sectionClicked.connect(self._header_clicked)
         self.annotation_widget.tree_view.model.headerDataChanged.connect(self._change_class_column_name)
         self.annotation_widget.set_annotation.clicked.connect(self._set_class_description)
+        self.annotation_widget.description_box.textChanged.connect(self._set_current_description)
         self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
         self._set_editable_save_button()
         self._set_clickable_buttons()
@@ -454,6 +455,9 @@ class QtAdataAnnotationWidget(QWidget):
 
         if isinstance(layer := self.viewer.layers.selection.active, Shapes):
             layer.events.name.connect(self._change_region_on_name_change)
+
+    def _set_current_description(self) -> None:
+        self._current_description = self.annotation_widget.description_box.toPlainText()
 
     def _on_inserted(self, event: Event) -> None:
         """
@@ -473,10 +477,25 @@ class QtAdataAnnotationWidget(QWidget):
         if layer and isinstance(layer, Shapes):
             layer.events.data.connect(self._update_annotations)
             layer.events.name.connect(self._change_region_on_name_change)
+            layer.mouse_move_callbacks.append(self._on_mouse_move)
             self._current_region = layer.name
             layer.current_face_color = self._current_color
 
         self._set_editable_save_button()
+
+    def _on_mouse_move(self, layer: Layer, event: Event) -> None:
+        if layer == self.viewer.layers.selection.active:
+            if (shape_index := layer.get_value(event.position)[0]) is not None:
+
+                description = layer.features.loc[shape_index, "description"]
+                annotator = layer.features.loc[shape_index, "annotator"]
+                with block_signals(self.annotation_widget.description_box):
+                    self.annotation_widget.description_box.setText(description)
+                with block_signals(self.annotation_widget.annotators):
+                    self.annotation_widget.annotators.setCurrentText(annotator)
+            else:
+                self.annotation_widget.description_box.setText(self._current_description)
+                self.annotation_widget.annotators.setCurrentText(self._current_annotator)
 
     def _on_layer_selection_changed(self) -> None:
         layer = self._viewer.layers.selection.active
@@ -747,6 +766,7 @@ class QtAdataAnnotationWidget(QWidget):
             self._viewer.layers.selection.active.current_edge_color = self._current_color
             description = self.annotation_widget.description_box.toPlainText()
             self.annotation_widget.description_box.clear()
+            self._current_description = ""
             annotator = self.annotation_widget.annotators.currentText()
 
             row = layer.features.loc[list(elements)]
