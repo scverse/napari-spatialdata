@@ -100,7 +100,9 @@ class MainWindow(QWidget):
 
         self.tree_view = TreeView()
         self.tree_view.addGroup(color="#FFFFFF", name="undefined")
-        self.tree_view.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+
+        self.tree_view.header().setSectionResizeMode(0, QHeaderView.Fixed)
+        self.tree_view.header().resizeSection(0, 40)
         self.tree_view.header().setSectionResizeMode(1, QHeaderView.ResizeToContents)
         self.add_button = QPushButton("Add annotation group")
         self.add_button.clicked.connect(lambda: self.tree_view.addGroup(auto_exclusive=True))
