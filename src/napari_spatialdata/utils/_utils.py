@@ -9,7 +9,7 @@ import numpy as np
 import packaging.version
 import pandas as pd
 from anndata import AnnData
-from dask.dataframe.core import DataFrame as DaskDataFrame
+from dask.dataframe import DataFrame as DaskDataFrame
 from datatree import DataTree
 from geopandas import GeoDataFrame
 from loguru import logger

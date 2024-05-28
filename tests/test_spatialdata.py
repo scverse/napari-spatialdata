@@ -6,8 +6,8 @@ import pandas as pd
 import pytest
 from anndata import AnnData
 from dask.array.random import randint
+from dask.dataframe import DataFrame as DaskDataFrame
 from dask.dataframe import from_dask_array
-from dask.dataframe.core import DataFrame as DaskDataFrame
 from multiscale_spatial_image import MultiscaleSpatialImage, to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
