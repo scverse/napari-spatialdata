@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import random
 
+from PyQt5.QtCore import QModelIndex
 from PyQt5.QtWidgets import QTextEdit
 from qtpy.QtGui import QStandardItemModel
 from qtpy.QtWidgets import (
@@ -34,8 +35,8 @@ class TreeView(QTreeView):
         self.button_group = QButtonGroup()
 
         # Required as on mac the selected indexes never get updated.
-        self.button_to_color_index = {}
-        self.button_to_class_index = {}
+        self.button_to_color_index: dict[QPushButton, QModelIndex] = {}
+        self.button_to_class_index: dict[QPushButton, QModelIndex] = {}
 
     def addGroup(self, color: None | str = None, name: str = "Class", auto_exclusive: bool = True) -> None:
         i = self.model.rowCount()

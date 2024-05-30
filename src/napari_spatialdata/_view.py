@@ -486,9 +486,10 @@ class QtAdataAnnotationWidget(QWidget):
     def _on_mouse_move(self, layer: Layer, event: Event) -> None:
         if layer == self.viewer.layers.selection.active:
             if (shape_index := layer.get_value(event.position)[0]) is not None:
-
                 description = layer.features.loc[shape_index, "description"]
+                description = description if isinstance(description, str) else self._current_description
                 annotator = layer.features.loc[shape_index, "annotator"]
+                annotator = annotator if isinstance(annotator, str) else self._current_annotator
                 with block_signals(self.annotation_widget.description_box):
                     self.annotation_widget.description_box.setText(description)
                 with block_signals(self.annotation_widget.annotators):
