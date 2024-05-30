@@ -47,6 +47,7 @@ class TreeView(QTreeView):
             random_color = self.generate_random_color_hex()
             color_button = ColorButton(random_color)
             name_field = QLineEdit(name + "_" + str(i))
+            name_field.returnPressed.connect(lambda: self.clear_name_field_focus(name_field))
 
         radio_button = QRadioButton("")
         self.button_group.addButton(radio_button)
@@ -87,6 +88,9 @@ class TreeView(QTreeView):
     def reset_button_group(self) -> None:
         for button in self.button_group.buttons()[1:]:
             self.button_group.removeButton(button)
+
+    def clear_name_field_focus(self, name_field: QLineEdit) -> None:
+        name_field.clearFocus()
 
 
 class MainWindow(QWidget):
