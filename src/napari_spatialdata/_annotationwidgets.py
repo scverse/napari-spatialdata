@@ -92,6 +92,8 @@ class TreeView(QTreeView):
 
     def clear_name_field_focus(self, name_field: QLineEdit) -> None:
         name_field.clearFocus()
+        # for some reasons, in some macs the focus is not removed with the line above
+        self.setFocus()
 
 
 class MainWindow(QWidget):
