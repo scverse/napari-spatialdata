@@ -3,8 +3,6 @@ from __future__ import annotations
 import random
 
 from qtpy.QtCore import QModelIndex, Signal
-from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QTextEdit
 from qtpy.QtGui import QStandardItemModel
 from qtpy.QtWidgets import (
     QButtonGroup,
@@ -15,6 +13,7 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QPushButton,
     QRadioButton,
+    QTextEdit,
     QTreeView,
     QVBoxLayout,
     QWidget,
@@ -27,6 +26,7 @@ COLUMNS = [None, "color", "class"]
 
 class TreeView(QTreeView):
     color_button_added = Signal(QPushButton)
+
     def __init__(self) -> None:
         super().__init__()
         self.model = QStandardItemModel()
@@ -171,6 +171,7 @@ class MainWindow(QWidget):
 
 class ColorButton(QPushButton):
     color_changed = Signal(str, QPushButton)
+
     def __init__(self, color: str, parent: QWidget | None = None) -> None:
         super().__init__("", parent)
         self.clicked.connect(self.openColorDialog)
