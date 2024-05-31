@@ -440,6 +440,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.tree_view.model.headerDataChanged.connect(self._change_class_column_name)
         self.annotation_widget.set_annotation.clicked.connect(self._set_class_description)
         self.annotation_widget.description_box.textChanged.connect(self._set_current_description)
+        self.annotation_widget.tree_view.color_button_added.connect(self._connect_button_to_change_color)
         self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
         self._set_editable_save_button()
         self._set_clickable_buttons()
@@ -455,6 +456,19 @@ class QtAdataAnnotationWidget(QWidget):
 
         if isinstance(layer := self.viewer.layers.selection.active, Shapes):
             layer.events.name.connect(self._change_region_on_name_change)
+
+    def _connect_button_to_change_color(self, button: QPushButton):
+        button.color_changed.connect(self._on_color_of_button_change)
+
+    def _on_color_of_button_change(self, color: str, color_button) -> None:
+        radio_button = self.annotation_widget.tree_view.button_group.checkedButton()
+        # We have five columns with at position 1 the color button
+        color_ind = self.annotation_widget.tree_view.button_to_color_index[radio_button]
+
+        if color_button == self.annotation_widget.tree_view.indexWidget(color_ind):
+            self._viewer.layers.selection.active.current_face_color = color
+            self._viewer.layers.selection.active.current_edge_color = color
+            self._current_color = color
 
     def _set_current_description(self) -> None:
         self._current_description = self.annotation_widget.description_box.toPlainText()

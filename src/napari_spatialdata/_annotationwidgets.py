@@ -2,8 +2,9 @@ from __future__ import annotations
 
 import random
 
-from PyQt5.QtCore import QModelIndex
-from PyQt5.QtWidgets import QTextEdit
+from qtpy.QtCore import QModelIndex, Signal
+from qtpy.QtGui import QColor
+from qtpy.QtWidgets import QTextEdit
 from qtpy.QtGui import QStandardItemModel
 from qtpy.QtWidgets import (
     QButtonGroup,
@@ -25,6 +26,7 @@ COLUMNS = [None, "color", "class"]
 
 
 class TreeView(QTreeView):
+    color_button_added = Signal(QPushButton)
     def __init__(self) -> None:
         super().__init__()
         self.model = QStandardItemModel()
@@ -66,6 +68,8 @@ class TreeView(QTreeView):
         self.setIndexWidget(color_index, color_button)
         self.setIndexWidget(name_index, name_field)
         self.setIndexWidget(radio_index, radio_button)
+
+        self.color_button_added.emit(color_button)
 
     def generate_random_color_hex(self) -> str:
         # Generate a random hex color code
@@ -166,6 +170,7 @@ class MainWindow(QWidget):
 
 
 class ColorButton(QPushButton):
+    color_changed = Signal(str, QPushButton)
     def __init__(self, color: str, parent: QWidget | None = None) -> None:
         super().__init__("", parent)
         self.clicked.connect(self.openColorDialog)
@@ -175,3 +180,4 @@ class ColorButton(QPushButton):
         color = QColorDialog.getColor(parent=self.parent())
         if color.isValid():
             self.setStyleSheet(f"background-color: {color.name()}")
+            self.color_changed.emit(color.name(), self)
