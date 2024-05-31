@@ -457,13 +457,27 @@ class QtAdataAnnotationWidget(QWidget):
         if isinstance(layer := self.viewer.layers.selection.active, Shapes):
             layer.events.name.connect(self._change_region_on_name_change)
 
-    def _connect_button_to_change_color(self, button: QPushButton):
+    def _connect_button_to_change_color(self, button: QPushButton) -> None:
         button.color_changed.connect(self._on_color_of_button_change)
 
-    def _on_color_of_button_change(self, color: str, color_button) -> None:
+    def _on_color_of_button_change(self, color: str, color_button: QPushButton) -> None:
+        layer = self.viewer.layers.selection.active
         radio_button = self.annotation_widget.tree_view.button_group.checkedButton()
         # We have five columns with at position 1 the color button
         color_ind = self.annotation_widget.tree_view.button_to_color_index[radio_button]
+
+        class_name = self.annotation_widget.tree_view.color_button_to_class_line_edit[color_button].text()
+        indices = layer.features.index[layer.features["class"] == class_name].tolist()
+        layer.features["class_color"] = layer.features["class_color"].cat.add_categories(color)
+        layer.features.loc[indices, "class_color"] = color
+        rgba_color = to_rgba_array(color)
+
+        layer.selected_data = set(indices)
+        layer.current_face_color = rgba_color
+        layer.current_edge_color = rgba_color
+        layer.selected_data = set()
+        layer.current_face_color = self._current_color
+        layer.current_edge_color = self._current_color
 
         if color_button == self.annotation_widget.tree_view.indexWidget(color_ind):
             self._viewer.layers.selection.active.current_face_color = color

@@ -3,8 +3,6 @@ from __future__ import annotations
 import random
 
 from qtpy.QtCore import QModelIndex, Signal
-from qtpy.QtGui import QColor
-from qtpy.QtWidgets import QTextEdit
 from qtpy.QtGui import QStandardItemModel
 from qtpy.QtWidgets import (
     QButtonGroup,
@@ -15,6 +13,7 @@ from qtpy.QtWidgets import (
     QLineEdit,
     QPushButton,
     QRadioButton,
+    QTextEdit,
     QTreeView,
     QVBoxLayout,
     QWidget,
@@ -27,6 +26,7 @@ COLUMNS = [None, "color", "class"]
 
 class TreeView(QTreeView):
     color_button_added = Signal(QPushButton)
+
     def __init__(self) -> None:
         super().__init__()
         self.model = QStandardItemModel()
@@ -39,6 +39,7 @@ class TreeView(QTreeView):
         # Required as on mac the selected indexes never get updated.
         self.button_to_color_index: dict[QPushButton, QModelIndex] = {}
         self.button_to_class_index: dict[QPushButton, QModelIndex] = {}
+        self.color_button_to_class_line_edit: dict[QPushButton, QLineEdit] = {}
 
     def addGroup(self, color: None | str = None, name: str = "Class", auto_exclusive: bool = True) -> None:
         i = self.model.rowCount()
@@ -65,6 +66,7 @@ class TreeView(QTreeView):
 
         self.button_to_color_index[radio_button] = color_index
         self.button_to_class_index[radio_button] = name_index
+        self.color_button_to_class_line_edit[color_button] = name_field
         self.setIndexWidget(color_index, color_button)
         self.setIndexWidget(name_index, name_field)
         self.setIndexWidget(radio_index, radio_button)
@@ -171,6 +173,7 @@ class MainWindow(QWidget):
 
 class ColorButton(QPushButton):
     color_changed = Signal(str, QPushButton)
+
     def __init__(self, color: str, parent: QWidget | None = None) -> None:
         super().__init__("", parent)
         self.clicked.connect(self.openColorDialog)
