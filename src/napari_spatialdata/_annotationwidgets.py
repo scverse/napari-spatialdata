@@ -26,6 +26,7 @@ COLUMNS = [None, "color", "class"]
 
 class TreeView(QTreeView):
     color_button_added = Signal(QPushButton)
+    class_name_text_added = Signal(QLineEdit)
 
     def __init__(self) -> None:
         super().__init__()
@@ -72,6 +73,7 @@ class TreeView(QTreeView):
         self.setIndexWidget(radio_index, radio_button)
 
         self.color_button_added.emit(color_button)
+        self.class_name_text_added.emit(name_field)
 
     def generate_random_color_hex(self) -> str:
         # Generate a random hex color code

@@ -429,6 +429,7 @@ class QtAdataAnnotationWidget(QWidget):
         self._current_region = None
         self._current_region_key = "region"
         self._current_instance_key = "instance_id"
+        self._line_edit_to_class_name: dict[QLineEdit, str] = {}
 
         self.annotation_widget = MainWindow()
         self.layout().addWidget(self.annotation_widget)
@@ -441,6 +442,7 @@ class QtAdataAnnotationWidget(QWidget):
         self.annotation_widget.set_annotation.clicked.connect(self._set_class_description)
         self.annotation_widget.description_box.textChanged.connect(self._set_current_description)
         self.annotation_widget.tree_view.color_button_added.connect(self._connect_button_to_change_color)
+        self.annotation_widget.tree_view.class_name_text_added.connect(self._connect_line_edit_change_class)
         self._current_class_column = self.annotation_widget.tree_view.model.horizontalHeaderItem(2).text()
         self._set_editable_save_button()
         self._set_clickable_buttons()
@@ -459,6 +461,27 @@ class QtAdataAnnotationWidget(QWidget):
 
     def _connect_button_to_change_color(self, button: QPushButton) -> None:
         button.color_changed.connect(self._on_color_of_button_change)
+
+    def _connect_line_edit_change_class(self, line_edit: QLineEdit) -> None:
+        self._line_edit_to_class_name[line_edit] = line_edit.text()
+        # TODO decide on out of focus override or not
+        line_edit.returnPressed.connect(lambda: self._on_class_name_of_line_edit_change(line_edit))
+
+    def _on_class_name_of_line_edit_change(self, line_edit: QLineEdit) -> None:
+        layer = self.viewer.layers.selection.active
+        class_name = line_edit.text()
+        radio_button = self.annotation_widget.tree_view.button_group.checkedButton()
+
+        class_name_ind = self.annotation_widget.tree_view.button_to_class_index[radio_button]
+        previous_text = self._line_edit_to_class_name[line_edit]
+
+        indices = layer.features.index[layer.features["class"] == previous_text].tolist()
+        layer.features["class"] = layer.features["class"].cat.add_categories(class_name)
+        layer.features.loc[indices, "class"] = class_name
+        self._line_edit_to_class_name[line_edit] = class_name
+
+        if line_edit == self.annotation_widget.tree_view.indexWidget(class_name_ind):
+            self._current_class = class_name
 
     def _on_color_of_button_change(self, color: str, color_button: QPushButton) -> None:
         layer = self.viewer.layers.selection.active
