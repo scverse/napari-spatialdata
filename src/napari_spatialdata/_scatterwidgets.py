@@ -5,107 +5,24 @@ from typing import TYPE_CHECKING, Any, Iterable
 import matplotlib as plt
 import numpy as np
 import pandas as pd
-from anndata import AnnData
+import pyqtgraph as pg
 from loguru import logger
-from matplotlib.axes import Axes
-from matplotlib.collections import Collection
-from matplotlib.path import Path
-from matplotlib.widgets import LassoSelector
-from napari.layers import Layer
 from napari.viewer import Viewer
-from napari_matplotlib.base import NapariMPLWidget
 from pandas.api.types import CategoricalDtype
+from pyqtgraph import GraphicsLayoutWidget
 from qtpy import QtWidgets
-from qtpy.QtCore import Signal
+from qtpy.QtCore import QSize, Signal
+from qtpy.QtGui import QColor, QIcon
+from qtpy.QtWidgets import QPushButton
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
-from napari_spatialdata.utils._categoricals_utils import _add_categorical_legend
 from napari_spatialdata.utils._utils import NDArrayA, _get_categorical, _set_palette
 
 __all__ = [
-    "MatplotlibWidget",
+    "PlotWidget",
     "AxisWidgets",
 ]
-
-
-class SelectFromCollection:
-    """
-    This class was taken from:
-    https://matplotlib.org/stable/gallery/widgets/lasso_selector_demo_sgskip.html
-
-    Select indices from a matplotlib collection using `LassoSelector`.
-
-    Selected indices are saved in the `ind` attribute. This tool fades out the
-    points that are not part of the selection (i.e., reduces their alpha
-    values). If your collection has alpha < 1, this tool will permanently
-    alter the alpha values.
-
-    Note that this tool selects collection objects based on their *origins*
-    (i.e., `offsets`).
-
-    Parameters
-    ----------
-    ax
-        Axes to interact with.
-    collection
-        Collection you want to select from.
-    alpha_other
-        To highlight a selection, this tool sets all selected points to an
-        alpha value of 1 and non-selected points to *alpha_other*.
-    """
-
-    def __init__(
-        self,
-        model: DataModel,
-        ax: Axes,
-        collection: Collection,
-        data: list[NDArrayA],
-        alpha_other: float = 0.3,
-    ):
-        self.model = model
-        self.canvas = ax.figure.canvas
-        self.collection = collection
-        self.alpha_other = alpha_other
-        self.exported_data = None
-        self.data = data
-        self.axes = ax
-
-        self.xys = collection.get_offsets()
-        self.Npts = len(self.xys)
-
-        # Ensure that we have separate colors for each object
-        self.fc = collection.get_facecolors()
-
-        if len(self.fc) == 0:
-            raise ValueError("Collection must have a facecolor")
-        elif len(self.fc) == 1:  # noqa: RET506
-            self.fc = np.tile(self.fc, (self.Npts, 1))
-
-        self.selector = LassoSelector(ax, onselect=self.onselect)
-
-        self.ind: NDArrayA | None = None
-
-    def export(self, adata: AnnData) -> None:
-        model_layer: Layer = self.model.layer
-        obs_name = model_layer.name + "_LASSO_SELECTED"
-
-        adata.obs[obs_name] = self.exported_data
-        logger.info("Exported selected coordinates to obs in AnnData as: {}", obs_name)  # noqa: P103
-
-    def onselect(self, verts: list[NDArrayA]) -> None:
-        self.path = Path(verts)
-        self.ind = np.nonzero(self.path.contains_points(self.xys))[0]
-
-        self.fc[:, -1] = self.alpha_other  # Set alpha of unselected coordinates
-        self.fc[self.ind, -1] = 1  # Set alpha of selected coordinates
-
-        self.collection.set_facecolors(self.fc)
-
-        self.canvas.draw_idle()
-
-        self.selected_coordinates = self.xys[self.ind].data
-        self.exported_data = pd.Categorical(self.path.contains_points(self.xys))
 
 
 class ScatterListWidget(AListWidget):
@@ -208,23 +125,102 @@ class ScatterListWidget(AListWidget):
         self._data = data
 
 
-class MatplotlibWidget(NapariMPLWidget):
+class PlotWidget(GraphicsLayoutWidget):
+
     def __init__(self, viewer: Viewer | None, model: DataModel):
+
         self.is_widget = False
         if viewer is None:
             viewer = Viewer()
             self.is_widget = True
 
-        super().__init__(viewer)
+        super().__init__()
 
         self._viewer = viewer
         self._model = model
-        self.axes = self.canvas.figure.subplots()
         self.colorbar = None
         self.selector = None
 
         if self.is_widget:
             self._viewer.close()
+
+        # Adding a button to toggle auto-range
+        self.auto_range_button = QPushButton(self)
+        self.auto_range_button.setIcon(
+            QIcon(r"../../src/napari_spatialdata/icons/icons8-home-48.png")
+        )  # Set the icon image
+        self.auto_range_button.setIconSize(QSize(24, 24))  # Icon size
+        self.auto_range_button.setStyleSheet("QPushButton {background-color: transparent;}")
+        self.auto_range_button.clicked.connect(self.use_auto_range)
+        self.auto_range_button.setToolTip("Auto Range")
+        self.auto_range_button.move(10, 10)
+
+        # self.lassoPoints = []
+        # self.lasso = QtGui.QPolygonF()
+        # self.lassoItem = QGraphicsPolygonItem()
+        # self.lassoItem.setPen(pg.mkPen('g', width=2))
+        # self.lassoItem.setBrush(pg.mkBrush(0,255,0,50))
+        # self.addItem(self.lassoItem, ignoreBounds=True)
+
+        self.scatter_plot = self.addPlot(title="")
+        self.scatter = None
+
+    # def mousePressEvent(self, event):
+    #     if event.button() == QtCore.Qt.LeftButton:
+    #         # Left mouse button: start or continue drawing the lasso
+    #         #if not self.lassoPoints:
+    #         self.lassoPoints = [self.vb.mapSceneToView(event.scenePos())]
+    #         self.lasso = QtGui.QPolygonF(self.lassoPoints)
+    #         self.lassoItem.setPolygon(self.lasso)
+
+    #         self.setMouseEnabled(x=False, y=False)  # Disable default dragging behavior
+    #         event.accept()
+    #     elif event.button() == QtCore.Qt.RightButton:
+
+    #         # Right mouse click
+
+    #         self.lassoPoints = []
+    #         self.lasso.clear()
+    #         self.lassoItem.setPolygon(self.lasso)
+    #         self.setMouseEnabled(x=True, y=True) # Re-enable default dragging behavior
+    #         self.resetPointsColor()
+    #         event.accept()
+    #     else:
+    #         super().mousePressEvent(event)
+
+    # def mouseMoveEvent(self, event):
+    #     if self.lassoPoints:
+    #         self.lassoPoints.append(self.vb.mapSceneToView(event.scenePos()))
+    #         self.lasso = QtGui.QPolygonF(self.lassoPoints)
+    #         self.lassoItem.setPolygon(self.lasso)
+    #         event.accept()
+    #     else:
+    #         super().mouseMoveEvent(event)
+
+    # def mouseReleaseEvent(self, event):
+    #     if self.lassoPoints and event.button() == QtCore.Qt.LeftButton:
+
+    #         self.highlightPointsWithinLasso()
+    #         self.setMouseEnabled(x=True, y=True) # Re-enable default dragging behavior
+
+    #         event.accept()
+    #     else:
+    #         super().mouseReleaseEvent(event)
+
+    # def highlightPointsWithinLasso(self):
+    #     # Change color of points inside the lasso to red
+    #     for i, point in enumerate(self.scatter.points()):
+    #         if self.lasso.containsPoint(point.pos(), QtCore.Qt.OddEvenFill):
+    #             point.setBrush(pg.mkBrush('r'))
+
+    # def resetPointsColor(self):
+    #     # Reset points to their original color
+    #     for i, point in enumerate(self.scatter.points()):
+    #         point.setBrush(self.org_brush[i])
+
+    def use_auto_range(self) -> None:
+        """Uses the auto-ranging feature for the plot"""
+        self.scatter_plot.enableAutoRange("xy", True)
 
     def _onClick(
         self,
@@ -255,39 +251,25 @@ class MatplotlibWidget(NapariMPLWidget):
         self.plot()
 
     def plot(self) -> None:
-        logger.info("Plotting coordinates.")
 
-        self.clear()
+        logger.info("Generating scatter plot...")
 
-        self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
-        self.axes.set_xlabel(self.x_label)
-        self.axes.set_ylabel(self.y_label)
+        self.clear_plot()
+        self.scatter_plot.setLabel("bottom", self.x_label)
+        self.scatter_plot.setLabel("left", self.y_label)
 
-        if self.palette is not None:
-            _add_categorical_legend(
-                self.axes,
-                self.cat,
-                palette=self.palette,
-            )
-            self.colorbar = None
-        else:
-            self.colorbar = self.canvas.figure.colorbar(self.scatterplot)
-            if self.colorbar is None:
-                raise ValueError("Colorbar hasn't been created.")
-            self.colorbar.set_label(self.color_label)
+        colors = [QColor(*[int(255 * c) for c in color]) for color in self.data[2]]
+        brush = [pg.mkBrush(color) for color in colors]
 
-        self.canvas.draw()
+        self.scatter = self.scatter_plot.plot(self.data[0], self.data[1], pen=None, symbol="o", symbolBrush=brush)
 
-        self.selector = SelectFromCollection(
-            self._model, self.axes, self.scatterplot, self.data
-        )  # type:ignore[assignment]
+        self.scatter_plot.enableAutoRange("xy", True)
 
-    def clear(self) -> None:
-        if self.colorbar:
-            self.colorbar.remove()
-            self.colorbar = None
-
-        self.axes.clear()
+    def clear_plot(self) -> None:
+        """Clears the scatter plot"""
+        if self.scatter:
+            self.scatter_plot.removeItem(self.scatter)
+            self.scatter = None
 
 
 class AxisWidgets(QtWidgets.QWidget):
