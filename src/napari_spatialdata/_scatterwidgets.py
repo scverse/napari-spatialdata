@@ -11,7 +11,7 @@ from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
 from pyqtgraph import GraphicsLayoutWidget
 from qtpy import QtWidgets
-from qtpy.QtCore import QSize, Signal
+from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
 from qtpy.QtWidgets import QPushButton
 
@@ -144,10 +144,13 @@ class PlotWidget(GraphicsLayoutWidget):
         if self.is_widget:
             self._viewer.close()
 
+        self.scatter_plot = self.addPlot(title="")
+        self.scatter = None
+
         # Adding a button to toggle auto-range
         self.auto_range_button = QPushButton(self)
         self.auto_range_button.setIcon(
-            QIcon(r"../../src/napari_spatialdata/icons/icons8-home-48.png")
+            QIcon(r"../../src/napari_spatialdata/resources/icons8-home-48.png")
         )  # Set the icon image
         self.auto_range_button.setIconSize(QSize(24, 24))  # Icon size
         self.auto_range_button.setStyleSheet("QPushButton {background-color: transparent;}")
@@ -155,15 +158,38 @@ class PlotWidget(GraphicsLayoutWidget):
         self.auto_range_button.setToolTip("Auto Range")
         self.auto_range_button.move(10, 10)
 
-        # self.lassoPoints = []
-        # self.lasso = QtGui.QPolygonF()
-        # self.lassoItem = QGraphicsPolygonItem()
-        # self.lassoItem.setPen(pg.mkPen('g', width=2))
-        # self.lassoItem.setBrush(pg.mkBrush(0,255,0,50))
-        # self.addItem(self.lassoItem, ignoreBounds=True)
+        # Handling drawing mode
 
-        self.scatter_plot = self.addPlot(title="")
-        self.scatter = None
+        # Drawing mode toggle button
+        self.drawing = False
+        self.drawing_mode_button = QPushButton(self)
+        self.drawing_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-pencil-drawing-50.png"))
+        self.drawing_mode_button.setIconSize(QSize(24, 24))
+        self.auto_range_button.setStyleSheet("QPushButton {background-color: transparent;}")
+        self.drawing_mode_button.setCheckable(True)
+        self.drawing_mode_button.clicked.connect(self.toggle_drawing_mode)
+        self.drawing_mode_button.move(50, 10)  # Adjust position as needed
+
+        # Connect mouse events
+        self.scatter_plot.setMouseEnabled(x=True, y=True)
+        self.scatter_plot.scene().sigMouseClicked.connect(self.mouseClickEvent)
+
+    def toggle_drawing_mode(self) -> None:
+        self.drawing = not self.drawing
+        if self.drawing:
+            self.scatter_plot.setMouseEnabled(x=False, y=False)
+            self.scatter_plot.setMenuEnabled(False)
+        else:
+            self.scatter_plot.setMouseEnabled(x=True, y=True)
+            self.scatter_plot.setMenuEnabled(True)
+
+    def mouseClickEvent(self, event: Any) -> None:
+        if self.drawing:
+            if event.button() == Qt.LeftButton:
+                logger.info("Left click detected")
+
+            elif event.button() == Qt.RightButton:
+                logger.info("Right click detected")
 
     # def mousePressEvent(self, event):
     #     if event.button() == QtCore.Qt.LeftButton:
