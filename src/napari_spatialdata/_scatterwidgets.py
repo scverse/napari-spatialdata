@@ -10,6 +10,7 @@ from loguru import logger
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
 from pyqtgraph import GraphicsLayoutWidget
+from pyqtgraph.graphicsItems import ROI
 from qtpy import QtWidgets
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
@@ -147,6 +148,15 @@ class PlotWidget(GraphicsLayoutWidget):
         self.scatter_plot = self.addPlot(title="")
         self.scatter = None
 
+        # threshold for adding new vertex to the ROI
+        self.vertex_add_threshold = 20
+
+        # initialize shapes info
+        self.current_roi: ROI | None = None
+        self.last_pos: tuple[Any, Any] | None = None
+        self.current_points: list[tuple[Any, Any]] = []
+        self.roi_list: list[ROI] = []
+
         # Adding a button to toggle auto-range
         self.auto_range_button = QPushButton(self)
         self.auto_range_button.setIcon(
@@ -172,77 +182,86 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # Connect mouse events
         self.scatter_plot.setMouseEnabled(x=True, y=True)
-        self.scatter_plot.scene().sigMouseClicked.connect(self.mouseClickEvent)
+        self.scatter_plot.scene().sigMouseClicked.connect(self.mousePressEvent)
+        self.scatter_plot.scene().sigMouseClicked.connect(self.mouseMoveEvent)
 
     def toggle_drawing_mode(self) -> None:
         self.drawing = not self.drawing
         if self.drawing:
             self.scatter_plot.setMouseEnabled(x=False, y=False)
             self.scatter_plot.setMenuEnabled(False)
+            self.scatter_plot.enableAutoRange("xy", False)
         else:
             self.scatter_plot.setMouseEnabled(x=True, y=True)
             self.scatter_plot.setMenuEnabled(True)
+            self.scatter_plot.enableAutoRange("xy", True)
 
-    def mouseClickEvent(self, event: Any) -> None:
+    def mousePressEvent(self, event: Any) -> None:
         if self.drawing:
-            if event.button() == Qt.LeftButton:
-                logger.info("Left click detected")
+            logger.info("Left press detected")
 
-            elif event.button() == Qt.RightButton:
-                logger.info("Right click detected")
+            pen = pg.mkPen(color="gray", width=2)
+            hoverPen = pg.mkPen(color="red", width=2)
+            handlePen = pg.mkPen(color="red", width=2)
 
-    # def mousePressEvent(self, event):
-    #     if event.button() == QtCore.Qt.LeftButton:
-    #         # Left mouse button: start or continue drawing the lasso
-    #         #if not self.lassoPoints:
-    #         self.lassoPoints = [self.vb.mapSceneToView(event.scenePos())]
-    #         self.lasso = QtGui.QPolygonF(self.lassoPoints)
-    #         self.lassoItem.setPolygon(self.lasso)
+            self.current_roi = pg.PolyLineROI(
+                [], closed=True, removable=True, pen=pen, handlePen=handlePen, hoverPen=hoverPen
+            )
+            self.scatter_plot.addItem(self.current_roi)
 
-    #         self.setMouseEnabled(x=False, y=False)  # Disable default dragging behavior
-    #         event.accept()
-    #     elif event.button() == QtCore.Qt.RightButton:
+            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+            self.current_points = [(plot_pos.x(), plot_pos.y())]
+            self.last_pos = (event.pos().x(), event.pos().y())
 
-    #         # Right mouse click
+            event.accept()
 
-    #         self.lassoPoints = []
-    #         self.lasso.clear()
-    #         self.lassoItem.setPolygon(self.lasso)
-    #         self.setMouseEnabled(x=True, y=True) # Re-enable default dragging behavior
-    #         self.resetPointsColor()
-    #         event.accept()
-    #     else:
-    #         super().mousePressEvent(event)
+        else:
+            super().mousePressEvent(event)
 
-    # def mouseMoveEvent(self, event):
-    #     if self.lassoPoints:
-    #         self.lassoPoints.append(self.vb.mapSceneToView(event.scenePos()))
-    #         self.lasso = QtGui.QPolygonF(self.lassoPoints)
-    #         self.lassoItem.setPolygon(self.lasso)
-    #         event.accept()
-    #     else:
-    #         super().mouseMoveEvent(event)
+    def mouseMoveEvent(self, event: Any) -> None:
+        if self.drawing and self.current_roi is not None:
 
-    # def mouseReleaseEvent(self, event):
-    #     if self.lassoPoints and event.button() == QtCore.Qt.LeftButton:
+            if self.last_pos is not None:
+                dist = np.sqrt((event.pos().x() - self.last_pos[0]) ** 2 + (event.pos().y() - self.last_pos[1]) ** 2)
 
-    #         self.highlightPointsWithinLasso()
-    #         self.setMouseEnabled(x=True, y=True) # Re-enable default dragging behavior
+                if dist > self.vertex_add_threshold:
 
-    #         event.accept()
-    #     else:
-    #         super().mouseReleaseEvent(event)
+                    plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                    self.current_points.append((plot_pos.x(), plot_pos.y()))
 
-    # def highlightPointsWithinLasso(self):
-    #     # Change color of points inside the lasso to red
-    #     for i, point in enumerate(self.scatter.points()):
-    #         if self.lasso.containsPoint(point.pos(), QtCore.Qt.OddEvenFill):
-    #             point.setBrush(pg.mkBrush('r'))
+                    self.current_roi.setPoints(self.current_points)
 
-    # def resetPointsColor(self):
-    #     # Reset points to their original color
-    #     for i, point in enumerate(self.scatter.points()):
-    #         point.setBrush(self.org_brush[i])
+                    self.last_pos = (event.pos().x(), event.pos().y())
+
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: Any) -> None:
+        if self.drawing and event.button() == Qt.LeftButton:
+
+            logger.info("Roi released.")
+
+            if self.current_roi is not None:
+
+                # Connect the signal with the specific ROI as an argument
+                self.current_roi.sigRemoveRequested.connect(self.remove_roi)
+
+                # store with other ROIs
+                self.roi_list.append(self.current_roi)
+
+            self.current_roi = None
+            self.current_points = []
+
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
+
+    def remove_roi(self, roi: ROI) -> None:
+        # Remove the specific ROI that emitted the signal
+        logger.info(f"Roi signal remove {self.current_roi}")
+        self.scatter_plot.removeItem(roi)
+        self.roi_list.remove(roi)
 
     def use_auto_range(self) -> None:
         """Uses the auto-ranging feature for the plot"""
