@@ -20,6 +20,7 @@ from qtpy.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSplitter,
     QVBoxLayout,
     QWidget,
 )
@@ -63,10 +64,17 @@ class QtAdataScatterWidget(QWidget):
             self.quit_button_widget.setFixedSize(QSize(100, 25))
             self.layout().addWidget(self.quit_button_widget, 0, 2, 1, 1, Qt.AlignRight)
 
-        # Matplotlib
+        # Create the splitter
+        splitter = QSplitter(Qt.Vertical)
 
+        # Matplotlib widget
         self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
-        self.layout().addWidget(self.matplotlib_widget, 1, 0, 1, 3)
+        splitter.addWidget(self.matplotlib_widget)
+
+        # Widget for table label and combo box, and other controls
+        control_widget = QWidget()
+        control_layout = QGridLayout()
+        control_widget.setLayout(control_layout)
 
         # Names of tables annotating respective layer.
         table_label = QLabel("Tables annotating layer:")
@@ -75,17 +83,17 @@ class QtAdataScatterWidget(QWidget):
             self.table_name_widget.addItems(table_names)
 
         self.table_name_widget.currentTextChanged.connect(self._update_adata)
-        self.layout().addWidget(table_label, 2, 0, Qt.AlignLeft)
-        self.layout().addWidget(self.table_name_widget)
+        control_layout.addWidget(table_label, 0, 0, Qt.AlignLeft)
+        control_layout.addWidget(self.table_name_widget, 0, 1, 1, 2)
 
         self.x_widget = AxisWidgets(self.model, "X-axis")
-        self.layout().addWidget(self.x_widget, 3, 0, 6, 1)
+        control_layout.addWidget(self.x_widget, 1, 0, 1, 1)
 
         self.y_widget = AxisWidgets(self.model, "Y-axis")
-        self.layout().addWidget(self.y_widget, 3, 1, 6, 1)
+        control_layout.addWidget(self.y_widget, 1, 1, 1, 1)
 
         self.color_widget = AxisWidgets(self.model, "Color", True)
-        self.layout().addWidget(self.color_widget, 3, 2, 6, 1)
+        control_layout.addWidget(self.color_widget, 1, 2, 1, 1)
 
         self.plot_button_widget = QPushButton("Plot")
         self.plot_button_widget.clicked.connect(
@@ -102,8 +110,13 @@ class QtAdataScatterWidget(QWidget):
         self.export_button_widget = QPushButton("Export")
         self.export_button_widget.clicked.connect(self.export)
 
-        self.layout().addWidget(self.plot_button_widget, 9, 0, 1, 2)
-        self.layout().addWidget(self.export_button_widget, 9, 2, 1, 2)
+        control_layout.addWidget(self.plot_button_widget, 2, 0, 1, 2)
+        control_layout.addWidget(self.export_button_widget, 2, 2, 1, 1)
+
+        splitter.addWidget(control_widget)
+
+        # Add the splitter to the main layout
+        self.layout().addWidget(splitter, 1, 0, 1, 3)
 
         self.model.events.adata.connect(self._on_selection)
 
@@ -134,12 +147,6 @@ class QtAdataScatterWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.instance_key = layer.metadata["instance_key"] = (
-            table.uns["spatialdata_attrs"]["instance_key"] if table is not None else None
-        )
-        self.model.region_key = layer.metadata["region_key"] = (
-            table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
-        )
         self.model.system_name = layer.metadata.get("name", None)
 
         self.x_widget.widget._onChange()
@@ -367,12 +374,6 @@ class QtAdataViewWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model.instance_key = layer.metadata["instance_key"] = (
-            table.uns["spatialdata_attrs"]["instance_key"] if table is not None else None
-        )
-        self.model.region_key = layer.metadata["region_key"] = (
-            table.uns["spatialdata_attrs"]["region_key"] if table is not None else None
-        )
         self.model.system_name = layer.metadata.get("name", None)
 
         if hasattr(

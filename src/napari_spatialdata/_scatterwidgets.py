@@ -12,12 +12,14 @@ from matplotlib.collections import Collection
 from matplotlib.path import Path
 from matplotlib.widgets import LassoSelector
 from napari.layers import Layer
+from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from napari_matplotlib.base import NapariMPLWidget
 from pandas.api.types import CategoricalDtype
 from qtpy import QtWidgets
 from qtpy.QtCore import Signal
 
+from napari_spatialdata._constants.config import POINT_SIZE_SCATTERPLOT_WIDGET
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
 from napari_spatialdata.utils._categoricals_utils import _add_categorical_legend
@@ -62,6 +64,7 @@ class SelectFromCollection:
         collection: Collection,
         data: list[NDArrayA],
         alpha_other: float = 0.3,
+        viewer: Viewer | None = None,
     ):
         self.model = model
         self.canvas = ax.figure.canvas
@@ -70,6 +73,7 @@ class SelectFromCollection:
         self.exported_data = None
         self.data = data
         self.axes = ax
+        self.viewer = viewer
 
         self.xys = collection.get_offsets()
         self.Npts = len(self.xys)
@@ -90,8 +94,12 @@ class SelectFromCollection:
         model_layer: Layer = self.model.layer
         obs_name = model_layer.name + "_LASSO_SELECTED"
 
-        adata.obs[obs_name] = self.exported_data
-        logger.info("Exported selected coordinates to obs in AnnData as: {}", obs_name)  # noqa: P103
+        # adata.obs[obs_name] = self.exported_data
+        sdata = model_layer.metadata["sdata"]
+        table_name = self.model.active_table_name
+
+        sdata[table_name].obs[obs_name] = self.exported_data
+        show_info(f"Exported selected coordinates to obs in AnnData as: {obs_name}")
 
     def onselect(self, verts: list[NDArrayA]) -> None:
         self.path = Path(verts)
@@ -259,7 +267,9 @@ class MatplotlibWidget(NapariMPLWidget):
 
         self.clear()
 
-        self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
+        self.scatterplot = self.axes.scatter(
+            x=self.data[0], y=self.data[1], c=self.data[2], s=POINT_SIZE_SCATTERPLOT_WIDGET
+        )
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
 
@@ -279,7 +289,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self.canvas.draw()
 
         self.selector = SelectFromCollection(
-            self._model, self.axes, self.scatterplot, self.data
+            model=self._model, ax=self.axes, collection=self.scatterplot, data=self.data, viewer=self._viewer
         )  # type:ignore[assignment]
 
     def clear(self) -> None:
