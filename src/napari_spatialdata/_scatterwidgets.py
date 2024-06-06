@@ -94,9 +94,23 @@ class SelectFromCollection:
         model_layer: Layer = self.model.layer
         obs_name = model_layer.name + "_LASSO_SELECTED"
 
+        # wrong! adata can be a copy
         # adata.obs[obs_name] = self.exported_data
         sdata = model_layer.metadata["sdata"]
         table_name = self.model.active_table_name
+
+        # TODO: we need to find the correct table_name; currently this is `None`:
+        #  1. the combobox "Tables annotating layer:" in the scatterplot widget is empty because the model doesn't
+        #     contain information on the available tables
+        #  2. the model also doesn't contain informations on the active table
+        # Here I use a workaround to look for the first table in the sdata object with a size that matches the data
+        # to be exported.
+        if table_name is None:
+            for table_name in sdata.tables:
+                table = sdata.tables[table_name]
+                assert isinstance(table, AnnData)
+                if table.shape[0] == self.exported_data.shape[0]:  # type: ignore[attr-defined]
+                    break
 
         sdata[table_name].obs[obs_name] = self.exported_data
         show_info(f"Exported selected coordinates to obs in AnnData as: {obs_name}")
