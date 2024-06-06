@@ -458,6 +458,7 @@ class QtAdataAnnotationWidget(QWidget):
 
         if isinstance(layer := self.viewer.layers.selection.active, Shapes):
             layer.events.name.connect(self._change_region_on_name_change)
+            self._connect_layer_events(layer)
 
     def _connect_button_to_change_color(self, button: QPushButton) -> None:
         button.color_changed.connect(self._on_color_of_button_change)
@@ -525,14 +526,16 @@ class QtAdataAnnotationWidget(QWidget):
             The napari event for a layer being inserted in the viewer layerlist.
         """
         layer = event.value
+        self._connect_layer_events(layer)
+        self._set_editable_save_button()
+
+    def _connect_layer_events(self, layer: Shapes) -> None:
         if layer and isinstance(layer, Shapes):
             layer.events.data.connect(self._update_annotations)
             layer.events.name.connect(self._change_region_on_name_change)
             layer.mouse_move_callbacks.append(self._on_mouse_move)
             self._current_region = layer.name
             layer.current_face_color = self._current_color
-
-        self._set_editable_save_button()
 
     def _on_mouse_move(self, layer: Layer, event: Event) -> None:
         if layer == self.viewer.layers.selection.active:
@@ -578,7 +581,7 @@ class QtAdataAnnotationWidget(QWidget):
                 layer.features = df
                 layer.metadata["annotation_region_key"] = self._current_region_key
                 layer.metadata["annotation_instance_key"] = self._current_instance_key
-                # layer.feature_defaults = self._create_feature_default(layer)
+                layer.feature_defaults = self._create_feature_default(layer)
             elif (
                 len(color_cols := [col for col in layer.features.columns if "color" in col]) != 0
                 and len(layer.features) != 0
