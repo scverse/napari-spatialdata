@@ -245,7 +245,7 @@ class AListWidget(ListWidget):
             if isinstance(layer, Labels):
                 vec = vec.drop(index=0) if 0 in vec.index else vec  # type:ignore[attr-defined]
             # element_indices = element_indices[element_indices != 0]
-            diff_element_table = set(vec.index).symmetric_difference(element_indices)  # type:ignore[attr-defined]
+            diff_element_table = set(element_indices).difference(set(vec.index))  # type:ignore[attr-defined]
             merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
                 "vec"
             ].fillna(0, axis=0)
@@ -255,8 +255,11 @@ class AListWidget(ListWidget):
         color_vec = cmap(norm_vec)
 
         if not column_df:
+            element_indices_list = None
             for i in diff_element_table:
-                change_index = element_indices.to_list().index(i)
+                if element_indices_list is None:
+                    element_indices_list = element_indices.to_list()
+                change_index = element_indices_list.index(i)
                 color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
             if isinstance(layer, Labels):
                 color_vec[0] = np.array([0.0, 0.0, 0.0, 1.0])

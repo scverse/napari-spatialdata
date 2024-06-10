@@ -9,8 +9,8 @@ from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata._constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
 from napari_spatialdata._viewer import SpatialDataViewer
+from napari_spatialdata.constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
 from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names, get_elements_meta_mapping
 
 if TYPE_CHECKING:
