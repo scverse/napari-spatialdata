@@ -8,7 +8,7 @@ from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
 from spatialdata.models import get_table_keys
 
-from napari_spatialdata._constants._constants import Symbol
+from napari_spatialdata.constants._constants import Symbol
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
 __all__ = ["DataModel"]
