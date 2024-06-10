@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections import Counter
+from contextlib import contextmanager
 from functools import wraps
 from random import randint
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import packaging.version
@@ -26,6 +27,7 @@ from pandas.core.dtypes.common import (
     is_object_dtype,
     is_string_dtype,
 )
+from qtpy.QtCore import QObject
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
@@ -489,3 +491,12 @@ def _get_ellipses_from_circles(yx: NDArrayA, radii: NDArrayA) -> NDArrayA:
 
 def get_napari_version() -> packaging.version.Version:
     return packaging.version.parse(__version__)
+
+
+@contextmanager
+def block_signals(widget: QObject) -> Generator[None, None, None]:
+    try:
+        widget.blockSignals(True)
+        yield
+    finally:
+        widget.blockSignals(False)

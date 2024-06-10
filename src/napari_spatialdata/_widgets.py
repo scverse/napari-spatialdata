@@ -12,7 +12,7 @@ import packaging.version
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
-from napari.layers import Labels, Points, Shapes
+from napari.layers import Labels, Layer, Points, Shapes
 from napari.utils import DirectLabelColormap
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
@@ -192,11 +192,14 @@ class AListWidget(ListWidget):
         if isinstance(layer, Labels):
             element_indices = element_indices[element_indices != 0]
         # When merging if the row is not present in the other table it will be nan so we can give it a default color
-        colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
-        _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
-        colors = colorer.uns["vec_colors"]
-        color_dict = dict(zip(vec.cat.categories, colors))
-        color_dict.update({np.nan: "#808080ff"})
+        if (vec_color_name := vec.name + "_color") not in self.model.adata.uns:
+            colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
+            _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
+            colors = colorer.uns["vec_colors"]
+            color_dict = dict(zip(vec.cat.categories, colors))
+            color_dict.update({np.nan: "#808080ff"})
+        else:
+            color_dict = self.model.adata.uns[vec_color_name]
 
         if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
             merge_df = pd.merge(
@@ -547,3 +550,80 @@ class RangeSliderWidget(QRangeSlider):
     def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model
+
+
+class SaveDialog(QtWidgets.QDialog):
+    def __init__(self, layer: Layer) -> None:
+        super().__init__()
+
+        self.setWindowTitle("Save Dialog")
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
+        self.table_name: str | None = f"annotation_{layer.name}"
+        self.shape_name: str | None = layer.name
+        self.sdata = layer.metadata["sdata"]
+
+        layout = QtWidgets.QVBoxLayout(self)
+
+        spatial_element_label = QtWidgets.QLabel("Spatial Element name:")
+        self.spatial_element_line_edit = QtWidgets.QLineEdit(layer.name)
+        layout.addWidget(spatial_element_label)
+        layout.addWidget(self.spatial_element_line_edit)
+
+        if any("color" in col for col in layer.features.columns):
+            table_label = QtWidgets.QLabel("Table name:")
+            self.table_line_edit = QtWidgets.QLineEdit(self.table_name)
+            layout.addWidget(table_label)
+            layout.addWidget(self.table_line_edit)
+
+        QBtn = QtWidgets.QDialogButtonBox.Save | QtWidgets.QDialogButtonBox.Cancel
+        self.button_box = QtWidgets.QDialogButtonBox(QBtn)
+        self.button_box.accepted.connect(self.save_clicked)
+        self.button_box.rejected.connect(self.reject)
+        layout.addWidget(self.button_box)
+
+    def save_clicked(self) -> None:
+        self.table_name = self.table_line_edit.text()
+        self.shape_name = self.spatial_element_line_edit.text()
+        if overwrite_table := (self.table_name in self.sdata.tables) or self.shape_name in self.sdata.shapes:
+            overwrite_shape = self.shape_name in self.sdata.shapes
+
+            if overwrite_table and overwrite_shape:
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Overwrite",
+                    f"{self.shape_name} and {self.table_name} already exist. Do you want to " f"overwrite them?",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No,
+                )
+            elif overwrite_shape:
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Overwrite",
+                    f"{self.shape_name}  already exists. Do you want to overwrite?",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No,
+                )
+            elif overwrite_table:
+                reply = QtWidgets.QMessageBox.question(
+                    self,
+                    "Overwrite",
+                    f"{self.table_name}  already exists. Do you want to overwrite?",
+                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                    QtWidgets.QMessageBox.No,
+                )
+            if reply == QtWidgets.QMessageBox.No:
+                self.reject()
+                return
+
+        self.accept()
+
+    def reject(self) -> None:
+        self.table_name = None
+        self.shape_name = None
+        self.done(QtWidgets.QDialog.Rejected)
+
+    def get_save_table_name(self) -> str | None:
+        return getattr(self, "table_name", None)
+
+    def get_save_shape_name(self) -> str | None:
+        return getattr(self, "shape_name", None)
