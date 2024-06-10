@@ -270,8 +270,6 @@ class SpatialDataViewer(QObject):
             - Currently images and labels are not supported.
             - Currently updating existing elements is not supported.
         """
-        # TODO: change the logic to match the new docstring
-
         selected_layers = layers if layers else self.viewer.layers.selection
         if len(selected_layers) != 1:
             raise ValueError("Only one layer can be saved at a time.")
