@@ -19,9 +19,9 @@ from pandas.api.types import CategoricalDtype
 from qtpy import QtWidgets
 from qtpy.QtCore import Signal
 
-from napari_spatialdata.constants.config import POINT_SIZE_SCATTERPLOT_WIDGET
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
+from napari_spatialdata.constants.config import POINT_SIZE_SCATTERPLOT_WIDGET
 from napari_spatialdata.utils._categoricals_utils import _add_categorical_legend
 from napari_spatialdata.utils._utils import NDArrayA, _get_categorical, _set_palette
 

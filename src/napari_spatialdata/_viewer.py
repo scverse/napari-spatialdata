@@ -23,6 +23,7 @@ from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
 
+from napari_spatialdata._model import DataModel
 from napari_spatialdata.constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
@@ -50,6 +51,7 @@ class SpatialDataViewer(QObject):
         super().__init__()
         self.viewer = viewer
         self.sdata = sdata
+        self._model = DataModel()
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
         self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=True)
         self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=True)
@@ -59,6 +61,10 @@ class SpatialDataViewer(QObject):
 
         # Used to check old layer name. This because event emitted does not contain this information.
         self.layer_names: set[str | None] = set()
+
+    @property
+    def model(self) -> DataModel:
+        return self._model
 
     def _on_layer_insert(self, event: Event) -> None:
         layer = event.value

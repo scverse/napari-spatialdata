@@ -91,6 +91,7 @@ def test_layer_transform(qtbot, make_napari_viewer: any):
 def test_adata_metadata(qtbot, make_napari_viewer: any):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([sdata]))
+    viewer.window.add_dock_widget(widget, name="SpatialData")
     view_widget = QtAdataViewWidget(viewer)
 
     # Click on `global` coordinate system
@@ -105,6 +106,7 @@ def test_adata_metadata(qtbot, make_napari_viewer: any):
     widget._onClick("blobs_polygons")
     assert not viewer.layers[-1].metadata["adata"]
     assert not view_widget.obs_widget.item(0)
+    viewer.close()
 
 
 def test_save_layer(qtbot, tmp_path: str, make_napari_viewer: any):

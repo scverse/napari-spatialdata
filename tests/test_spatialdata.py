@@ -333,6 +333,7 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
     # and the shuffled sdata object
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([original_sdata, shuffled_sdata]))
+    viewer.window.add_dock_widget(widget, name="SpatialData")
     view_widget = QtAdataViewWidget(viewer)
 
     # Click on `global` coordinate system

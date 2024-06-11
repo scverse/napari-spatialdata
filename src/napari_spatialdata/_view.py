@@ -1,18 +1,19 @@
-from typing import Any, FrozenSet, Optional, Sequence
+from __future__ import annotations
+
+from typing import Any, Sequence
 
 import napari
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
-from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -41,28 +42,21 @@ from napari_spatialdata.utils._utils import _get_init_table_list, block_signals
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, input: Viewer):
+    def __init__(self, napari_viewer: Viewer, model: DataModel | None = None):
         super().__init__()
 
-        self._model = DataModel()
+        self._model = (
+            model
+            if model is not None
+            else napari_viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
+        )
 
         self.setLayout(QGridLayout())
 
-        if isinstance(input, Viewer):
-            self._viewer = input
-            self._select_layer()
-            self._viewer.layers.selection.events.changed.connect(self._select_layer)
-            self._viewer.layers.selection.events.changed.connect(self._on_selection)
-
-        elif isinstance(input, AnnData):
-            self._viewer = None
-            self.model.adata = input
-            self.setStyleSheet(get_stylesheet("dark"))
-            self.quit_button_widget = QPushButton("Close")
-            self.quit_button_widget.clicked.connect(self.close)
-            self.quit_button_widget.setStyleSheet("background-color: red")
-            self.quit_button_widget.setFixedSize(QSize(100, 25))
-            self.layout().addWidget(self.quit_button_widget, 0, 2, 1, 1, Qt.AlignRight)
+        self._viewer = napari_viewer
+        self._select_layer()
+        self._viewer.layers.selection.events.changed.connect(self._select_layer)
+        self._viewer.layers.selection.events.changed.connect(self._on_selection)
 
         # Create the splitter
         splitter = QSplitter(Qt.Vertical)
@@ -203,17 +197,17 @@ class QtAdataScatterWidget(QWidget):
     @property
     def model(self) -> DataModel:
         """:mod:`napari` viewer."""
-        return self._model
+        return self._model  # type: ignore[no-any-return]
 
 
 class QtAdataViewWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, viewer: Viewer):
+    def __init__(self, napari_viewer: Viewer, model: DataModel | None = None) -> None:
         super().__init__()
 
-        self._viewer = viewer
-        self._model = DataModel()
+        self._viewer = napari_viewer
+        self._model = model if model else napari_viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
 
         self._select_layer()
         self._viewer.layers.selection.events.changed.connect(self._select_layer)
@@ -295,7 +289,7 @@ class QtAdataViewWidget(QWidget):
         self.model.events.adata.connect(self._on_layer_update)
         self.model.events.color_by.connect(self._change_color_by)
 
-    def _on_layer_update(self, event: Optional[Any] = None) -> None:
+    def _on_layer_update(self, event: Any | None = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
         logger.info("Updating layer.")
 
@@ -388,7 +382,7 @@ class QtAdataViewWidget(QWidget):
         else:
             return
 
-    def _get_adata_layer(self) -> Sequence[Optional[str]]:
+    def _get_adata_layer(self) -> Sequence[str | None]:
         adata_layers = list(self.model.adata.layers.keys())
         if len(adata_layers):
             return adata_layers
@@ -405,10 +399,10 @@ class QtAdataViewWidget(QWidget):
     @property
     def model(self) -> DataModel:
         """:mod:`napari` viewer."""
-        return self._model
+        return self._model  # type: ignore[no-any-return]
 
     @property
-    def layernames(self) -> FrozenSet[str]:
+    def layernames(self) -> frozenset[str]:
         """Names of :class:`napari.layers.Layer`."""
         return frozenset(layer.name for layer in self.viewer.layers)
 
