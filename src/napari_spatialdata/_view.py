@@ -6,14 +6,13 @@ import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
-from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
-from qtpy.QtCore import QSize, Qt
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QGridLayout,
@@ -203,7 +202,9 @@ class QtAdataViewWidget(QWidget):
         super().__init__()
 
         self._viewer = viewer
-        self._model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model if not model else model
+        self._model = (
+            self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model if not model else model
+        )
 
         self._select_layer()
         self._viewer.layers.selection.events.changed.connect(self._select_layer)

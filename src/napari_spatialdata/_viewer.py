@@ -22,8 +22,8 @@ from spatialdata._core.query.relational_query import (
 from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
-from napari_spatialdata._model import DataModel
 
+from napari_spatialdata._model import DataModel
 from napari_spatialdata.constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,

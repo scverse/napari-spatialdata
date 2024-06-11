@@ -12,7 +12,6 @@ from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
 from napari_spatialdata.utils._utils import NDArrayA
 from spatialdata import SpatialData
-from napari_spatialdata._model import DataModel
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
