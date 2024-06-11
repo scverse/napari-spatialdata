@@ -278,6 +278,13 @@ class QtAdataViewWidget(QWidget):
         self.layout().addWidget(dataframe_columns_label)
         self.layout().addWidget(self.dataframe_columns_widget)
 
+        # unique values
+        values_label = QLabel("Subset on:")
+        values_label.setToolTip("Unique values of selected column used to subset")
+        self.values_widget = QComboBox()
+        self.layout().addWidget(values_label)
+        self.layout().addWidget(self.values_widget)
+
         # color by
         self.color_by = QLabel("Colored by:")
         self.layout().addWidget(self.color_by)
@@ -848,3 +855,32 @@ class QtAdataAnnotationWidget(QWidget):
             event.source.features[self._current_region_key] = pd.Series(
                 [self._current_region] * len(event.source.data), dtype="category"
             )
+
+# #
+# class CategoricalSubsetter:
+#     def __init__(self, viewer: Viewer):
+#         super().__init__()
+#
+#         self._viewer = viewer
+#         self._model = DataModel()
+#
+#         self._select_layer()
+#         self._viewer.layers.selection.events.changed.connect(self._select_layer)
+#
+#         self.setLayout(QVBoxLayout())
+#
+#         table_label = QLabel("Tables annotating layer:")
+#         self.table_name_widget = QComboBox()
+#         if (table_names := self.model.table_names) is not None:
+#             self.table_name_widget.addItems(table_names)
+#
+#         self.table_name_widget.currentTextChanged.connect(self._update_adata)
+#         self.layout().addWidget(table_label)
+#         self.layout().addWidget(self.table_name_widget)
+#
+#         categorical_label = QLabel("Categorical columns:")
+#         categorical_label.setToolTip("Columns in SpatialElement or anndata table containing categorical values.")
+#         # TODO make it so that list widget can take multiple attr
+#         self.categorical_widget = AListWidget(self.viewer, self.model, attr="obs")
+#         self.layout().addWidget(categorical_label)
+#         self.layout().addWidget(self.categorical_widget)
