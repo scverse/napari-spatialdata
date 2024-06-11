@@ -12,6 +12,7 @@ from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
 from napari_spatialdata.utils._utils import NDArrayA
 from spatialdata import SpatialData
+from napari_spatialdata._model import DataModel
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
@@ -31,9 +32,9 @@ def test_creating_widget_with_data(
         name="image",
         metadata={"sdata": sdata_blobs, "name": "blobs_image", "adata": adata_shapes},
     )
-
+    model = DataModel()
     # create our widget, passing in the viewer
-    _ = widget(viewer)
+    _ = widget(viewer, model)
     viewer.layers.selection.events.changed.disconnect()
 
 
@@ -41,9 +42,9 @@ def test_creating_widget_with_data(
 def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> None:
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
-
+    model = DataModel()
     # create our widget, passing in the viewer
-    _ = widget(viewer)
+    _ = widget(viewer, model)
     viewer.layers.selection.events.changed.disconnect()
 
 
@@ -69,8 +70,8 @@ def test_model(
             "table_names": ["table"],
         },
     )
-
-    widget = widget(viewer)
+    model = DataModel()
+    widget = widget(viewer, model)
     # layer = viewer.layers.selection.active
     widget._select_layer()
     assert isinstance(widget.model, DataModel)
@@ -96,6 +97,7 @@ def test_change_layer(
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
     sdata_widget = SdataWidget(viewer, EventedList([sdata_blobs]))
+    viewer.window.add_dock_widget(sdata_widget, name="SpatialData")
     sdata_widget.viewer_model.add_sdata_image(sdata_blobs, "blobs_image", "global", False)
 
     widget = widget(viewer)
@@ -133,8 +135,8 @@ def test_scatterlistwidget(
         name=layer_name,
         metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
-
-    widget = widget(viewer)
+    model = DataModel()
+    widget = widget(viewer, model)
     widget._select_layer()
     # change attr
 
@@ -209,8 +211,8 @@ def test_component_widget(
         name=layer_name,
         metadata={"adata": adata_labels, "region_key": "cell_id"},
     )
-
-    widget = widget(viewer)
+    model = DataModel()
+    widget = widget(viewer, model)
     widget._select_layer()
 
     widget.x_widget.selection_widget.setCurrentText("obsm")
@@ -246,6 +248,7 @@ def test_layer_selection(make_napari_viewer: Any, image: NDArrayA, widget: Any, 
     viewer = make_napari_viewer()
     sdata_widget = SdataWidget(viewer, EventedList([sdata_blobs]))
     sdata_widget.viewer_model.add_sdata_labels(sdata_blobs, "blobs_labels", "global", False)
+    viewer.window.add_dock_widget(sdata_widget, name="SpatialData")
 
     widget = widget(viewer)
     assert_equal(widget.model.adata.copy(), sdata_blobs["table"])

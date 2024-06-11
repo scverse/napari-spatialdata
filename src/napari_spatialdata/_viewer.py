@@ -22,6 +22,7 @@ from spatialdata._core.query.relational_query import (
 from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
+from napari_spatialdata._model import DataModel
 
 from napari_spatialdata.constants import config
 from napari_spatialdata.utils._utils import (
@@ -50,6 +51,7 @@ class SpatialDataViewer(QObject):
         super().__init__()
         self.viewer = viewer
         self.sdata = sdata
+        self._model = DataModel()
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
         self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=True)
         self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=True)

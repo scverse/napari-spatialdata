@@ -41,28 +41,17 @@ from napari_spatialdata.utils._utils import _get_init_table_list, block_signals
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, input: Viewer):
+    def __init__(self, viewer: Viewer, model: DataModel | None = None):
         super().__init__()
 
-        self._model = DataModel()
+        self._model = viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model if not model else model
 
         self.setLayout(QGridLayout())
 
-        if isinstance(input, Viewer):
-            self._viewer = input
-            self._select_layer()
-            self._viewer.layers.selection.events.changed.connect(self._select_layer)
-            self._viewer.layers.selection.events.changed.connect(self._on_selection)
-
-        elif isinstance(input, AnnData):
-            self._viewer = None
-            self.model.adata = input
-            self.setStyleSheet(get_stylesheet("dark"))
-            self.quit_button_widget = QPushButton("Close")
-            self.quit_button_widget.clicked.connect(self.close)
-            self.quit_button_widget.setStyleSheet("background-color: red")
-            self.quit_button_widget.setFixedSize(QSize(100, 25))
-            self.layout().addWidget(self.quit_button_widget, 0, 2, 1, 1, Qt.AlignRight)
+        self._viewer = viewer
+        self._select_layer()
+        self._viewer.layers.selection.events.changed.connect(self._select_layer)
+        self._viewer.layers.selection.events.changed.connect(self._on_selection)
 
         # Create the splitter
         splitter = QSplitter(Qt.Vertical)
@@ -209,11 +198,11 @@ class QtAdataScatterWidget(QWidget):
 class QtAdataViewWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, viewer: Viewer):
+    def __init__(self, viewer: Viewer, model: DataModel | None = None) -> None:
         super().__init__()
 
         self._viewer = viewer
-        self._model = DataModel()
+        self._model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model if not model else model
 
         self._select_layer()
         self._viewer.layers.selection.events.changed.connect(self._select_layer)

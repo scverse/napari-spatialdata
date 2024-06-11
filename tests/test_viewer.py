@@ -91,6 +91,7 @@ def test_layer_transform(qtbot, make_napari_viewer: any):
 def test_adata_metadata(qtbot, make_napari_viewer: any):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([sdata]))
+    viewer.window.add_dock_widget(widget, name="SpatialData")
     view_widget = QtAdataViewWidget(viewer)
 
     # Click on `global` coordinate system
