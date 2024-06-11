@@ -62,6 +62,10 @@ class SpatialDataViewer(QObject):
         # Used to check old layer name. This because event emitted does not contain this information.
         self.layer_names: set[str | None] = set()
 
+    @property
+    def model(self) -> DataModel:
+        return self._model
+
     def _on_layer_insert(self, event: Event) -> None:
         layer = event.value
         if layer.metadata.get("sdata"):
