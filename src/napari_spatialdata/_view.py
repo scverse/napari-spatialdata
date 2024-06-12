@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import time
 from typing import Any, Sequence
 
 import napari
@@ -241,19 +240,17 @@ class QtAdataViewWidget(QWidget):
         def channel_changed(event: Event) -> None:
             layer = self.model.layer
             is_image = isinstance(layer, Image)
-            has_sdata = hasattr(layer, "metadata") and layer.metadata.get("sdata") is not None
-            has_adata = hasattr(layer, "metadata") and layer.metadata.get("adata") is not None
-            if is_image and has_sdata and has_adata:
+
+            has_sdata = layer is not None and layer.metadata.get("sdata") is not None
+            has_adata = layer is not None and layer.metadata.get("adata") is not None
+            if layer is not None and is_image and has_sdata and has_adata:
                 c_channel = event.value[0]
 
-                start = time.time()
                 image = layer.data[c_channel, :, :].data.compute()
                 min_value = image.min()
                 max_value = image.max()
                 layer.contrast_limits = [min_value, max_value]
-                print(f"limits: {time.time() - start}")
 
-                channel = layer.metadata["adata"].var.index[c_channel]
                 item = self.var_widget.item(c_channel)
                 index = self.var_widget.indexFromItem(item)
                 self.var_widget.setCurrentIndex(index)
@@ -433,9 +430,9 @@ class QtAdataViewWidget(QWidget):
 class QtAdataAnnotationWidget(QWidget):
     """Adata annotation widget."""
 
-    def __init__(self, input: Viewer):
+    def __init__(self, napari_viewer: Viewer):
         super().__init__()
-        self._viewer = input
+        self._viewer = napari_viewer
         # TODO: have to find another way to pass this as this is deprecated from 0.5.0 onwards
         self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
 
