@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import packaging.version
+import pandas as pd
 from anndata import AnnData
 from dask.dataframe import DataFrame as DaskDataFrame
 from geopandas import GeoDataFrame
@@ -19,7 +20,7 @@ from spatialdata._core.query.relational_query import (
     _get_unique_label_values_as_index,
     _left_join_spatialelement_table,
 )
-from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d
+from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
 
@@ -428,6 +429,9 @@ class SpatialDataViewer(QObject):
         affine = _get_transform(sdata.images[original_name], selected_cs)
         rgb_image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 
+        channels = get_channels(sdata.images[original_name])
+        adata = AnnData(shape=(0, len(channels)), var=pd.DataFrame(index=channels))
+
         # TODO: type check
         self.viewer.add_image(
             rgb_image,
@@ -435,6 +439,7 @@ class SpatialDataViewer(QObject):
             name=key,
             affine=affine,
             metadata={
+                "adata": adata,
                 "sdata": sdata,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
@@ -561,6 +566,7 @@ class SpatialDataViewer(QObject):
             polygons,
             name=key,
             affine=affine,
+            face_color=None,
             shape_type="polygon",
             metadata={
                 "sdata": sdata,
@@ -671,6 +677,7 @@ class SpatialDataViewer(QObject):
             xy,
             name=key,
             size=radii_size * 2,
+            face_color=None,
             affine=affine,
             metadata={
                 "sdata": sdata,

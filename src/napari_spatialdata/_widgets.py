@@ -12,7 +12,7 @@ import packaging.version
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
-from napari.layers import Labels, Layer, Points, Shapes
+from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.utils import DirectLabelColormap
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
@@ -121,30 +121,34 @@ class AListWidget(ListWidget):
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
-            vec, name = self._getter(item, index=self.getIndex())
+            if isinstance(self.model.layer, (Image)):
+                i = self.model.layer.metadata["adata"].var.index.get_loc(item)
+                self.viewer.dims.set_point(0, i)
+            else:
+                vec, name = self._getter(item, index=self.getIndex())
 
-            if self.model.layer is not None:
-                properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
-                self.model.color_by = "" if self.model.system_name is None else item
-                if isinstance(self.model.layer, (Points, Shapes)):
-                    self.model.layer.text = None  # needed because of the text-feature order of updates
-                    # self.model.layer.features = properties.get("features", None)
-                    self.model.layer.face_color = properties["face_color"]
-                    self.model.layer.text = properties["text"]
-                elif isinstance(self.model.layer, Labels):
-                    version = get_napari_version()
-                    if version < packaging.version.parse("0.4.20"):
-                        self.model.layer.color = properties["color"]
-                        self.model.layer.properties = properties.get("properties", None)
+                if self.model.layer is not None:
+                    properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
+                    self.model.color_by = "" if self.model.system_name is None else item
+                    if isinstance(self.model.layer, (Points, Shapes)):
+                        self.model.layer.text = None  # needed because of the text-feature order of updates
+                        # self.model.layer.features = properties.get("features", None)
+                        self.model.layer.face_color = properties["face_color"]
+                        self.model.layer.text = properties["text"]
+                    elif isinstance(self.model.layer, Labels):
+                        version = get_napari_version()
+                        if version < packaging.version.parse("0.4.20"):
+                            self.model.layer.color = properties["color"]
+                            self.model.layer.properties = properties.get("properties", None)
+                        else:
+                            ddict = defaultdict(lambda: np.zeros(4), properties["color"])
+                            cmap = DirectLabelColormap(color_dict=ddict)
+                            self.model.layer.colormap = cmap
                     else:
-                        ddict = defaultdict(lambda: np.zeros(4), properties["color"])
-                        cmap = DirectLabelColormap(color_dict=ddict)
-                        self.model.layer.colormap = cmap
-                else:
-                    raise ValueError("TODO")
-                # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
-                # TODO(giovp): make layer editable?
-                # self.viewer.layers[layer_name].editable = False
+                        raise ValueError("TODO")
+                    # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
+                    # TODO(giovp): make layer editable?
+                    # self.viewer.layers[layer_name].editable = False
 
     def setAdataLayer(self, layer: str | None) -> None:
         if layer in ("default", "None", "X"):

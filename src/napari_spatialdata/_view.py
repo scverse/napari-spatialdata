@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import Any, Sequence
 
 import napari
@@ -236,6 +237,28 @@ class QtAdataViewWidget(QWidget):
         var_label.setToolTip("Names from `adata.var_names` or `adata.raw.var_names`.")
         self.var_widget = AListWidget(self.viewer, self.model, attr="var")
         self.var_widget.setAdataLayer("X")
+
+        def channel_changed(event: Event) -> None:
+            layer = self.model.layer
+            is_image = isinstance(layer, Image)
+            has_sdata = hasattr(layer, "metadata") and layer.metadata.get("sdata") is not None
+            has_adata = hasattr(layer, "metadata") and layer.metadata.get("adata") is not None
+            if is_image and has_sdata and has_adata:
+                c_channel = event.value[0]
+
+                start = time.time()
+                image = layer.data[c_channel, :, :].data.compute()
+                min_value = image.min()
+                max_value = image.max()
+                layer.contrast_limits = [min_value, max_value]
+                print(f"limits: {time.time() - start}")
+
+                channel = layer.metadata["adata"].var.index[c_channel]
+                item = self.var_widget.item(c_channel)
+                index = self.var_widget.indexFromItem(item)
+                self.var_widget.setCurrentIndex(index)
+
+        self.viewer.dims.events.current_step.connect(channel_changed)
 
         # layers
         adata_layer_label = QLabel("Layers:")
