@@ -254,6 +254,7 @@ class QtAdataViewWidget(QWidget):
                 print(f"limits: {time.time() - start}")
 
                 channel = layer.metadata["adata"].var.index[c_channel]
+                # TODO: the order of the data in the var widget is alphabetically, while the order of the channels is different
                 item = self.var_widget.item(c_channel)
                 index = self.var_widget.indexFromItem(item)
                 self.var_widget.setCurrentIndex(index)
