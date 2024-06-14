@@ -18,7 +18,7 @@ from napari_spatialdata.utils._test_utils import click_list_widget_item, get_cen
 from numpy import int64
 from spatial_image import SpatialImage
 from spatialdata import SpatialData, deepcopy
-from spatialdata._core.query.relational_query import _get_unique_label_values_as_index
+from spatialdata._core.query.relational_query import get_element_instances
 from spatialdata.datasets import blobs
 from spatialdata.models import PointsModel, TableModel
 from spatialdata.transformations import Identity
@@ -287,7 +287,7 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
     ]:
         element = original_sdata[region]
         if isinstance(element, (SpatialImage, MultiscaleSpatialImage)):
-            index = _get_unique_label_values_as_index(element).values
+            index = get_element_instances(element).values
         elif isinstance(element, DaskDataFrame):
             index = element.index.compute().values
         else:
