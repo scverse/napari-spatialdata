@@ -241,17 +241,16 @@ class QtAdataViewWidget(QWidget):
         def channel_changed(event: Event) -> None:
             layer = self.model.layer
             is_image = isinstance(layer, Image)
-            has_sdata = hasattr(layer, "metadata") and layer.metadata.get("sdata") is not None
-            has_adata = hasattr(layer, "metadata") and layer.metadata.get("adata") is not None
+            has_metadata = hasattr(layer, "metadata") and layer.metadata is not None
+            has_sdata = has_metadata and layer.metadata.get("sdata") is not None
+            has_adata = has_metadata and layer.metadata.get("adata") is not None
             if is_image and has_sdata and has_adata:
                 c_channel = event.value[0]
 
-                start = time.time()
                 image = layer.data[c_channel, :, :].data.compute()
                 min_value = image.min()
                 max_value = image.max()
                 layer.contrast_limits = [min_value, max_value]
-                print(f"limits: {time.time() - start}")
 
                 channel = layer.metadata["adata"].var.index[c_channel]
                 item = self.var_widget.item(c_channel)
