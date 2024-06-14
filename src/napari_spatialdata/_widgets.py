@@ -146,7 +146,8 @@ class AListWidget(ListWidget):
                             self.model.layer.colormap = cmap
                     else:
                         raise ValueError("TODO")
-                    # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is done
+                    # TODO(michalk8): add contrasting fg/bg color once https://github.com/napari/napari/issues/2019 is
+                    #  done
                     # TODO(giovp): make layer editable?
                     # self.viewer.layers[layer_name].editable = False
 

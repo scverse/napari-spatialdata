@@ -17,8 +17,8 @@ from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
 from spatialdata._core.query.relational_query import (
     _get_element_annotators,
-    _get_unique_label_values_as_index,
     _left_join_spatialelement_table,
+    get_element_instances,
 )
 from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
 from spatialdata.transformations import Affine, Identity
@@ -566,7 +566,6 @@ class SpatialDataViewer(QObject):
             polygons,
             name=key,
             affine=affine,
-            face_color=None,
             shape_type="polygon",
             metadata={
                 "sdata": sdata,
@@ -604,7 +603,7 @@ class SpatialDataViewer(QObject):
         if multi:
             original_name = original_name[: original_name.rfind("_")]
 
-        indices = _get_unique_label_values_as_index(sdata.labels[original_name])
+        indices = get_element_instances(sdata.labels[original_name])
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
 
@@ -677,7 +676,6 @@ class SpatialDataViewer(QObject):
             xy,
             name=key,
             size=radii_size * 2,
-            face_color=None,
             affine=affine,
             metadata={
                 "sdata": sdata,
