@@ -87,7 +87,7 @@ class ListWidget(QtWidgets.QListWidget):
 
         if len(labels):
             super().addItems(labels)
-            self.sortItems(QtCore.Qt.AscendingOrder)
+            # self.sortItems(QtCore.Qt.AscendingOrder)
 
     def keyPressEvent(self, event: QtCore.QEvent) -> None:
         if event.key() == QtCore.Qt.Key_Return:
