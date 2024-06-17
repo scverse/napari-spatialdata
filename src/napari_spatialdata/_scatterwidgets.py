@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterable
 
-import matplotlib as plt
 import numpy as np
 import pandas as pd
 import pyqtgraph as pg
@@ -40,7 +39,6 @@ class ScatterListWidget(AListWidget):
 
     def _onChange(self) -> None:
         AListWidget._onChange(self)
-        self.data = None
         self.text = None
         self.chosen = None
 
@@ -90,6 +88,7 @@ class ScatterListWidget(AListWidget):
         return self._attr
 
     def setComponent(self, text: int | str | None) -> None:
+
         if self.getAttribute() == "var":
             if TYPE_CHECKING:
                 assert isinstance(text, str)
@@ -139,14 +138,15 @@ class PlotWidget(GraphicsLayoutWidget):
 
         self._viewer = viewer
         self._model = model
-        self.colorbar = None
-        self.selector = None
 
         if self.is_widget:
             self._viewer.close()
 
         self.scatter_plot = self.addPlot(title="")
         self.scatter = None
+        self.x_data: NDArrayA | pd.Series | None = None
+        self.y_data: NDArrayA | pd.Series | None = None
+        self.color_data: NDArrayA | pd.Series | None = None
 
         # threshold for adding new vertex to the ROI
         self.vertex_add_threshold = 20
@@ -168,22 +168,64 @@ class PlotWidget(GraphicsLayoutWidget):
         self.auto_range_button.setToolTip("Auto Range")
         self.auto_range_button.move(10, 10)
 
-        # Handling drawing mode
-
         # Drawing mode toggle button
         self.drawing = False
         self.drawing_mode_button = QPushButton(self)
-        self.drawing_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-pencil-drawing-50.png"))
+        self.drawing_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-polygon-80.png"))
         self.drawing_mode_button.setIconSize(QSize(24, 24))
-        self.auto_range_button.setStyleSheet("QPushButton {background-color: transparent;}")
+        self.drawing_mode_button.setStyleSheet(
+            """
+            QPushButton {
+                background-color: transparent;
+                border: none;
+            }
+            QPushButton:checked {
+                border: 1px solid white;
+            }
+        """
+        )
         self.drawing_mode_button.setCheckable(True)
         self.drawing_mode_button.clicked.connect(self.toggle_drawing_mode)
+        self.auto_range_button.setToolTip("Add ROIs.")
         self.drawing_mode_button.move(50, 10)  # Adjust position as needed
 
         # Connect mouse events
         self.scatter_plot.setMouseEnabled(x=True, y=True)
         self.scatter_plot.scene().sigMouseClicked.connect(self.mousePressEvent)
         self.scatter_plot.scene().sigMouseClicked.connect(self.mouseMoveEvent)
+
+        # add the gradient widget with the histogram
+        self.lut = pg.HistogramLUTItem(gradientPosition="right")
+        self.lut.disableAutoHistogramRange()
+        self.lut.gradient.sigGradientChanged.connect(self.on_gradient_changed)
+
+        # set default colormap with no ticks
+        color_map = pg.colormap.get("viridis")
+        self.lut.gradient.setColorMap(color_map)
+        st = self.lut.gradient.saveState()
+        st["ticksVisible"] = False
+        self.lut.gradient.restoreState(st)
+
+        # connect the signal to update the scatter plot colors
+        self.lut.sigLevelChangeFinished.connect(self.plot)
+        self.addItem(self.lut, row=0, col=2)
+
+    def on_gradient_changed(self) -> None:
+        """Update the scatter plot colors when the gradient is changed."""
+        self.plot()
+
+    def get_brushes(self, event: Any = None) -> list[QColor] | None:
+        """Get the brushes for the scatter plot based on the color data."""
+        if self.color_data is not None:
+
+            level_min, level_max = self.lut.getLevels()
+
+            data = np.clip(self.color_data, level_min, level_max)
+            data = (data - level_min) / (level_max - level_min)
+
+            return [pg.mkBrush(*x) for x in self.lut.gradient.colorMap().map(data)]
+
+        return None
 
     def toggle_drawing_mode(self) -> None:
         self.drawing = not self.drawing
@@ -194,10 +236,10 @@ class PlotWidget(GraphicsLayoutWidget):
         else:
             self.scatter_plot.setMouseEnabled(x=True, y=True)
             self.scatter_plot.setMenuEnabled(True)
-            self.scatter_plot.enableAutoRange("xy", True)
+            # self.scatter_plot.enableAutoRange("xy", True)
 
     def mousePressEvent(self, event: Any) -> None:
-        if self.drawing:
+        if self.drawing and event.button() == Qt.LeftButton:
             logger.info("Left press detected")
 
             pen = pg.mkPen(color="gray", width=2)
@@ -240,11 +282,11 @@ class PlotWidget(GraphicsLayoutWidget):
     def mouseReleaseEvent(self, event: Any) -> None:
         if self.drawing and event.button() == Qt.LeftButton:
 
-            logger.info("Roi released.")
+            logger.info("Left button released.")
 
-            if self.current_roi is not None:
+            if (self.current_roi is not None) and (len(self.current_points) > 2):
 
-                # Connect the signal with the specific ROI as an argument
+                # Connect the signal for removing the ROI
                 self.current_roi.sigRemoveRequested.connect(self.remove_roi)
 
                 # store with other ROIs
@@ -257,21 +299,42 @@ class PlotWidget(GraphicsLayoutWidget):
         else:
             super().mouseReleaseEvent(event)
 
+    def mouseDoubleClickEvent(self, event: Any) -> None:
+        if event.button() == Qt.LeftButton:
+            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+
+            for roi in self.roi_list:
+                if roi.contains(plot_pos):
+                    logger.info(f"Remove {roi}.")
+                    self.scatter_plot.removeItem(roi)
+                    self.roi_list.remove(roi)
+                    break
+
+            event.accept()
+
     def remove_roi(self, roi: ROI) -> None:
         # Remove the specific ROI that emitted the signal
-        logger.info(f"Roi signal remove {self.current_roi}")
+        logger.info(f"Remove {self.current_roi} ROI.")
         self.scatter_plot.removeItem(roi)
         self.roi_list.remove(roi)
 
     def use_auto_range(self) -> None:
-        """Uses the auto-ranging feature for the plot"""
+        """Default display of the graph."""
+        if self.color_data is not None:
+            color_min = self.color_data.min()
+            color_max = self.color_data.max()
+        else:
+            color_min = 0
+            color_max = 1
+        self.lut.setLevels(color_min, color_max)
+        self.plot()
         self.scatter_plot.enableAutoRange("xy", True)
 
     def _onClick(
         self,
-        x_data: NDArrayA | pd.Series,
-        y_data: NDArrayA | pd.Series,
-        color_data: NDArrayA | dict[str, NDArrayA | pd.Series | dict[str, str]],
+        x_data: NDArrayA | pd.Series | None,
+        y_data: NDArrayA | pd.Series | None,
+        color_data: NDArrayA | pd.Series | None,
         x_label: str | None,
         y_label: str | None,
         color_label: str | None,
@@ -279,36 +342,51 @@ class PlotWidget(GraphicsLayoutWidget):
         self.cat = None
         self.palette = None
 
-        if isinstance(color_data, dict):
-            self.data = [x_data, y_data, color_data["vec"]]
-            self.cat = color_data["cat"]
-            self.palette = color_data["palette"]
-
-        else:
-            norm = plt.colors.Normalize(vmin=np.amin(color_data), vmax=np.amax(color_data))
-            cmap = plt.cm.viridis  # TODO (rahulbshrestha): Replace this with colormap used in scatterplot
-            self.data = [x_data, y_data, cmap(norm(color_data))]
-
+        self.x_data = x_data
+        self.y_data = y_data
+        self.color_data = color_data
         self.x_label = x_label
         self.y_label = y_label
         self.color_label = color_label
 
-        self.plot()
-
-    def plot(self) -> None:
-
-        logger.info("Generating scatter plot...")
-
-        self.clear_plot()
+        # prepare for plotting
         self.scatter_plot.setLabel("bottom", self.x_label)
         self.scatter_plot.setLabel("left", self.y_label)
 
-        colors = [QColor(*[int(255 * c) for c in color]) for color in self.data[2]]
-        brush = [pg.mkBrush(color) for color in colors]
+        self.plot()
 
-        self.scatter = self.scatter_plot.plot(self.data[0], self.data[1], pen=None, symbol="o", symbolBrush=brush)
-
+        # rescale for new data
         self.scatter_plot.enableAutoRange("xy", True)
+
+        # draw the histogram of the color distribution
+        if self.color_data is not None:
+            y, x = np.histogram(self.color_data, density=True, bins=100)
+            self.lut.plot.setData(x[:-1], y)
+            self.lut.setLevels(np.min(self.color_data), np.max(self.color_data))
+            self.lut.autoHistogramRange()
+
+    def plot(self, event: Any = None) -> None:
+
+        self.clear_plot()
+
+        if self.x_data is not None or self.y_data is not None:
+
+            logger.info("Generating scatter plot...")
+
+            # generate brushes if color data is present
+            brushes = self.get_brushes()
+
+            # plot the scatter plot
+            if self.x_data is not None and self.y_data is not None:
+                self.scatter = self.scatter_plot.plot(
+                    self.x_data, self.y_data, pen=None, symbol="o", symbolBrush=brushes
+                )
+            elif self.x_data is not None:
+                ps = pg.pseudoScatter(self.x_data)
+                self.scatter = self.scatter_plot.plot(self.x_data, ps, fillLevel=0, pen=None, symbolBrush=brushes)
+            elif self.y_data is not None:
+                ps = pg.pseudoScatter(self.y_data)
+                self.scatter = self.scatter_plot.plot(ps, self.y_data, fillLevel=0, pen=None, symbolBrush=brushes)
 
     def clear_plot(self) -> None:
         """Clears the scatter plot"""
@@ -326,6 +404,7 @@ class AxisWidgets(QtWidgets.QWidget):
         selection_label = QtWidgets.QLabel(f"{name} type:")
         selection_label.setToolTip("Select between obs, obsm and var.")
         self.selection_widget = QtWidgets.QComboBox()
+        # self.selection_widget.addItem("None", None)
         self.selection_widget.addItem("obsm", None)
         self.selection_widget.addItem("obs", None)
         self.selection_widget.addItem("var", None)
