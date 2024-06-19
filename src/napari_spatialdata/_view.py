@@ -246,7 +246,7 @@ class QtAdataViewWidget(QWidget):
             if layer is not None and is_image and has_sdata and has_adata:
                 c_channel = event.value[0]
 
-                image = layer.data[c_channel, :, :].data.compute()
+                image = layer.data[c_channel, :, :].compute()
                 min_value = image.min()
                 max_value = image.max()
                 layer.contrast_limits = [min_value, max_value]
