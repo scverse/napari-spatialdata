@@ -1,19 +1,22 @@
 from __future__ import annotations
 
 from collections import Counter
+from contextlib import contextmanager
 from functools import wraps
 from random import randint
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Optional, Sequence, Union
 
 import numpy as np
+import packaging.version
 import pandas as pd
 from anndata import AnnData
-from dask.dataframe.core import DataFrame as DaskDataFrame
+from dask.dataframe import DataFrame as DaskDataFrame
 from datatree import DataTree
 from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
 from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
+from napari import __version__
 from napari.layers import Layer
 from numba import njit, prange
 from pandas.api.types import CategoricalDtype, infer_dtype
@@ -24,6 +27,7 @@ from pandas.core.dtypes.common import (
     is_object_dtype,
     is_string_dtype,
 )
+from qtpy.QtCore import QObject
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
 from spatial_image import SpatialImage
@@ -31,7 +35,7 @@ from spatialdata import SpatialData, get_extent, join_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 
-from napari_spatialdata._constants._pkg_constants import Key
+from napari_spatialdata.constants._pkg_constants import Key
 from napari_spatialdata.utils._categoricals_utils import (
     add_colors_for_categorical_sample_annotation,
 )
@@ -86,7 +90,7 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
         elif not isinstance(res, (np.ndarray, Sequence)):
             raise TypeError(f"Unable to process result of type `{type(res).__name__}`.")
 
-        res = np.asarray(np.squeeze(res))
+        res = np.atleast_1d(np.squeeze(res))
         if res.ndim != 1:
             raise ValueError(f"Expected 1-dimensional array, found `{res.ndim}`.")
 
@@ -483,3 +487,16 @@ def _get_ellipses_from_circles(yx: NDArrayA, radii: NDArrayA) -> NDArrayA:
     ellipses = np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
     assert isinstance(ellipses, np.ndarray)
     return ellipses
+
+
+def get_napari_version() -> packaging.version.Version:
+    return packaging.version.parse(__version__)
+
+
+@contextmanager
+def block_signals(widget: QObject) -> Generator[None, None, None]:
+    try:
+        widget.blockSignals(True)
+        yield
+    finally:
+        widget.blockSignals(False)

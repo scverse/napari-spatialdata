@@ -6,8 +6,9 @@ import pandas as pd
 from anndata import AnnData
 from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
+from spatialdata.models import get_table_keys
 
-from napari_spatialdata._constants._constants import Symbol
+from napari_spatialdata.constants._constants import Symbol
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
 
 __all__ = ["DataModel"]
@@ -85,11 +86,12 @@ class DataModel:
         if name not in self.adata.obs.columns:
             raise KeyError(f"Key `{name}` not found in `adata.obs`.")
         if name != self.instance_key:
-            adata_obs = self.adata.obs[[self.instance_key, name]]
-            adata_obs.set_index(self.instance_key, inplace=True)
+            obs_column = self.adata.obs[[self.instance_key, name]]
+            obs_column = obs_column.set_index(self.instance_key)[name]
         else:
-            adata_obs = self.adata.obs
-        return adata_obs[name], self._format_key(name)
+            obs_column = self.adata.obs[name].copy()
+            obs_column.index = self.adata.obs[self.instance_key]
+        return obs_column, self._format_key(name)
 
     @_ensure_dense_vector
     def get_columns_df(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
@@ -242,20 +244,20 @@ class DataModel:
     @property
     def region_key(self) -> Optional[str]:  # noqa: D102
         """The region key of the currently active table in the widget."""
-        return self._region_key
-
-    @region_key.setter
-    def region_key(self, region_key: str) -> None:
-        self._region_key = region_key
+        if self.adata is not None:
+            _, region_key, _ = get_table_keys(self.adata)
+            assert isinstance(region_key, str)
+            return region_key
+        return None
 
     @property
     def instance_key(self) -> Optional[str]:  # noqa: D102
         """The instance key of the currently active table in the widget."""
-        return self._instance_key
-
-    @instance_key.setter
-    def instance_key(self, instance_key: str) -> None:
-        self._instance_key = instance_key
+        if self.adata is not None:
+            _, _, instance_key = get_table_keys(self.adata)
+            assert isinstance(instance_key, str)
+            return instance_key
+        return None
 
     @property
     def palette(self) -> Optional[str]:  # noqa: D102

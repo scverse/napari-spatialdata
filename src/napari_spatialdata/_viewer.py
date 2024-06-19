@@ -4,8 +4,10 @@ import re
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
+import packaging.version
+import pandas as pd
 from anndata import AnnData
-from dask.dataframe.core import DataFrame as DaskDataFrame
+from dask.dataframe import DataFrame as DaskDataFrame
 from geopandas import GeoDataFrame
 from loguru import logger
 from napari import Viewer
@@ -15,14 +17,15 @@ from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
 from spatialdata._core.query.relational_query import (
     _get_element_annotators,
-    _get_unique_label_values_as_index,
     _left_join_spatialelement_table,
+    get_element_instances,
 )
-from spatialdata.models import PointsModel, ShapesModel, force_2d
+from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
 
-from napari_spatialdata._constants import config
+from napari_spatialdata._model import DataModel
+from napari_spatialdata.constants import config
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _get_ellipses_from_circles,
@@ -30,6 +33,7 @@ from napari_spatialdata.utils._utils import (
     _get_transform,
     _transform_coordinates,
     get_duplicate_element_names,
+    get_napari_version,
 )
 from napari_spatialdata.utils._viewer_utils import _get_polygons_properties
 
@@ -42,11 +46,13 @@ if TYPE_CHECKING:
 
 class SpatialDataViewer(QObject):
     layer_saved = Signal(object)
+    layer_linked = Signal(object)
 
     def __init__(self, viewer: Viewer, sdata: EventedList) -> None:
         super().__init__()
         self.viewer = viewer
         self.sdata = sdata
+        self._model = DataModel()
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
         self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=True)
         self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=True)
@@ -57,6 +63,10 @@ class SpatialDataViewer(QObject):
         # Used to check old layer name. This because event emitted does not contain this information.
         self.layer_names: set[str | None] = set()
 
+    @property
+    def model(self) -> DataModel:
+        return self._model
+
     def _on_layer_insert(self, event: Event) -> None:
         layer = event.value
         if layer.metadata.get("sdata"):
@@ -64,6 +74,9 @@ class SpatialDataViewer(QObject):
             self._layer_event_caches[layer.name] = []
             layer.events.data.connect(self._update_cache_indices)
             layer.events.name.connect(self._validate_name)
+        else:
+            if any(layer.name in sdata for sdata in self.sdata):
+                layer.name = layer.name + "_external"
 
     def _on_layer_removed(self, event: Event) -> None:
         layer = event.value
@@ -130,7 +143,123 @@ class SpatialDataViewer(QObject):
         layer_selection = list(viewer.layers.selection)
         self.save_to_sdata(layer_selection)
 
-    def save_to_sdata(self, layers: list[Layer]) -> None:
+    def _get_spatial_element_name(self, layer: Layer, spatial_element_name: str | None) -> str:
+        if spatial_element_name is None:
+            spatial_element_name = layer.name
+        else:
+            layer.name = spatial_element_name
+        return str(spatial_element_name)
+
+    def _delete_from_disk(self, sdata: SpatialData, element_name: str, overwrite: bool) -> None:
+        if element_name in sdata and len(sdata.locate_element(sdata[element_name])) != 0:
+            if overwrite:
+                sdata.delete_element_from_disk(element_name)
+            else:
+                raise OSError(f"`{element_name}` already exists. Use overwrite=True to rewrite.")
+
+    def _save_points_to_sdata(
+        self, layer_to_save: Points, spatial_element_name: str | None, overwrite: bool
+    ) -> tuple[DaskDataFrame, str]:
+        sdata = layer_to_save.metadata["sdata"]
+        coordinate_system = layer_to_save.metadata["_current_cs"]
+        transformation = {coordinate_system: Identity()}
+
+        spatial_element_name = self._get_spatial_element_name(layer_to_save, spatial_element_name)
+
+        if len(layer_to_save.data) == 0:
+            raise ValueError("Cannot export a points element with no points")
+        transformed_data = np.array([layer_to_save.data_to_world(xy) for xy in layer_to_save.data])
+        swap_data = np.fliplr(transformed_data)
+        # ignore z axis if present
+        if swap_data.shape[1] == 3:
+            swap_data = swap_data[:, :2]
+        parsed = PointsModel.parse(swap_data, transformations=transformation)
+
+        self._delete_from_disk(sdata, spatial_element_name, overwrite)
+        sdata.points[spatial_element_name] = parsed
+        sdata.write_element(spatial_element_name)
+
+        return parsed, coordinate_system
+
+    def _save_table_to_sdata(
+        self,
+        layer_to_save: Layer,
+        table_name: str,
+        spatial_element_name: str | None,
+        table_columns: list[str] | None,
+        overwrite: bool,
+    ) -> None:
+        sdata = layer_to_save.metadata["sdata"]
+        feature_color_column = [column for column in layer_to_save.features.columns if "color" in column]
+        if len(feature_color_column) > 0:
+            color_column_name = feature_color_column[0]
+            class_column_name = color_column_name.split("_")[0]
+            region_key = "region" if not layer_to_save.metadata["region_key"] else layer_to_save.metadata["region_key"]
+            instance_key = (
+                "instance_id" if not layer_to_save.metadata["instance_key"] else layer_to_save.metadata["instance_key"]
+            )
+
+            copy_table = layer_to_save.features.copy()
+            if all(row == "" for row in copy_table["description"]):
+                copy_table.drop(columns=["description"], inplace=True)
+            if len(categories := copy_table["annotator"].cat.categories) == 1 and categories[0] == "":
+                copy_table.drop(columns=["annotator"], inplace=True)
+            class_to_color_mapping = copy_table.set_index(class_column_name)[color_column_name].to_dict()
+            copy_table.drop(columns=[color_column_name], inplace=True)
+
+            copy_table.reset_index(names="instance_id", inplace=True)
+
+            if spatial_element_name not in copy_table["region"].cat.categories:
+                layer_to_save.name = spatial_element_name
+                copy_table["region"] = spatial_element_name
+            if table_columns:
+                color_column_name = table_columns[1]
+                copy_table.rename(columns={"class": table_columns[0]}, inplace=True)
+            copy_table = AnnData(obs=copy_table, uns={color_column_name: class_to_color_mapping})
+
+            sdata_table = TableModel.parse(
+                copy_table,
+                region=layer_to_save.name,
+                region_key=region_key,
+                instance_key=instance_key,
+            )
+
+            self._delete_from_disk(sdata, table_name, overwrite)
+            sdata[table_name] = sdata_table
+            sdata.write_element(table_name)
+
+    def _save_shapes_to_sdata(
+        self, layer_to_save: Shapes, spatial_element_name: str | None, overwrite: bool
+    ) -> tuple[GeoDataFrame, str]:
+        sdata = layer_to_save.metadata["sdata"]
+        coordinate_system = layer_to_save.metadata["_current_cs"]
+        transformation = {coordinate_system: Identity()}
+        spatial_element_name = self._get_spatial_element_name(layer_to_save, spatial_element_name)
+
+        if len(layer_to_save.data) == 0:
+            raise ValueError("Cannot export a shapes element with no shapes")
+
+        polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(layer_to_save.data, f=lambda x: x[::-1])]
+        gdf = GeoDataFrame({"geometry": polygons})
+
+        force_2d(gdf)
+        parsed = ShapesModel.parse(gdf, transformations=transformation)
+
+        self._delete_from_disk(sdata, spatial_element_name, overwrite)
+
+        sdata.shapes[spatial_element_name] = parsed
+        sdata.write_element(spatial_element_name)
+
+        return parsed, coordinate_system
+
+    def save_to_sdata(
+        self,
+        layers: list[Layer] | None = None,
+        spatial_element_name: str | None = None,
+        table_name: str | None = None,
+        table_columns: list[str] | None = None,
+        overwrite: bool = False,
+    ) -> None:
         """
         Add the current selected napari layer(s) to the SpatialData object.
 
@@ -148,9 +277,7 @@ class SpatialDataViewer(QObject):
             - Currently images and labels are not supported.
             - Currently updating existing elements is not supported.
         """
-        # TODO: change the logic to match the new docstring
-
-        selected_layers = self.viewer.layers.selection
+        selected_layers = layers if layers else self.viewer.layers.selection
         if len(selected_layers) != 1:
             raise ValueError("Only one layer can be saved at a time.")
         selected = list(selected_layers)[0]
@@ -171,51 +298,38 @@ class SpatialDataViewer(QObject):
         assert selected.metadata["sdata"]
 
         # now we can save the layer since it is linked to a SpatialData object
-        if not selected.metadata["name"]:
-            sdata = selected.metadata["sdata"]
-            coordinate_system = selected.metadata["_current_cs"]
-            transformation = {coordinate_system: Identity()}
-            swap_data: None | npt.ArrayLike
-            if type(selected) == Points:
-                if len(selected.data) == 0:
-                    raise ValueError("Cannot export a points element with no points")
-                transformed_data = np.array([selected.data_to_world(xy) for xy in selected.data])
-                swap_data = np.fliplr(transformed_data)
-                # ignore z axis if present
-                if swap_data.shape[1] == 3:
-                    swap_data = swap_data[:, :2]
-                parsed = PointsModel.parse(swap_data, transformations=transformation)
-                sdata.points[selected.name] = parsed
-            if type(selected) == Shapes:
-                if len(selected.data) == 0:
-                    raise ValueError("Cannot export a shapes element with no shapes")
-                polygons: list[Polygon] = [
-                    Polygon(i) for i in _transform_coordinates(selected.data, f=lambda x: x[::-1])
-                ]
-                gdf = GeoDataFrame({"geometry": polygons})
-                force_2d(gdf)
-                parsed = ShapesModel.parse(gdf, transformations=transformation)
-                sdata.shapes[selected.name] = parsed
-                swap_data = None
-            if type(selected) == Image or type(selected) == Labels:
-                raise NotImplementedError
-
-            self.layer_names.add(selected.name)
-            self._layer_event_caches[selected.name] = []
-            self._update_metadata(selected, parsed, swap_data)
-            selected.events.data.connect(self._update_cache_indices)
-            selected.events.name.connect(self._validate_name)
-            self.layer_saved.emit(coordinate_system)
-            show_info("Layer added to the SpatialData object")
+        if isinstance(selected, Points):
+            parsed, cs = self._save_points_to_sdata(selected, spatial_element_name, overwrite)
+        elif isinstance(selected, Shapes):
+            parsed, cs = self._save_shapes_to_sdata(selected, spatial_element_name, overwrite)
+            if table_name:
+                self._save_table_to_sdata(selected, table_name, spatial_element_name, table_columns, overwrite)
+        elif isinstance(selected, (Image, Labels)):
+            raise NotImplementedError
         else:
-            raise NotImplementedError("updating existing elements in-place will soon be supported")
+            raise ValueError(f"Layer of type {type(selected)} cannot be saved.")
 
-    def _update_metadata(self, layer: Layer, model: DaskDataFrame, data: None | npt.ArrayLike = None) -> None:
+        self.layer_names.add(selected.name)
+        self._layer_event_caches[selected.name] = []
+        self._update_metadata(selected, parsed)
+        selected.events.data.connect(self._update_cache_indices)
+        selected.events.name.connect(self._validate_name)
+        self.layer_saved.emit(cs)
+        show_info("Layer saved")
+
+    def _update_metadata(self, layer: Layer, model: DaskDataFrame | None) -> None:
         layer.metadata["name"] = layer.name
         layer.metadata["_n_indices"] = len(layer.data)
         layer.metadata["indices"] = list(i for i in range(len(layer.data)))  # noqa: C400
-        if type(layer) == Points:
-            layer.metadata["adata"] = AnnData(obs=model)
+
+        sdata = layer.metadata["sdata"]
+        adata, table_name, table_names = self._get_table_data(sdata, layer.metadata["name"])
+        if adata is not None:
+            layer.metadata["adata"] = adata
+            layer.metadata["region_key"] = adata.uns["spatialdata_attrs"]["region_key"] if table_name else None
+            layer.metadata["instance_key"] = adata.uns["spatialdata_attrs"]["instance_key"] if table_name else None
+            layer.metadata["table_names"] = table_names if table_name else None
+            layer.metadata["_columns_df"] = None
 
     def _get_layer_for_unique_sdata(self, viewer: Viewer) -> Layer:
         # If there is only one sdata object across all the layers, any layer containing the sdata object will be the
@@ -281,6 +395,7 @@ class SpatialDataViewer(QObject):
             if isinstance(layer, (Shapes, Points)):
                 layer.metadata["_n_indices"] = None
                 layer.metadata["indices"] = None
+            self.layer_linked.emit(layer)
 
         show_info(f"Layer(s) inherited info from {ref_layer}")
 
@@ -314,6 +429,9 @@ class SpatialDataViewer(QObject):
         affine = _get_transform(sdata.images[original_name], selected_cs)
         rgb_image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 
+        channels = get_channels(sdata.images[original_name])
+        adata = AnnData(shape=(0, len(channels)), var=pd.DataFrame(index=channels))
+
         # TODO: type check
         self.viewer.add_image(
             rgb_image,
@@ -321,6 +439,7 @@ class SpatialDataViewer(QObject):
             name=key,
             affine=affine,
             metadata={
+                "adata": adata,
                 "sdata": sdata,
                 "name": original_name,
                 "_active_in_cs": {selected_cs},
@@ -372,29 +491,36 @@ class SpatialDataViewer(QObject):
         }
 
         CIRCLES_AS_POINTS = True
+        version = get_napari_version()
+        kwargs: dict[str, Any] = (
+            {"edge_width": 0.0} if version <= packaging.version.parse("0.4.20") else {"border_width": 0.0}
+        )
         if CIRCLES_AS_POINTS:
             layer = self.viewer.add_points(
                 yx,
                 name=key,
                 affine=affine,
                 size=1,  # the sise doesn't matter here since it will be adjusted in _adjust_radii_of_points_layer
-                edge_width=0.0,
                 metadata=metadata,
+                **kwargs,
             )
             assert affine is not None
             self._adjust_radii_of_points_layer(layer=layer, affine=affine)
         else:
+            if version <= packaging.version.parse("0.4.20"):
+                kwargs |= {"edge_color": "white"}
+            else:
+                kwargs |= {"border_color": "white"}
             # useful code to have readily available to debug the correct radius of circles when represented as points
             ellipses = _get_ellipses_from_circles(yx=yx, radii=radii)
             self.viewer.add_shapes(
                 ellipses,
                 shape_type="ellipse",
                 name=key,
-                edge_color="white",
                 face_color="white",
-                edge_width=0.0,
                 affine=affine,
                 metadata=metadata,
+                **kwargs,
             )
 
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
@@ -477,7 +603,7 @@ class SpatialDataViewer(QObject):
         if multi:
             original_name = original_name[: original_name.rfind("_")]
 
-        indices = _get_unique_label_values_as_index(sdata.labels[original_name])
+        indices = get_element_instances(sdata.labels[original_name])
         affine = _get_transform(sdata.labels[original_name], selected_cs)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
 
@@ -526,7 +652,12 @@ class SpatialDataViewer(QObject):
         if len(points) < config.POINT_THRESHOLD:
             subsample = None
         else:
-            logger.info("Subsampling points because the number of points exceeds the currently supported 100 000.")
+            logger.info(
+                f"Subsampling points because the number of points exceeds the currently supported "
+                f"{config.POINT_THRESHOLD}. You can change this threshold with "
+                f"```from napari_spatialdata.constants import config\n"
+                f"config.POINT_THRESHOLD = <new_threshold>```"
+            )
             gen = np.random.default_rng()
             subsample = np.sort(gen.choice(len(points), size=config.POINT_THRESHOLD, replace=False))  # same as indices
 
@@ -539,12 +670,13 @@ class SpatialDataViewer(QObject):
         np.fliplr(xy)
         # radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
         radii_size = 3
+        version = get_napari_version()
+        kwargs = {"edge_width": 0.0} if version <= packaging.version.parse("0.4.20") else {"border_width": 0.0}
         layer = self.viewer.add_points(
             xy,
             name=key,
             size=radii_size * 2,
             affine=affine,
-            edge_width=0.0,
             metadata={
                 "sdata": sdata,
                 "adata": adata,
@@ -562,6 +694,7 @@ class SpatialDataViewer(QObject):
                     else None
                 ),
             },
+            **kwargs,
         )
         assert affine is not None
         self._adjust_radii_of_points_layer(layer=layer, affine=affine)
