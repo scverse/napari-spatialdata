@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from collections import defaultdict
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
 
 import matplotlib.pyplot as plt
 import napari
@@ -101,7 +101,7 @@ class AListWidget(ListWidget):
     layerChanged = Signal()
 
     def __init__(self, viewer: Viewer | None, model: DataModel, attr: str, **kwargs: Any):
-        if attr not in DataModel.VALID_ATTRIBUTES:
+        if attr is not None and attr not in DataModel.VALID_ATTRIBUTES:
             raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(DataModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
 
@@ -110,7 +110,11 @@ class AListWidget(ListWidget):
 
         self._attr = attr
 
-        self._getter = getattr(self.model, f"get_{attr}")
+        if attr is None:
+            self._getter: Callable[..., Any] = lambda: None
+        else:
+            self._getter = getattr(self.model, f"get_{attr}")
+
         self.layerChanged.connect(self._onChange)
         self._onChange()
 
@@ -291,7 +295,7 @@ class AListWidget(ListWidget):
 
 
 class ComponentWidget(QtWidgets.QComboBox):
-    def __init__(self, model: DataModel, attr: str, max_visible: int = 4, **kwargs: Any):
+    def __init__(self, model: DataModel, attr: str | None, max_visible: int = 4, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._model = model
@@ -330,6 +334,8 @@ class ComponentWidget(QtWidgets.QComboBox):
     def setAttribute(self, field: str | None) -> None:
         if field == self.attr:
             return
+        if field == "None":
+            field = None
         self.attr = field
         self._onChange()
 

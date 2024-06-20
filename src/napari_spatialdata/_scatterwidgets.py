@@ -17,7 +17,7 @@ from qtpy.QtWidgets import QPushButton
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
-from napari_spatialdata.utils._utils import NDArrayA, _get_categorical, _set_palette
+from napari_spatialdata.utils._utils import NDArrayA
 
 __all__ = [
     "PlotWidget",
@@ -34,7 +34,7 @@ class ScatterListWidget(AListWidget):
         AListWidget.__init__(self, None, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
-        self._data: NDArrayA | dict[str, Any] | None = None
+        self._data: dict[str, Any] | None = None
         self.itemClicked.connect(lambda item: self._onOneClick((item.text(),)))
 
     def _onChange(self) -> None:
@@ -44,42 +44,62 @@ class ScatterListWidget(AListWidget):
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
+
+            # check if there is an annotation connecting to the main viewer
+            # if not, only the main column will be retrieved
+            # test!!!
+
             try:
+                self._model.instance_key = item
+                logger.info(f"Getting {self.getAttribute()} data for {item} at {self}")
                 vec, _ = self._getter(item, index=self.getIndex())
             except Exception as e:  # noqa: BLE001
                 logger.error(e)
+                logger.info(self)
                 continue
             self.chosen = item
             if isinstance(vec, np.ndarray):
-                self.data = vec
+                self.data = {"vec": vec}
             elif vec is not None and isinstance(vec.dtype, CategoricalDtype):
-                self.data = vec
-                colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=vec)
-                if self._color:
-                    self.data = {
-                        "vec": _get_categorical(
-                            self.model.adata, key=item, vec=vec, palette=self.model.palette, colordict=colortypes
-                        ),
-                        "cat": vec,
-                        "palette": colortypes,
-                    }
+                sorted_set = sorted(set(vec))
+                category_map = {category: index for index, category in enumerate(sorted_set)}
+                self.data = {"vec": np.array([category_map[cat] for cat in vec]), "labels": sorted_set}
+
+                # colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=vec)
+                # if self._color:
+                #     self.data = {
+                #         "vec": _get_categorical(
+                #             self.model.adata, key=item, vec=vec, palette=self.model.palette, colordict=colortypes
+                #         ),
+                #         "cat": vec,
+                #         "palette": colortypes,
+                #     }
+            elif vec is None:
+                self.data = None
             else:
                 raise TypeError(f"The chosen field's datatype ({vec.dtype.name}) cannot be plotted")
         return
 
     def _onOneClick(self, items: Iterable[str]) -> None:
         if self.getAttribute() == "obsm":
+            logger.info(f"{self} should be skipping action")
             return
+        logger.info(f"{self} is calling action")
         self._onAction(items)
         return
 
     def setAttribute(self, field: str | None) -> None:
         if field == self.getAttribute():
             return
-        if field not in ("var", "obs", "obsm"):
+        if field not in ("None", "var", "obs", "obsm"):
             raise ValueError(f"{field} is not a valid adata field.")
-        self._attr = field
-        self._getter = getattr(self.model, f"get_{field}")
+        if field == "None":
+            self.data = None
+            self._attr = "None"
+            self._getter = lambda: None
+        else:
+            self._attr = field
+            self._getter = getattr(self.model, f"get_{field}")
         self.attrChanged.emit()
 
     def getAttribute(self) -> str | None:
@@ -106,7 +126,7 @@ class ScatterListWidget(AListWidget):
 
     @text.setter
     def text(self, text: str | int | None) -> None:
-        self._text = text if text is not None else None
+        self._text = text
 
     @property
     def chosen(self) -> str | None:
@@ -114,15 +134,78 @@ class ScatterListWidget(AListWidget):
 
     @chosen.setter
     def chosen(self, chosen: str | None) -> None:
-        self._chosen = chosen if chosen is not None else None
+        self._chosen = chosen
 
     @property
-    def data(self) -> NDArrayA | dict[str, Any] | None:
+    def data(self) -> None | dict[str, Any] | None:
         return self._data
 
     @data.setter
-    def data(self, data: NDArrayA | dict[str, Any]) -> None:
+    def data(self, data: None | dict[str, Any]) -> None:
         self._data = data
+
+
+class AxisWidgets(QtWidgets.QWidget):
+    def __init__(self, model: DataModel, name: str, color: bool = False):
+        super().__init__()
+
+        self._model = model
+
+        selection_label = QtWidgets.QLabel(f"{name} type:")
+        selection_label.setToolTip("Select between obs, obsm and var.")
+
+        self.selection_widget = QtWidgets.QComboBox()
+        self.selection_widget.addItem("None", None)
+        self.selection_widget.addItem("obsm", None)
+        self.selection_widget.addItem("obs", None)
+        self.selection_widget.addItem("var", None)
+
+        self.setLayout(QtWidgets.QVBoxLayout())
+        self.layout().addWidget(selection_label)
+        self.layout().addWidget(self.selection_widget)
+
+        label = QtWidgets.QLabel(f"Select for {name}:")
+        label.setToolTip(f"Select {name}.")
+
+        self.widget = ScatterListWidget(self.model, attr="None", color=color)
+        self.widget.setAttribute("None")
+
+        self.component_widget = ComponentWidget(self.model, attr="None")
+        self.component_widget.setToolTip("Select axis of obsm data.")
+        self.component_widget.currentTextChanged.connect(self.widget.setComponent)
+        self.widget.itemClicked.connect(self.component_widget._onClickChange)
+
+        self.layout().addWidget(label)
+        self.layout().addWidget(self.widget)
+        self.layout().addWidget(self.component_widget)
+
+        self.selection_widget.currentTextChanged.connect(self.widget.setAttribute)
+        self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
+        self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
+
+    def getFormattedLabel(self) -> str | None:
+        return (
+            str(self.widget.getAttribute()) + ": " + str(self.widget.chosen)
+            if self.widget.text is None
+            else (
+                str(self.widget.getAttribute()) + ": " + str(self.widget.chosen) + "[" + str(self.widget.text) + "]"
+                if self.widget.getAttribute() == "obsm"
+                else str(self.widget.getAttribute())
+                + ": "
+                + str(self.widget.chosen)
+                + " on layer "
+                + str(self.widget.text)
+            )
+        )
+
+    def clear(self) -> None:
+        self.widget.clear()
+        self.component_widget.clear()
+
+    @property
+    def model(self) -> DataModel:
+        """:mod:`napari` viewer."""
+        return self._model
 
 
 class PlotWidget(GraphicsLayoutWidget):
@@ -143,10 +226,12 @@ class PlotWidget(GraphicsLayoutWidget):
             self._viewer.close()
 
         self.scatter_plot = self.addPlot(title="")
+
         self.scatter = None
         self.x_data: NDArrayA | pd.Series | None = None
         self.y_data: NDArrayA | pd.Series | None = None
         self.color_data: NDArrayA | pd.Series | None = None
+        self.brushes: list[Any] | None = None
 
         # threshold for adding new vertex to the ROI
         self.vertex_add_threshold = 20
@@ -199,7 +284,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.lut.disableAutoHistogramRange()
         self.lut.gradient.sigGradientChanged.connect(self.on_gradient_changed)
 
-        # set default colormap with no ticks
+        # set default colormap with no triangle ticks
         color_map = pg.colormap.get("viridis")
         self.lut.gradient.setColorMap(color_map)
         st = self.lut.gradient.saveState()
@@ -332,9 +417,9 @@ class PlotWidget(GraphicsLayoutWidget):
 
     def _onClick(
         self,
-        x_data: NDArrayA | pd.Series | None,
-        y_data: NDArrayA | pd.Series | None,
-        color_data: NDArrayA | pd.Series | None,
+        x_data: dict[str, Any] | None,
+        y_data: dict[str, Any] | None,
+        color_data: dict[str, Any] | None,
         x_label: str | None,
         y_label: str | None,
         color_label: str | None,
@@ -342,116 +427,94 @@ class PlotWidget(GraphicsLayoutWidget):
         self.cat = None
         self.palette = None
 
-        self.x_data = x_data
-        self.y_data = y_data
-        self.color_data = color_data
-        self.x_label = x_label
-        self.y_label = y_label
-        self.color_label = color_label
+        x_changed = False
+        y_changed = False
 
-        # prepare for plotting
-        self.scatter_plot.setLabel("bottom", self.x_label)
-        self.scatter_plot.setLabel("left", self.y_label)
+        if np.any(x_data != self.x_data):
+            x_changed = True
+            self.x_data = x_data["vec"] if x_data else None
+            self.x_ticks = x_data.get("labels") if x_data else None
+            self.x_label = x_label if x_label else "Count"
+
+            self.scatter_plot.setLabel("bottom", self.x_label)
+
+        if np.any(y_data != self.y_data):
+            y_changed = True
+            self.y_data = y_data["vec"] if y_data else None
+            self.y_ticks = y_data.get("labels") if y_data else None
+            self.y_label = y_label if y_label else "Count"
+
+            self.scatter_plot.setLabel("left", self.y_label)
+
+        if np.any(color_data != self.color_data):
+            self.color_data = color_data["vec"] if color_data else None
+            self.color_names = color_data.get("labels") if color_data else None
+            self.color_label = color_label
+
+            if self.color_data is not None:
+                y, x = np.histogram(self.color_data, density=True, bins=100)
+                self.lut.plot.setData(x[:-1], y)
+                self.lut.setLevels(np.min(self.color_data), np.max(self.color_data))
+                self.lut.autoHistogramRange()
+            else:
+                self.lut.plot.setData(None, None)
+                self.lut.setLevels(0, 1)
+                self.lut.disableAutoHistogramRange()
+
+            # generate brushes
+            self.brushes = self.get_brushes()
+
+        if x_changed or y_changed:
+            self.scatter_plot.getAxis("bottom").setTicks(None)
+            self.scatter_plot.getAxis("left").setTicks(None)
 
         self.plot()
 
         # rescale for new data
-        self.scatter_plot.enableAutoRange("xy", True)
+        if x_changed or y_changed:
+            self.scatter_plot.enableAutoRange("xy", True)
+            self.update_ticks()
 
-        # draw the histogram of the color distribution
-        if self.color_data is not None:
-            y, x = np.histogram(self.color_data, density=True, bins=100)
-            self.lut.plot.setData(x[:-1], y)
-            self.lut.setLevels(np.min(self.color_data), np.max(self.color_data))
-            self.lut.autoHistogramRange()
+    def update_ticks(self) -> None:
+
+        axis = self.scatter_plot.getAxis("bottom")
+        if self.x_ticks is not None:
+            axis.setTicks([[(i, str(x)) for i, x in enumerate(self.x_ticks)]])
+            # axis.setStyle(tickTextAngle=45
+
+        axis = self.scatter_plot.getAxis("left")
+        if self.y_ticks is not None:
+            axis.setTicks([[(i, str(y)) for i, y in enumerate(self.y_ticks)]])
 
     def plot(self, event: Any = None) -> None:
 
-        self.clear_plot()
+        # self.clear_plot()
 
         if self.x_data is not None or self.y_data is not None:
 
             logger.info("Generating scatter plot...")
 
-            # generate brushes if color data is present
-            brushes = self.get_brushes()
-
             # plot the scatter plot
             if self.x_data is not None and self.y_data is not None:
                 self.scatter = self.scatter_plot.plot(
-                    self.x_data, self.y_data, pen=None, symbol="o", symbolBrush=brushes
+                    self.x_data, self.y_data, pen=None, symbol="o", symbolBrush=self.brushes, clear=True
                 )
+            # plot the pseudo scatter plot on x axis
             elif self.x_data is not None:
                 ps = pg.pseudoScatter(self.x_data)
-                self.scatter = self.scatter_plot.plot(self.x_data, ps, fillLevel=0, pen=None, symbolBrush=brushes)
+                self.scatter = self.scatter_plot.plot(
+                    self.x_data, ps, fillLevel=0, pen=None, symbolBrush=self.brushes, clear=True
+                )
+            # plot the pseudo scatter plot on y axis
             elif self.y_data is not None:
                 ps = pg.pseudoScatter(self.y_data)
-                self.scatter = self.scatter_plot.plot(ps, self.y_data, fillLevel=0, pen=None, symbolBrush=brushes)
+                self.scatter = self.scatter_plot.plot(
+                    ps, self.y_data, fillLevel=0, pen=None, symbolBrush=self.brushes, clear=True
+                )
 
-    def clear_plot(self) -> None:
-        """Clears the scatter plot"""
-        if self.scatter:
-            self.scatter_plot.removeItem(self.scatter)
-            self.scatter = None
+    # def clear_plot(self) -> None:
+    #     """Clears the scatter plot"""
 
-
-class AxisWidgets(QtWidgets.QWidget):
-    def __init__(self, model: DataModel, name: str, color: bool = False):
-        super().__init__()
-
-        self._model = model
-
-        selection_label = QtWidgets.QLabel(f"{name} type:")
-        selection_label.setToolTip("Select between obs, obsm and var.")
-        self.selection_widget = QtWidgets.QComboBox()
-        # self.selection_widget.addItem("None", None)
-        self.selection_widget.addItem("obsm", None)
-        self.selection_widget.addItem("obs", None)
-        self.selection_widget.addItem("var", None)
-
-        self.setLayout(QtWidgets.QVBoxLayout())
-        self.layout().addWidget(selection_label)
-        self.layout().addWidget(self.selection_widget)
-
-        label = QtWidgets.QLabel(f"Select for {name}:")
-        label.setToolTip(f"Select {name}.")
-
-        self.widget = ScatterListWidget(self.model, attr="obsm", color=color)
-        self.widget.setAttribute("obsm")
-
-        self.component_widget = ComponentWidget(self.model, attr="obsm")
-        self.component_widget.setToolTip("obsm")
-        self.component_widget.currentTextChanged.connect(self.widget.setComponent)
-        self.widget.itemClicked.connect(self.component_widget._onClickChange)
-
-        self.layout().addWidget(label)
-        self.layout().addWidget(self.widget)
-        self.layout().addWidget(self.component_widget)
-
-        self.selection_widget.currentTextChanged.connect(self.widget.setAttribute)
-        self.selection_widget.currentTextChanged.connect(self.component_widget.setAttribute)
-        self.selection_widget.currentTextChanged.connect(self.component_widget.setToolTip)
-
-    def getFormattedLabel(self) -> str | None:
-        return (
-            str(self.widget.getAttribute()) + ": " + str(self.widget.chosen)
-            if self.widget.text is None
-            else (
-                str(self.widget.getAttribute()) + ": " + str(self.widget.chosen) + "[" + str(self.widget.text) + "]"
-                if self.widget.getAttribute() == "obsm"
-                else str(self.widget.getAttribute())
-                + ": "
-                + str(self.widget.chosen)
-                + " on layer "
-                + str(self.widget.text)
-            )
-        )
-
-    def clear(self) -> None:
-        self.widget.clear()
-        self.component_widget.clear()
-
-    @property
-    def model(self) -> DataModel:
-        """:mod:`napari` viewer."""
-        return self._model
+    #     if self.scatter:
+    #         self.scatter_plot.removeItem(self.scatter)
+    #         self.scatter = None
