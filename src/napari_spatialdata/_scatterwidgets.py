@@ -6,11 +6,13 @@ import numpy as np
 import pandas as pd
 import pyqtgraph as pg
 from loguru import logger
+from napari.utils.colormaps import label_colormap
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
-from pyqtgraph import GraphicsLayoutWidget
+from pyqtgraph import GraphicsLayoutWidget, GraphicsWidget
 from pyqtgraph.graphicsItems import ROI
-from qtpy import QtWidgets
+from pyqtgraph.Qt import QtCore, QtWidgets
+from pyqtgraph.widgets.ColorButton import ColorButton
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
 from qtpy.QtWidgets import QPushButton
@@ -51,7 +53,6 @@ class ScatterListWidget(AListWidget):
 
             try:
                 self._model.instance_key = item
-                logger.info(f"Getting {self.getAttribute()} data for {item} at {self}")
                 vec, _ = self._getter(item, index=self.getIndex())
             except Exception as e:  # noqa: BLE001
                 logger.error(e)
@@ -208,6 +209,64 @@ class AxisWidgets(QtWidgets.QWidget):
         return self._model
 
 
+class DiscreteColorWidget(GraphicsWidget):
+
+    def __init__(self, model: DataModel, color_data: dict[str, Any]):
+        super().__init__()
+
+        self._model = model
+
+        self.layout = QtWidgets.QGraphicsLinearLayout(QtCore.Qt.Vertical)
+        self.setLayout(self.layout)
+
+        self.color_buttons = {}
+
+        if self._model.palette is not None:
+            self.palette = self._model.palette
+        else:
+            napari_colormap = label_colormap(len(color_data["labels"]))
+
+        for ind, obj_category in enumerate(color_data["labels"]):
+
+            h_layout = QtWidgets.QGraphicsLinearLayout(QtCore.Qt.Horizontal)
+
+            label_widget = GraphicsWidget()
+            label_layout = QtWidgets.QGraphicsLinearLayout(QtCore.Qt.Horizontal)
+
+            text_proxy = QtWidgets.QGraphicsProxyWidget()
+            label = QtWidgets.QLabel(obj_category)
+            label.setStyleSheet("background-color: black; color: white;")
+            text_proxy.setWidget(label)
+
+            label_layout.addItem(text_proxy)
+            label_widget.setLayout(label_layout)
+
+            color = napari_colormap.map(ind + 1) * 255
+            color_button = ColorButton(color=color)
+            color_button.setMinimumSize(60, 30)
+            color_button.setMaximumSize(60, 30)
+            color_button.setStyleSheet(
+                """
+            QPushButton {
+                background-color: transparent;
+                border: none;
+            }
+            """
+            )
+
+            self.color_buttons[obj_category] = color_button
+
+            button_proxy = QtWidgets.QGraphicsProxyWidget()
+            button_proxy.setWidget(color_button)
+
+            h_layout.addItem(button_proxy)
+            h_layout.addItem(label_widget)
+            self.layout.addItem(h_layout)
+
+    def on_color_changed(self) -> None:
+        pass
+
+
 class PlotWidget(GraphicsLayoutWidget):
 
     def __init__(self, viewer: Viewer | None, model: DataModel):
@@ -292,16 +351,19 @@ class PlotWidget(GraphicsLayoutWidget):
         self.lut.gradient.restoreState(st)
 
         # connect the signal to update the scatter plot colors
-        self.lut.sigLevelChangeFinished.connect(self.plot)
+        self.lut.sigLevelChangeFinished.connect(self.on_gradient_changed)
         self.addItem(self.lut, row=0, col=2)
 
     def on_gradient_changed(self) -> None:
         """Update the scatter plot colors when the gradient is changed."""
+        self.brushes = self.get_brushes()
         self.plot()
 
     def get_brushes(self, event: Any = None) -> list[QColor] | None:
         """Get the brushes for the scatter plot based on the color data."""
         if self.color_data is not None:
+
+            logger.info("Generating brushes...")
 
             level_min, level_max = self.lut.getLevels()
 
@@ -452,6 +514,7 @@ class PlotWidget(GraphicsLayoutWidget):
             self.color_label = color_label
 
             if self.color_data is not None:
+                # here - check if the data are discrete or cont
                 y, x = np.histogram(self.color_data, density=True, bins=100)
                 self.lut.plot.setData(x[:-1], y)
                 self.lut.setLevels(np.min(self.color_data), np.max(self.color_data))

@@ -101,7 +101,7 @@ class AListWidget(ListWidget):
     layerChanged = Signal()
 
     def __init__(self, viewer: Viewer | None, model: DataModel, attr: str, **kwargs: Any):
-        if attr is not None and attr not in DataModel.VALID_ATTRIBUTES:
+        if attr != "None" and attr not in DataModel.VALID_ATTRIBUTES:
             raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(DataModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
 
@@ -110,7 +110,7 @@ class AListWidget(ListWidget):
 
         self._attr = attr
 
-        if attr is None:
+        if attr == "None":
             self._getter: Callable[..., Any] = lambda: None
         else:
             self._getter = getattr(self.model, f"get_{attr}")
