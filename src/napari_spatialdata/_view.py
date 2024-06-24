@@ -718,7 +718,8 @@ class QtAdataAnnotationWidget(QWidget):
         """Update current annotator when the text of the annotator dropdown has changed."""
         self._current_annotator = self.annotation_widget.annotators.currentText()
 
-    def _update_table_name_widget(self, sdata: SpatialData, element_name: str) -> None:
+    def _update_table_name_widget(self, sdata: SpatialData, element_name: str, table_name: str = "") -> None:
+        self.annotation_widget.table_name_widget.clear()
         table_names = list(get_element_annotators(sdata, element_name))
 
         table_names_to_add = []
@@ -726,6 +727,8 @@ class QtAdataAnnotationWidget(QWidget):
             if any("color" in key for key in sdata[name].uns):
                 table_names_to_add.append(name)
         self.annotation_widget.table_name_widget.addItems(table_names_to_add)
+        if table_name != "":
+            self.annotation_widget.table_name_widget.setCurrentText(table_name)
 
     def _import_table_information(self) -> None:
         table_name = self.annotation_widget.table_name_widget.currentText()
@@ -788,7 +791,7 @@ class QtAdataAnnotationWidget(QWidget):
                 table_columns=[self._current_class_column, self._current_class_column + "_color"],
                 overwrite=True,
             )
-            self._update_table_name_widget(layer.metadata["sdata"], layer.metadata["name"])
+            self._update_table_name_widget(layer.metadata["sdata"], layer.metadata["name"], table_name)
         else:
             show_info("Saving canceled.")
 

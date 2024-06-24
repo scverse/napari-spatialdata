@@ -589,7 +589,9 @@ class SaveDialog(QtWidgets.QDialog):
     def save_clicked(self) -> None:
         self.table_name = self.table_line_edit.text()
         self.shape_name = self.spatial_element_line_edit.text()
-        if overwrite_table := (self.table_name in self.sdata.tables) or self.shape_name in self.sdata.shapes:
+        if (overwrite_table := self.table_name in self.sdata.tables) or (
+            overwrite_shape := self.shape_name in self.sdata.shapes
+        ):
             overwrite_shape = self.shape_name in self.sdata.shapes
 
             if overwrite_table and overwrite_shape:
