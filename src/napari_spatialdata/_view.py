@@ -780,6 +780,7 @@ class QtAdataAnnotationWidget(QWidget):
 
     def _open_save_dialog(self) -> None:
         layer = self.viewer.layers.selection.active
+        previous_shape_name = layer.metadata["name"]
         save_dialog = SaveDialog(layer)
         save_dialog.exec_()
         table_name = save_dialog.get_save_table_name()
@@ -793,8 +794,10 @@ class QtAdataAnnotationWidget(QWidget):
                 overwrite=True,
             )
             if (
-                previous_table := self.annotation_widget.table_name_widget.currentText()
-            ) != table_name and previous_table != "":
+                (previous_table := self.annotation_widget.table_name_widget.currentText()) != table_name
+                and previous_table != ""
+                and shape_name == previous_shape_name
+            ):
                 del layer.metadata["sdata"].tables[previous_table]
                 layer.metadata["sdata"].delete_element_from_disk(previous_table)
                 show_info(f"Table name has changed and table with name {previous_table} has been deleted.")
