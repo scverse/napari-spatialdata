@@ -253,4 +253,6 @@ def test_layer_selection(make_napari_viewer: Any, image: NDArrayA, widget: Any, 
     assert_equal(widget.model.adata.copy(), sdata_blobs["table"])
 
     sdata_widget.viewer_model.add_sdata_image(sdata_blobs, "blobs_image", "global", False)
-    assert_equal(widget.model.adata.copy(), sdata_blobs["table"])
+
+    # table is annotating blobs labels so there should be no matching rows.
+    assert widget.model.adata.n_obs == 0
