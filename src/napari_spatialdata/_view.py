@@ -719,16 +719,17 @@ class QtAdataAnnotationWidget(QWidget):
         self._current_annotator = self.annotation_widget.annotators.currentText()
 
     def _update_table_name_widget(self, sdata: SpatialData, element_name: str, table_name: str = "") -> None:
-        self.annotation_widget.table_name_widget.clear()
         table_names = list(get_element_annotators(sdata, element_name))
 
         table_names_to_add = []
         for name in table_names:
             if any("color" in key for key in sdata[name].uns):
                 table_names_to_add.append(name)
-        self.annotation_widget.table_name_widget.addItems(table_names_to_add)
-        if table_name != "":
-            self.annotation_widget.table_name_widget.setCurrentText(table_name)
+        with block_signals(self.annotation_widget.table_name_widget):
+            self.annotation_widget.table_name_widget.clear()
+            self.annotation_widget.table_name_widget.addItems(table_names_to_add)
+            if table_name != "":
+                self.annotation_widget.table_name_widget.setCurrentText(table_name)
 
     def _import_table_information(self) -> None:
         table_name = self.annotation_widget.table_name_widget.currentText()
@@ -791,6 +792,12 @@ class QtAdataAnnotationWidget(QWidget):
                 table_columns=[self._current_class_column, self._current_class_column + "_color"],
                 overwrite=True,
             )
+            if (
+                previous_table := self.annotation_widget.table_name_widget.currentText()
+            ) != table_name and previous_table != "":
+                del layer.metadata["sdata"].tables[previous_table]
+                layer.metadata["sdata"].delete_element_from_disk(previous_table)
+                show_info(f"Table name has changed and table with name {previous_table} has been deleted.")
             self._update_table_name_widget(layer.metadata["sdata"], layer.metadata["name"], table_name)
         else:
             show_info("Saving canceled.")
