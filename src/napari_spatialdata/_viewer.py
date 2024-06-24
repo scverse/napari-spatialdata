@@ -15,11 +15,8 @@ from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.notifications import show_info
 from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
-from spatialdata._core.query.relational_query import (
-    _get_element_annotators,
-    _left_join_spatialelement_table,
-    get_element_instances,
-)
+from spatialdata import get_element_annotators, get_element_instances
+from spatialdata._core.query.relational_query import _left_join_spatialelement_table
 from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
@@ -402,7 +399,7 @@ class SpatialDataViewer(QObject):
     def _get_table_data(
         self, sdata: SpatialData, element_name: str
     ) -> tuple[AnnData | None, str | None, list[str | None]]:
-        table_names = list(_get_element_annotators(sdata, element_name))
+        table_names = list(get_element_annotators(sdata, element_name))
         table_name = table_names[0] if len(table_names) > 0 else None
         adata = _get_init_metadata_adata(sdata, table_name, element_name)
         return adata, table_name, table_names
