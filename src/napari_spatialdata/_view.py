@@ -25,8 +25,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from spatialdata import SpatialData, join_spatialelement_table
-from spatialdata._core.query.relational_query import _get_element_annotators
+from spatialdata import SpatialData, get_element_annotators, join_spatialelement_table
 from spatialdata.models import TableModel
 
 from napari_spatialdata._annotationwidgets import MainWindow
@@ -720,7 +719,7 @@ class QtAdataAnnotationWidget(QWidget):
         self._current_annotator = self.annotation_widget.annotators.currentText()
 
     def _update_table_name_widget(self, sdata: SpatialData, element_name: str) -> None:
-        table_names = list(_get_element_annotators(sdata, element_name))
+        table_names = list(get_element_annotators(sdata, element_name))
 
         table_names_to_add = []
         for name in table_names:
