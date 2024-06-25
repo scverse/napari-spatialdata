@@ -6,12 +6,14 @@ import numpy as np
 import pandas as pd
 import pyqtgraph as pg
 from loguru import logger
+from napari.qt import get_current_stylesheet
 from napari.utils.colormaps import label_colormap
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
 from pyqtgraph import GraphicsLayoutWidget, GraphicsWidget
 from pyqtgraph.graphicsItems import ROI
-from pyqtgraph.Qt import QtCore, QtWidgets
+from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
+from pyqtgraph.Qt.QtCore import pyqtSignal
 from pyqtgraph.widgets.ColorButton import ColorButton
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
@@ -66,15 +68,6 @@ class ScatterListWidget(AListWidget):
                 category_map = {category: index for index, category in enumerate(sorted_set)}
                 self.data = {"vec": np.array([category_map[cat] for cat in vec]), "labels": sorted_set}
 
-                # colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=vec)
-                # if self._color:
-                #     self.data = {
-                #         "vec": _get_categorical(
-                #             self.model.adata, key=item, vec=vec, palette=self.model.palette, colordict=colortypes
-                #         ),
-                #         "cat": vec,
-                #         "palette": colortypes,
-                #     }
             elif vec is None:
                 self.data = None
             else:
@@ -83,7 +76,6 @@ class ScatterListWidget(AListWidget):
 
     def _onOneClick(self, items: Iterable[str]) -> None:
         if self.getAttribute() == "obsm":
-            logger.info(f"{self} should be skipping action")
             return
         logger.info(f"{self} is calling action")
         self._onAction(items)
@@ -211,6 +203,9 @@ class AxisWidgets(QtWidgets.QWidget):
 
 class DiscreteColorWidget(GraphicsWidget):
 
+    # Define the custom signal
+    paletteChanged = pyqtSignal()
+
     def __init__(self, model: DataModel, color_data: dict[str, Any]):
         super().__init__()
 
@@ -221,10 +216,11 @@ class DiscreteColorWidget(GraphicsWidget):
 
         self.color_buttons = {}
 
-        if self._model.palette is not None:
-            self.palette = self._model.palette
-        else:
-            napari_colormap = label_colormap(len(color_data["labels"]))
+        # TODO- format of the palette in the model itself
+        # if self._model.palette is not None:
+        #     self.palette = self._model.palette
+        # else:
+        self.palette = label_colormap(len(color_data["labels"]))
 
         for ind, obj_category in enumerate(color_data["labels"]):
 
@@ -241,7 +237,7 @@ class DiscreteColorWidget(GraphicsWidget):
             label_layout.addItem(text_proxy)
             label_widget.setLayout(label_layout)
 
-            color = napari_colormap.map(ind + 1) * 255
+            color = self.palette.map(ind + 1) * 255
             color_button = ColorButton(color=color)
             color_button.setMinimumSize(60, 30)
             color_button.setMaximumSize(60, 30)
@@ -256,6 +252,9 @@ class DiscreteColorWidget(GraphicsWidget):
 
             self.color_buttons[obj_category] = color_button
 
+            # connect to the color change
+            color_button.sigColorChanged.connect(self.on_color_changed)
+
             button_proxy = QtWidgets.QGraphicsProxyWidget()
             button_proxy.setWidget(color_button)
 
@@ -263,8 +262,18 @@ class DiscreteColorWidget(GraphicsWidget):
             h_layout.addItem(label_widget)
             self.layout.addItem(h_layout)
 
-    def on_color_changed(self) -> None:
-        pass
+    def on_color_changed(self, color_button: ColorButton) -> None:
+        for key, value in self.color_buttons.items():
+            if value is color_button:
+                obj_category = key
+                break
+        logger.info(f"Color changed for {obj_category}.")
+        new_color = color_button.color().getRgbF()
+        index = list(self.color_buttons.keys()).index(obj_category)
+        self.palette.colors[index + 1] = new_color
+
+        # Emit the signal
+        self.paletteChanged.emit()
 
 
 class PlotWidget(GraphicsLayoutWidget):
@@ -289,8 +298,12 @@ class PlotWidget(GraphicsLayoutWidget):
         self.scatter = None
         self.x_data: NDArrayA | pd.Series | None = None
         self.y_data: NDArrayA | pd.Series | None = None
-        self.color_data: NDArrayA | pd.Series | None = None
+        self.color_data: dict[str, Any] | None = None
+        self.color_label: str | None = None
         self.brushes: list[Any] | None = None
+        self.lut: pg.HistogramLUTItem | None = None
+        self.discrete_color_widget: DiscreteColorWidget | None = None
+        self.wrapped_widget: QtWidgets.QGraphicsProxyWidget | None = None
 
         # threshold for adding new vertex to the ROI
         self.vertex_add_threshold = 20
@@ -312,7 +325,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.auto_range_button.setToolTip("Auto Range")
         self.auto_range_button.move(10, 10)
 
-        # Drawing mode toggle button
+        # Polygon drawing mode toggle button
         self.drawing = False
         self.drawing_mode_button = QPushButton(self)
         self.drawing_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-polygon-80.png"))
@@ -338,22 +351,6 @@ class PlotWidget(GraphicsLayoutWidget):
         self.scatter_plot.scene().sigMouseClicked.connect(self.mousePressEvent)
         self.scatter_plot.scene().sigMouseClicked.connect(self.mouseMoveEvent)
 
-        # add the gradient widget with the histogram
-        self.lut = pg.HistogramLUTItem(gradientPosition="right")
-        self.lut.disableAutoHistogramRange()
-        self.lut.gradient.sigGradientChanged.connect(self.on_gradient_changed)
-
-        # set default colormap with no triangle ticks
-        color_map = pg.colormap.get("viridis")
-        self.lut.gradient.setColorMap(color_map)
-        st = self.lut.gradient.saveState()
-        st["ticksVisible"] = False
-        self.lut.gradient.restoreState(st)
-
-        # connect the signal to update the scatter plot colors
-        self.lut.sigLevelChangeFinished.connect(self.on_gradient_changed)
-        self.addItem(self.lut, row=0, col=2)
-
     def on_gradient_changed(self) -> None:
         """Update the scatter plot colors when the gradient is changed."""
         self.brushes = self.get_brushes()
@@ -361,13 +358,20 @@ class PlotWidget(GraphicsLayoutWidget):
 
     def get_brushes(self, event: Any = None) -> list[QColor] | None:
         """Get the brushes for the scatter plot based on the color data."""
-        if self.color_data is not None:
 
-            logger.info("Generating brushes...")
+        logger.info("Generating brushes...")
+
+        # for discrete data
+        if self.discrete_color_widget is not None:
+
+            return [pg.mkBrush(*x) for x in self.discrete_color_widget.palette.map(self.color_vec + 1) * 255]
+
+        # for continuos data
+        if self.lut is not None:
 
             level_min, level_max = self.lut.getLevels()
 
-            data = np.clip(self.color_data, level_min, level_max)
+            data = np.clip(self.color_vec, level_min, level_max)
             data = (data - level_min) / (level_max - level_min)
 
             return [pg.mkBrush(*x) for x in self.lut.gradient.colorMap().map(data)]
@@ -467,15 +471,74 @@ class PlotWidget(GraphicsLayoutWidget):
 
     def use_auto_range(self) -> None:
         """Default display of the graph."""
-        if self.color_data is not None:
-            color_min = self.color_data.min()
-            color_max = self.color_data.max()
-        else:
-            color_min = 0
-            color_max = 1
-        self.lut.setLevels(color_min, color_max)
+        if self.lut is not None:
+            color_min = self.color_vec.min()
+            color_max = self.color_vec.max()
+
+            self.lut.setLevels(color_min, color_max)
+
+        elif self.color_data and self.discrete_color_widget is not None:
+
+            # rebuild discrete color widget
+            self.removeItem(self.wrapped_widget)
+
+            self.discrete_color_widget = DiscreteColorWidget(self._model, self.color_data)
+            self.wrapped_widget = self.wrap_discrete_color_widget()
+            self.addItem(self.wrapped_widget, row=0, col=2)
+
+            # connect the signal to update the scatter plot colors
+            self.discrete_color_widget.paletteChanged.connect(self.on_gradient_changed)
+
+        self.brushes = self.get_brushes()
         self.plot()
         self.scatter_plot.enableAutoRange("xy", True)
+
+    def create_lut_hist(self) -> pg.HistogramLUTItem:
+
+        # add the gradient widget with the histogram
+        lut = pg.HistogramLUTItem(gradientPosition="right")
+        lut.disableAutoHistogramRange()
+
+        # set default colormap with no triangle ticks
+        color_map = pg.colormap.get("viridis")
+        lut.gradient.setColorMap(color_map)
+        st = lut.gradient.saveState()
+        st["ticksVisible"] = False
+        lut.gradient.restoreState(st)
+
+        y, x = np.histogram(self.color_vec, density=True, bins=100)
+        lut.plot.setData(x[:-1], y)
+        lut.setLevels(np.min(self.color_vec), np.max(self.color_vec))
+        lut.autoHistogramRange()
+
+        return lut
+
+    def wrap_discrete_color_widget(self) -> QtWidgets.QGraphicsProxyWidget:
+        """Wrap the discrete color widget in a GraphicsWidget to make it scrollable."""
+
+        # Create a QGraphicsScene and add the custom widget
+        scene = QtWidgets.QGraphicsScene()
+        scene.addItem(self.discrete_color_widget)
+
+        # Create a QGraphicsView, set the scene, and make it scrollable
+        view = QtWidgets.QGraphicsView(scene)
+        view.setRenderHint(QtGui.QPainter.Antialiasing)
+        view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        # sets stle of the vertical slider
+        view.setStyleSheet(get_current_stylesheet())
+        view.setStyleSheet(
+            """
+            QGraphicsView {
+            border: none;
+            background: rgb(0, 0, 0);
+            }
+            """
+        )
+
+        view_proxy = QtWidgets.QGraphicsProxyWidget()
+        view_proxy.setWidget(view)
+
+        return view_proxy
 
     def _onClick(
         self,
@@ -486,6 +549,7 @@ class PlotWidget(GraphicsLayoutWidget):
         y_label: str | None,
         color_label: str | None,
     ) -> None:
+
         self.cat = None
         self.palette = None
 
@@ -508,24 +572,51 @@ class PlotWidget(GraphicsLayoutWidget):
 
             self.scatter_plot.setLabel("left", self.y_label)
 
-        if np.any(color_data != self.color_data):
-            self.color_data = color_data["vec"] if color_data else None
+        if color_label != self.color_label:
+            logger.info("Color data changed.")
+            self.color_data = color_data
+            self.color_vec = color_data["vec"] if color_data else None
             self.color_names = color_data.get("labels") if color_data else None
             self.color_label = color_label
 
-            if self.color_data is not None:
-                # here - check if the data are discrete or cont
-                y, x = np.histogram(self.color_data, density=True, bins=100)
-                self.lut.plot.setData(x[:-1], y)
-                self.lut.setLevels(np.min(self.color_data), np.max(self.color_data))
-                self.lut.autoHistogramRange()
-            else:
-                self.lut.plot.setData(None, None)
-                self.lut.setLevels(0, 1)
-                self.lut.disableAutoHistogramRange()
+            # clear previous color widgets
+            if self.lut:
+                self.removeItem(self.lut)
+                self.lut = None
+            if self.wrapped_widget:
+                self.removeItem(self.wrapped_widget)
+                self.discrete_color_widget = None
+                self.wrapped_widget = None
 
-            # generate brushes
-            self.brushes = self.get_brushes()
+            logger.info("Prvious widgets cleared.")
+
+            if self.color_data is not None:
+
+                # discrete color data
+                if self.color_names is not None:
+
+                    self.discrete_color_widget = DiscreteColorWidget(self._model, self.color_data)
+                    self.wrapped_widget = self.wrap_discrete_color_widget()
+                    self.addItem(self.wrapped_widget, row=0, col=2)
+
+                    # connect the signal to update the scatter plot colors
+                    self.discrete_color_widget.paletteChanged.connect(self.on_gradient_changed)
+
+                else:
+
+                    self.lut = self.create_lut_hist()
+                    self.addItem(self.lut, row=0, col=2)
+
+                    # connect the signal to update the scatter plot colors
+                    self.lut.sigLevelChangeFinished.connect(self.on_gradient_changed)
+                    self.lut.gradient.sigGradientChanged.connect(self.on_gradient_changed)
+
+                # generate brushes
+                self.brushes = self.get_brushes()
+
+            else:
+
+                self.brushes = None
 
         if x_changed or y_changed:
             self.scatter_plot.getAxis("bottom").setTicks(None)
@@ -550,8 +641,7 @@ class PlotWidget(GraphicsLayoutWidget):
             axis.setTicks([[(i, str(y)) for i, y in enumerate(self.y_ticks)]])
 
     def plot(self, event: Any = None) -> None:
-
-        # self.clear_plot()
+        """Plot the scatter plot or pseudo histogram."""
 
         if self.x_data is not None or self.y_data is not None:
 
@@ -574,10 +664,3 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.scatter = self.scatter_plot.plot(
                     ps, self.y_data, fillLevel=0, pen=None, symbolBrush=self.brushes, clear=True
                 )
-
-    # def clear_plot(self) -> None:
-    #     """Clears the scatter plot"""
-
-    #     if self.scatter:
-    #         self.scatter_plot.removeItem(self.scatter)
-    #         self.scatter = None
