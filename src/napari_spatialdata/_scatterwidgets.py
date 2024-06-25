@@ -343,8 +343,29 @@ class PlotWidget(GraphicsLayoutWidget):
         )
         self.drawing_mode_button.setCheckable(True)
         self.drawing_mode_button.clicked.connect(self.toggle_drawing_mode)
-        self.auto_range_button.setToolTip("Add ROIs.")
-        self.drawing_mode_button.move(50, 10)  # Adjust position as needed
+        self.drawing_mode_button.setToolTip("Add freehand ROIs.")
+        self.drawing_mode_button.move(90, 10)  # Adjust position as needed
+
+        # Rectangle drawing mode toggle button
+        self.rectangle = False
+        self.rectangle_mode_button = QPushButton(self)
+        self.rectangle_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-rectangle-48.png"))
+        self.rectangle_mode_button.setIconSize(QSize(24, 24))
+        self.rectangle_mode_button.setStyleSheet(
+            """
+            QPushButton {
+                background-color: transparent;
+                border: none;
+            }
+            QPushButton:checked {
+                border: 1px solid white;
+            }
+        """
+        )
+        self.rectangle_mode_button.setCheckable(True)
+        self.rectangle_mode_button.clicked.connect(self.toggle_rectangle_mode)
+        self.rectangle_mode_button.setToolTip("Add rectangular ROIs.")
+        self.rectangle_mode_button.move(50, 10)  # Adjust position as needed
 
         # Connect mouse events
         self.scatter_plot.setMouseEnabled(x=True, y=True)
@@ -378,40 +399,87 @@ class PlotWidget(GraphicsLayoutWidget):
 
         return None
 
+    def toggle_rectangle_mode(self) -> None:
+        self.rectangle = not self.rectangle
+        if self.rectangle:
+            self.drawing = False
+            self.drawing_mode_button.setChecked(False)
+            self._enable_rectangle_mode()
+        else:
+            self._disable_rectangle_mode()
+
     def toggle_drawing_mode(self) -> None:
         self.drawing = not self.drawing
         if self.drawing:
-            self.scatter_plot.setMouseEnabled(x=False, y=False)
-            self.scatter_plot.setMenuEnabled(False)
-            self.scatter_plot.enableAutoRange("xy", False)
+            self.rectangle = False
+            self.rectangle_mode_button.setChecked(False)
+            self._enable_drawing_mode()
         else:
-            self.scatter_plot.setMouseEnabled(x=True, y=True)
-            self.scatter_plot.setMenuEnabled(True)
-            # self.scatter_plot.enableAutoRange("xy", True)
+            self._disable_drawing_mode()
+
+    def _update_scatter_plot(self, mouse_enabled: bool, menu_enabled: bool, auto_range_enabled: bool) -> None:
+        self.scatter_plot.setMouseEnabled(x=mouse_enabled, y=mouse_enabled)
+        self.scatter_plot.setMenuEnabled(menu_enabled)
+        self.scatter_plot.enableAutoRange("xy", auto_range_enabled)
+
+    def _enable_drawing_mode(self) -> None:
+        self._update_scatter_plot(mouse_enabled=False, menu_enabled=False, auto_range_enabled=False)
+
+    def _disable_drawing_mode(self) -> None:
+        self._update_scatter_plot(mouse_enabled=True, menu_enabled=True, auto_range_enabled=True)
+
+    def _enable_rectangle_mode(self) -> None:
+        self._update_scatter_plot(mouse_enabled=False, menu_enabled=False, auto_range_enabled=False)
+
+    def _disable_rectangle_mode(self) -> None:
+        self._update_scatter_plot(mouse_enabled=True, menu_enabled=True, auto_range_enabled=True)
 
     def mousePressEvent(self, event: Any) -> None:
-        if self.drawing and event.button() == Qt.LeftButton:
+
+        if (self.drawing or self.rectangle) and event.button() == Qt.LeftButton:
             logger.info("Left press detected")
 
             pen = pg.mkPen(color="gray", width=2)
             hoverPen = pg.mkPen(color="red", width=2)
             handlePen = pg.mkPen(color="red", width=2)
 
-            self.current_roi = pg.PolyLineROI(
-                [], closed=True, removable=True, pen=pen, handlePen=handlePen, hoverPen=hoverPen
-            )
-            self.scatter_plot.addItem(self.current_roi)
+            if self.drawing:
 
-            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
-            self.current_points = [(plot_pos.x(), plot_pos.y())]
-            self.last_pos = (event.pos().x(), event.pos().y())
+                self.current_roi = pg.PolyLineROI(
+                    [], closed=True, removable=True, pen=pen, handlePen=handlePen, hoverPen=hoverPen
+                )
+                self.scatter_plot.addItem(self.current_roi)
 
-            event.accept()
+                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                self.current_points = [(plot_pos.x(), plot_pos.y())]
+                self.last_pos = (event.pos().x(), event.pos().y())
+
+                event.accept()
+
+            if self.rectangle:
+
+                logger.info("Rectangle")
+
+                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                self.current_roi = pg.RectROI(
+                    pos=(plot_pos.x(), plot_pos.y()),
+                    size=(0, 0),
+                    removable=True,
+                    pen=pen,
+                    handlePen=handlePen,
+                    hoverPen=hoverPen,
+                )
+                self.scatter_plot.addItem(self.current_roi)
+
+                self.initial_pos = plot_pos
+
+                event.accept()
 
         else:
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: Any) -> None:
+
         if self.drawing and self.current_roi is not None:
 
             if self.last_pos is not None:
@@ -427,26 +495,45 @@ class PlotWidget(GraphicsLayoutWidget):
                     self.last_pos = (event.pos().x(), event.pos().y())
 
             event.accept()
+
+        elif self.rectangle and self.current_roi is not None:
+
+            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+            width = plot_pos.x() - self.initial_pos.x()
+            height = plot_pos.y() - self.initial_pos.y()
+            self.current_roi.setSize([width, height])
+
+            event.accept()
+
         else:
             super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: Any) -> None:
-        if self.drawing and event.button() == Qt.LeftButton:
 
-            logger.info("Left button released.")
+        if self.drawing and event.button() == Qt.LeftButton:
+            logger.info("Left button released from drawing.")
 
             if (self.current_roi is not None) and (len(self.current_points) > 2):
-
-                # Connect the signal for removing the ROI
                 self.current_roi.sigRemoveRequested.connect(self.remove_roi)
-
-                # store with other ROIs
                 self.roi_list.append(self.current_roi)
 
             self.current_roi = None
             self.current_points = []
 
             event.accept()
+
+        elif self.rectangle and event.button() == Qt.LeftButton:
+            logger.info("Left button released from rectangle.")
+
+            if self.current_roi is not None:
+                self.current_roi.sigRemoveRequested.connect(self.remove_roi)
+                self.roi_list.append(self.current_roi)
+
+            self.current_roi = None
+            self.initial_pos = None
+
+            event.accept()
+
         else:
             super().mouseReleaseEvent(event)
 
@@ -492,6 +579,12 @@ class PlotWidget(GraphicsLayoutWidget):
         self.brushes = self.get_brushes()
         self.plot()
         self.scatter_plot.enableAutoRange("xy", True)
+
+        # reset ROI modes
+        self.rectangle = False
+        self.rectangle_mode_button.setChecked(False)
+        self.drawing = False
+        self.drawing_mode_button.setChecked(False)
 
     def create_lut_hist(self) -> pg.HistogramLUTItem:
 
