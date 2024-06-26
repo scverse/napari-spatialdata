@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import Any, Sequence
 
 import napari
+import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
 from napari._qt.utils import QImg2array
 from napari.layers import Image, Labels, Layer, Points, Shapes
+from napari.layers._multiscale_data import MultiScaleData
 from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
@@ -242,12 +244,24 @@ class QtAdataViewWidget(QWidget):
 
             has_sdata = layer is not None and layer.metadata.get("sdata") is not None
             has_adata = layer is not None and layer.metadata.get("adata") is not None
+
+            # has_adata is added so we see the channels in the view widget under vars
             if layer is not None and is_image and has_sdata and has_adata:
                 c_channel = event.value[0]
 
-                image = layer.data[c_channel, :, :].compute()
-                min_value = image.min()
-                max_value = image.max()
+                # TODO remove once contrast limits in napari are fixed
+                if isinstance(layer.data, MultiScaleData):
+                    # just compute lowest resolution
+                    image = layer.data[-1][c_channel, :, :].compute()
+                    min_value = image.min().data
+                    max_value = image.max().data
+                else:
+                    image = layer.data[c_channel, :, :].compute()
+                    min_value = image.min()
+                    max_value = image.max()
+                if min_value == max_value:
+                    min_value = np.iinfo(image.data.dtype).min
+                    max_value = np.iinfo(image.data.dtype).max
                 layer.contrast_limits = [min_value, max_value]
 
                 item = self.var_widget.item(c_channel)
