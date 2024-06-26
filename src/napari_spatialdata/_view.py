@@ -10,8 +10,11 @@ from napari.viewer import Viewer
 from qtpy.QtCore import QSize, Qt
 from qtpy.QtWidgets import (
     QComboBox,
+    QDialog,
+    QDialogButtonBox,
     QGridLayout,
     QLabel,
+    QLineEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -30,6 +33,31 @@ from napari_spatialdata._widgets import (
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
 from napari_spatialdata.utils._utils import _get_init_table_list
+
+
+class AnnotationDialog(QDialog):
+    def __init__(self, parent: Optional[QWidget] = None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Name Obs")
+
+        self.layout = QVBoxLayout()
+
+        self.label = QLabel("Annotation Name:")
+        self.layout.addWidget(self.label)
+
+        self.textbox = QLineEdit(self)
+        self.layout.addWidget(self.textbox)
+
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        self.layout.addWidget(self.buttonBox)
+
+        self.setLayout(self.layout)
+
+    def get_annotation_name(self) -> str:
+        return str(self.textbox.text())
 
 
 class QtAdataScatterWidget(QWidget):
@@ -102,12 +130,41 @@ class QtAdataScatterWidget(QWidget):
 
         self.model.events.adata.connect(self._on_selection)
 
-    def export(self) -> None:
-        """Export shapes."""
-        if (self.plot_widget.selector) is None or (self.plot_widget.selector.exported_data is None):
-            raise ValueError("Data points haven't been selected from the visualisation.")
+    def open_annotation_dialog(self) -> str:
+        dialog = AnnotationDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            annotation_name = dialog.get_annotation_name()
 
-        self.plot_widget.selector.export(self.model.adata)
+        return str(annotation_name)
+
+    def export(self) -> None:
+        """Export selected points as adata column."""
+        if len(self.plot_widget.roi_list) > 0:
+
+            # display a message window to get the column name
+            self.annotation_name = self.open_annotation_dialog()
+
+            if self.annotation_name is not None:
+
+                # get selected points
+                self.selected_vector = self.plot_widget.get_selection()
+
+                # modify andata table
+                self.model.adata.obs[self.annotation_name] = self.selected_vector
+
+                # send modified andata table to the widget
+
+                # save the modified table
+
+            else:
+
+                # display status message that no column name was provided
+                pass
+
+        else:
+
+            # display status message that no ROIs are available to save the selection
+            pass
 
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":

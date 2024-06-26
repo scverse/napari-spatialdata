@@ -18,6 +18,7 @@ from pyqtgraph.widgets.ColorButton import ColorButton
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
 from qtpy.QtWidgets import QPushButton
+from shapely.geometry import Point, Polygon
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
@@ -63,7 +64,7 @@ class ScatterListWidget(AListWidget):
             self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = {"vec": vec}
-            elif vec is not None and isinstance(vec.dtype, CategoricalDtype):
+            elif vec is not None and isinstance(vec.dtype, (CategoricalDtype, bool)):
                 sorted_set = sorted(set(vec))
                 category_map = {category: index for index, category in enumerate(sorted_set)}
                 self.data = {"vec": np.array([category_map[cat] for cat in vec]), "labels": sorted_set}
@@ -224,6 +225,8 @@ class DiscreteColorWidget(GraphicsWidget):
 
         for ind, obj_category in enumerate(color_data["labels"]):
 
+            obj_category = str(obj_category)
+
             h_layout = QtWidgets.QGraphicsLinearLayout(QtCore.Qt.Horizontal)
 
             label_widget = GraphicsWidget()
@@ -300,6 +303,8 @@ class PlotWidget(GraphicsLayoutWidget):
         self.y_data: NDArrayA | pd.Series | None = None
         self.color_data: dict[str, Any] | None = None
         self.color_label: str | None = None
+        self.x_label: str | None = None
+        self.y_label: str | None = None
         self.brushes: list[Any] | None = None
         self.lut: pg.HistogramLUTItem | None = None
         self.discrete_color_widget: DiscreteColorWidget | None = None
@@ -539,10 +544,18 @@ class PlotWidget(GraphicsLayoutWidget):
 
     def mouseDoubleClickEvent(self, event: Any) -> None:
         if event.button() == Qt.LeftButton:
-            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
 
-            for roi in self.roi_list:
-                if roi.contains(plot_pos):
+            polygon_list = self.rois_to_polygons()
+
+            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+            point = Point(plot_pos.x(), plot_pos.y())
+
+            for polygon in polygon_list:
+
+                if polygon.contains(point):
+
+                    roi = self.roi_list[polygon_list.index(polygon)]
+
                     logger.info(f"Remove {roi}.")
                     self.scatter_plot.removeItem(roi)
                     self.roi_list.remove(roi)
@@ -649,7 +662,7 @@ class PlotWidget(GraphicsLayoutWidget):
         x_changed = False
         y_changed = False
 
-        if np.any(x_data != self.x_data):
+        if x_label != self.x_label:
             x_changed = True
             self.x_data = x_data["vec"] if x_data else None
             self.x_ticks = x_data.get("labels") if x_data else None
@@ -657,7 +670,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
             self.scatter_plot.setLabel("bottom", self.x_label)
 
-        if np.any(y_data != self.y_data):
+        if y_label != self.y_label:
             y_changed = True
             self.y_data = y_data["vec"] if y_data else None
             self.y_ticks = y_data.get("labels") if y_data else None
@@ -666,7 +679,7 @@ class PlotWidget(GraphicsLayoutWidget):
             self.scatter_plot.setLabel("left", self.y_label)
 
         if color_label != self.color_label:
-            logger.info("Color data changed.")
+
             self.color_data = color_data
             self.color_vec = color_data["vec"] if color_data else None
             self.color_names = color_data.get("labels") if color_data else None
@@ -681,8 +694,7 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.discrete_color_widget = None
                 self.wrapped_widget = None
 
-            logger.info("Prvious widgets cleared.")
-
+            # build a new appropriate color widget
             if self.color_data is not None:
 
                 # discrete color data
@@ -712,8 +724,14 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.brushes = None
 
         if x_changed or y_changed:
+            logger.info("A change in x or y data has been detected.")
             self.scatter_plot.getAxis("bottom").setTicks(None)
             self.scatter_plot.getAxis("left").setTicks(None)
+
+            # clear ROIs
+            for roi in self.roi_list:
+                self.scatter_plot.removeItem(roi)
+            self.roi_list = []
 
         self.plot()
 
@@ -721,6 +739,10 @@ class PlotWidget(GraphicsLayoutWidget):
         if x_changed or y_changed:
             self.scatter_plot.enableAutoRange("xy", True)
             self.update_ticks()
+
+        else:
+            for roi in self.roi_list:
+                self.scatter_plot.addItem(roi)
 
     def update_ticks(self) -> None:
 
@@ -757,3 +779,62 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.scatter = self.scatter_plot.plot(
                     ps, self.y_data, fillLevel=0, pen=None, symbolBrush=self.brushes, clear=True
                 )
+
+    def get_selection(self) -> NDArrayA | None:
+        """Get the selection from the scatter plot."""
+
+        if self.scatter is None:
+
+            return None
+
+        boolean_vector = np.zeros(len(self._model.adata), dtype=bool)
+
+        polygon_list = self.rois_to_polygons()
+
+        for i, (x, y) in enumerate(zip(self.scatter.xData, self.scatter.yData)):
+            point = Point(x, y)
+            # Check if the point belongs to any ROI
+            for polygon in polygon_list:
+
+                if polygon.contains(point):
+                    boolean_vector[i] = True
+                    break
+
+        return boolean_vector
+
+    def rois_to_polygons(self) -> list[Polygon]:
+
+        # create a list of polygons
+        polygon_list = []
+
+        for roi in self.roi_list:
+
+            if type(roi) == pg.graphicsItems.ROI.PolyLineROI:
+
+                polygon_points = [(x[1][0], x[1][1]) for x in roi.getLocalHandlePositions()]
+                polygon = Polygon(polygon_points)
+
+            elif type(roi) == pg.graphicsItems.ROI.RectROI:
+
+                # Get the position and size of the RectROI
+                pos = roi.pos()
+                size = roi.size()
+
+                # Calculate the vertices of the RectROI
+                x0, y0 = pos[0], pos[1]
+                x1, y1 = x0 + size[0], y0
+                x2, y2 = x1, y1 + size[1]
+                x3, y3 = x0, y0 + size[1]
+
+                # Create a list of vertices
+                vertices = [(x0, y0), (x1, y1), (x2, y2), (x3, y3), (x0, y0)]
+
+                # Create a Shapely Polygon
+                polygon = Polygon(vertices)
+
+            else:
+                raise TypeError("Only PolyLineROI and RectROI are supported.")
+
+            polygon_list.append(polygon)
+
+        return polygon_list
