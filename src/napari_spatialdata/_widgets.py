@@ -558,12 +558,12 @@ class RangeSliderWidget(QRangeSlider):
 
 
 class SaveDialog(QtWidgets.QDialog):
-    def __init__(self, layer: Layer) -> None:
+    def __init__(self, layer: Layer, table_name: str) -> None:
         super().__init__()
 
         self.setWindowTitle("Save Dialog")
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        self.table_name: str | None = f"annotation_{layer.name}"
+        self.table_name: str | None = table_name if table_name != "" else f"annotation_{layer.name}"
         self.shape_name: str | None = layer.name
         self.sdata = layer.metadata["sdata"]
 

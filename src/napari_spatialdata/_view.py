@@ -725,11 +725,11 @@ class QtAdataAnnotationWidget(QWidget):
         for name in table_names:
             if any("color" in key for key in sdata[name].uns):
                 table_names_to_add.append(name)
-        with block_signals(self.annotation_widget.table_name_widget):
-            self.annotation_widget.table_name_widget.clear()
-            self.annotation_widget.table_name_widget.addItems(table_names_to_add)
-            if table_name != "":
-                self.annotation_widget.table_name_widget.setCurrentText(table_name)
+
+        self.annotation_widget.table_name_widget.clear()
+        self.annotation_widget.table_name_widget.addItems(table_names_to_add)
+        if table_name != "":
+            self.annotation_widget.table_name_widget.setCurrentText(table_name)
 
     def _import_table_information(self) -> None:
         table_name = self.annotation_widget.table_name_widget.currentText()
@@ -781,7 +781,7 @@ class QtAdataAnnotationWidget(QWidget):
     def _open_save_dialog(self) -> None:
         layer = self.viewer.layers.selection.active
         previous_shape_name = layer.metadata["name"]
-        save_dialog = SaveDialog(layer)
+        save_dialog = SaveDialog(layer, self.annotation_widget.table_name_widget.currentText())
         save_dialog.exec_()
         table_name = save_dialog.get_save_table_name()
         shape_name = save_dialog.get_save_shape_name()
@@ -801,6 +801,10 @@ class QtAdataAnnotationWidget(QWidget):
                 del layer.metadata["sdata"].tables[previous_table]
                 layer.metadata["sdata"].delete_element_from_disk(previous_table)
                 show_info(f"Table name has changed and table with name {previous_table} has been deleted.")
+            if previous_table == table_name and shape_name != previous_shape_name and previous_table != "":
+                del layer.metadata["sdata"].shapes[previous_shape_name]
+                layer.metadata["sdata"].delete_element_from_disk(previous_shape_name)
+                self._viewer_model.layer_saved.emit(layer.metadata["_current_cs"])
             self._update_table_name_widget(layer.metadata["sdata"], layer.metadata["name"], table_name)
         else:
             show_info("Saving canceled.")
