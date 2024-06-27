@@ -558,12 +558,12 @@ class RangeSliderWidget(QRangeSlider):
 
 
 class SaveDialog(QtWidgets.QDialog):
-    def __init__(self, layer: Layer) -> None:
+    def __init__(self, layer: Layer, table_name: str) -> None:
         super().__init__()
 
         self.setWindowTitle("Save Dialog")
         self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
-        self.table_name: str | None = f"annotation_{layer.name}"
+        self.table_name: str | None = table_name if table_name != "" else f"annotation_{layer.name}"
         self.shape_name: str | None = layer.name
         self.sdata = layer.metadata["sdata"]
 
@@ -589,7 +589,9 @@ class SaveDialog(QtWidgets.QDialog):
     def save_clicked(self) -> None:
         self.table_name = self.table_line_edit.text()
         self.shape_name = self.spatial_element_line_edit.text()
-        if overwrite_table := (self.table_name in self.sdata.tables) or self.shape_name in self.sdata.shapes:
+        if (overwrite_table := self.table_name in self.sdata.tables) or (
+            overwrite_shape := self.shape_name in self.sdata.shapes
+        ):
             overwrite_shape = self.shape_name in self.sdata.shapes
 
             if overwrite_table and overwrite_shape:
