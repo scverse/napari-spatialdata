@@ -552,7 +552,6 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.roi_list.append(self.current_roi)
 
             self.switch_to_default_mode()
-
             event.accept()
 
         elif self.rectangle and event.button() == Qt.LeftButton:
@@ -562,7 +561,6 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.roi_list.append(self.current_roi)
 
             self.switch_to_default_mode()
-
             event.accept()
 
         else:
@@ -571,29 +569,12 @@ class PlotWidget(GraphicsLayoutWidget):
     def mouseDoubleClickEvent(self, event: Any) -> None:
         if event.button() == Qt.LeftButton:
 
-            polygon_list = self.rois_to_polygons()
-
             plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
             point = Point(plot_pos.x(), plot_pos.y())
 
-            for polygon in polygon_list:
-
-                if polygon.contains(point):
-
-                    roi = self.roi_list[polygon_list.index(polygon)]
-
-                    logger.info(f"Remove {roi}.")
-                    self.scatter_plot.removeItem(roi)
-                    self.roi_list.remove(roi)
-                    break
+            self.remove_roi(point=point)
 
             event.accept()
-
-    def remove_roi(self, roi: ROI) -> None:
-        # Remove the specific ROI that emitted the signal
-        logger.info(f"Remove {self.current_roi} ROI.")
-        self.scatter_plot.removeItem(roi)
-        self.roi_list.remove(roi)
 
     def use_auto_range(self) -> None:
         """Default display of the graph."""
@@ -863,3 +844,46 @@ class PlotWidget(GraphicsLayoutWidget):
             polygon_list.append(polygon)
 
         return polygon_list
+
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+        if event.key() == Qt.Key_D:
+            modifiers = QtWidgets.QApplication.keyboardModifiers()
+            if modifiers == Qt.ShiftModifier:
+                self.remove_all_rois()
+            else:
+                self.remove_roi_under_cursor()
+        else:
+            super().keyPressEvent(event)
+
+    def remove_all_rois(self) -> None:
+        logger.info("Removing all ROIs.")
+        for roi in self.roi_list:
+            self.scatter_plot.removeItem(roi)
+        self.roi_list = []
+
+    def remove_roi_under_cursor(self) -> None:
+        pos = QtGui.QCursor.pos()
+        scene_pos = self.scatter_plot.vb.mapSceneToView(self.mapFromGlobal(pos))
+        point = Point(scene_pos.x(), scene_pos.y())
+
+        self.remove_roi(point=point)
+
+    def remove_roi(self, roi: ROI | None = None, point: Point | None = None) -> None:
+        """Remove specified ROI or ROI under the cursor."""
+
+        # find roi by point
+        if point is not None:
+
+            polygon_list = self.rois_to_polygons()
+
+            for polygon in polygon_list:
+
+                if polygon.contains(point):
+
+                    roi = self.roi_list[polygon_list.index(polygon)]
+                    break
+
+        if roi is not None:
+            logger.info(f"Remove {roi} ROI.")
+            self.scatter_plot.removeItem(roi)
+            self.roi_list.remove(roi)
