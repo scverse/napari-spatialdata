@@ -167,7 +167,7 @@ class SpatialDataViewer(QObject):
             sdata.write_element(element_name)
         else:
             sdata[element_name] = element
-            show_info("Spatialdata object is not stored on disk, could only add element in memory.")
+            logger.warning("Spatialdata object is not stored on disk, could only add element in memory.")
 
     def _save_points_to_sdata(
         self, layer_to_save: Points, spatial_element_name: str | None, overwrite: bool
