@@ -152,9 +152,11 @@ class QtAdataScatterWidget(QWidget):
                 # modify andata table
                 self.model.adata.obs[self.annotation_name] = self.selected_vector
 
-                # send modified andata table to the widget
-
-                # save the modified table
+                # trigger a change of the adata table
+                # TODO re-think in a context of interacting with the main napari window
+                self.x_widget.widget._onChange()
+                self.y_widget.widget._onChange()
+                self.color_widget.widget._onChange()
 
             else:
 

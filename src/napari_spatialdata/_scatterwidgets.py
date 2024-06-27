@@ -65,7 +65,10 @@ class ScatterListWidget(AListWidget):
             if isinstance(vec, np.ndarray):
                 self.data = {"vec": vec}
             elif vec is not None and isinstance(vec.dtype, (CategoricalDtype, bool)):
-                sorted_set = sorted(set(vec))
+                try:
+                    sorted_set = sorted(set(vec), key=int)
+                except ValueError:
+                    sorted_set = sorted(set(vec))
                 category_map = {category: index for index, category in enumerate(sorted_set)}
                 self.data = {"vec": np.array([category_map[cat] for cat in vec]), "labels": sorted_set}
 
@@ -213,6 +216,8 @@ class DiscreteColorWidget(GraphicsWidget):
         self._model = model
 
         self.layout = QtWidgets.QGraphicsLinearLayout(QtCore.Qt.Vertical)
+        self.layout.setContentsMargins(0, 0, 0, 0)  # Set minimal margins
+        self.layout.setSpacing(0)  # Set minimal spacing
         self.setLayout(self.layout)
 
         self.color_buttons = {}
@@ -228,9 +233,11 @@ class DiscreteColorWidget(GraphicsWidget):
             obj_category = str(obj_category)
 
             h_layout = QtWidgets.QGraphicsLinearLayout(QtCore.Qt.Horizontal)
+            h_layout.setContentsMargins(0, 0, 0, 0)
 
             label_widget = GraphicsWidget()
             label_layout = QtWidgets.QGraphicsLinearLayout(QtCore.Qt.Horizontal)
+            label_layout.setContentsMargins(0, 0, 0, 0)
 
             text_proxy = QtWidgets.QGraphicsProxyWidget()
             label = QtWidgets.QLabel(obj_category)
@@ -297,6 +304,7 @@ class PlotWidget(GraphicsLayoutWidget):
             self._viewer.close()
 
         self.scatter_plot = self.addPlot(title="")
+        self.scatter_plot.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
 
         self.scatter = None
         self.x_data: NDArrayA | pd.Series | None = None
@@ -425,7 +433,7 @@ class PlotWidget(GraphicsLayoutWidget):
     def _update_scatter_plot(self, mouse_enabled: bool, menu_enabled: bool, auto_range_enabled: bool) -> None:
         self.scatter_plot.setMouseEnabled(x=mouse_enabled, y=mouse_enabled)
         self.scatter_plot.setMenuEnabled(menu_enabled)
-        self.scatter_plot.enableAutoRange("xy", auto_range_enabled)
+        # self.scatter_plot.enableAutoRange("xy", auto_range_enabled)
 
     def _enable_drawing_mode(self) -> None:
         self._update_scatter_plot(mouse_enabled=False, menu_enabled=False, auto_range_enabled=False)
@@ -442,11 +450,20 @@ class PlotWidget(GraphicsLayoutWidget):
     def mousePressEvent(self, event: Any) -> None:
 
         if (self.drawing or self.rectangle) and event.button() == Qt.LeftButton:
-            logger.info("Left press detected")
+            logger.debug("Left press detected")
+
+            # Get the position of the click in the scene
+            scene_pos = event.pos()
+
+            # Check if the click is within the scatter plot view box
+            if not self.scatter_plot.vb.sceneBoundingRect().contains(scene_pos):
+                return
 
             pen = pg.mkPen(color="gray", width=2)
             hoverPen = pg.mkPen(color="red", width=2)
             handlePen = pg.mkPen(color="red", width=2)
+
+            self.scatter_plot.enableAutoRange("xy", False)
 
             if self.drawing:
 
@@ -513,29 +530,38 @@ class PlotWidget(GraphicsLayoutWidget):
         else:
             super().mouseMoveEvent(event)
 
+    def switch_to_default_mode(self) -> None:
+        self.drawing = False
+        self.drawing_mode_button.setChecked(False)
+        self.rectangle = False
+        self.rectangle_mode_button.setChecked(False)
+
+        self.current_roi = None
+        self.current_points = []
+        self.initial_pos = None
+
+        self._disable_rectangle_mode()
+        self._disable_drawing_mode()
+
     def mouseReleaseEvent(self, event: Any) -> None:
 
         if self.drawing and event.button() == Qt.LeftButton:
-            logger.info("Left button released from drawing.")
 
             if (self.current_roi is not None) and (len(self.current_points) > 2):
                 self.current_roi.sigRemoveRequested.connect(self.remove_roi)
                 self.roi_list.append(self.current_roi)
 
-            self.current_roi = None
-            self.current_points = []
+            self.switch_to_default_mode()
 
             event.accept()
 
         elif self.rectangle and event.button() == Qt.LeftButton:
-            logger.info("Left button released from rectangle.")
 
             if self.current_roi is not None:
                 self.current_roi.sigRemoveRequested.connect(self.remove_roi)
                 self.roi_list.append(self.current_roi)
 
-            self.current_roi = None
-            self.initial_pos = None
+            self.switch_to_default_mode()
 
             event.accept()
 
@@ -594,10 +620,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.scatter_plot.enableAutoRange("xy", True)
 
         # reset ROI modes
-        self.rectangle = False
-        self.rectangle_mode_button.setChecked(False)
-        self.drawing = False
-        self.drawing_mode_button.setChecked(False)
+        self.switch_to_default_mode()
 
     def create_lut_hist(self) -> pg.HistogramLUTItem:
 
@@ -629,7 +652,7 @@ class PlotWidget(GraphicsLayoutWidget):
         # Create a QGraphicsView, set the scene, and make it scrollable
         view = QtWidgets.QGraphicsView(scene)
         view.setRenderHint(QtGui.QPainter.Antialiasing)
-        view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        # view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         # sets stle of the vertical slider
         view.setStyleSheet(get_current_stylesheet())
         view.setStyleSheet(
@@ -640,6 +663,8 @@ class PlotWidget(GraphicsLayoutWidget):
             }
             """
         )
+
+        view.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
 
         view_proxy = QtWidgets.QGraphicsProxyWidget()
         view_proxy.setWidget(view)
@@ -740,10 +765,6 @@ class PlotWidget(GraphicsLayoutWidget):
             self.scatter_plot.enableAutoRange("xy", True)
             self.update_ticks()
 
-        else:
-            for roi in self.roi_list:
-                self.scatter_plot.addItem(roi)
-
     def update_ticks(self) -> None:
 
         axis = self.scatter_plot.getAxis("bottom")
@@ -780,6 +801,9 @@ class PlotWidget(GraphicsLayoutWidget):
                     ps, self.y_data, fillLevel=0, pen=None, symbolBrush=self.brushes, clear=True
                 )
 
+            for roi in self.roi_list:
+                self.scatter_plot.addItem(roi)
+
     def get_selection(self) -> NDArrayA | None:
         """Get the selection from the scatter plot."""
 
@@ -811,7 +835,8 @@ class PlotWidget(GraphicsLayoutWidget):
 
             if type(roi) == pg.graphicsItems.ROI.PolyLineROI:
 
-                polygon_points = [(x[1][0], x[1][1]) for x in roi.getLocalHandlePositions()]
+                center_point = roi.getState()["pos"]
+                polygon_points = [center_point + x for x in roi.getState()["points"]]
                 polygon = Polygon(polygon_points)
 
             elif type(roi) == pg.graphicsItems.ROI.RectROI:
