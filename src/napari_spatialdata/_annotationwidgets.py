@@ -46,11 +46,16 @@ class TreeView(QTreeView):
         i = self.model.rowCount()
 
         if color:
-            color_button = ColorButton(color)
+            color_button = ColorButton(color, i)
             name_field = QLineEdit(name)
+            if i == 0:
+                name_field.setReadOnly(True)
+                name_field.setToolTip(
+                    "The first row of the table is not editable. " "Added annotation groups will be editable."
+                )
         else:
             random_color = self.generate_random_color_hex()
-            color_button = ColorButton(random_color)
+            color_button = ColorButton(random_color, i)
             name_field = QLineEdit(name + "_" + str(i))
             name_field.returnPressed.connect(lambda: self.clear_name_field_focus(name_field))
 
@@ -176,9 +181,10 @@ class MainWindow(QWidget):
 class ColorButton(QPushButton):
     color_changed = Signal(str, QPushButton)
 
-    def __init__(self, color: str, parent: QWidget | None = None) -> None:
+    def __init__(self, color: str, button_index: int, parent: QWidget | None = None) -> None:
         super().__init__("", parent)
-        self.clicked.connect(self.openColorDialog)
+        if button_index != 0:
+            self.clicked.connect(self.openColorDialog)
         self.setStyleSheet(f"background-color: {color}")
 
     def openColorDialog(self) -> None:
