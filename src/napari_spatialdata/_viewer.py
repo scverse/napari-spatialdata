@@ -113,14 +113,14 @@ class SpatialDataViewer(QObject):
     def _update_cache_indices(self, event: Event) -> None:
         del event.value
         # This needs to be changed when we switch to napari 0.4.19
-        if event.action == "remove" or (type(event.source) != Points and event.action == "change"):
+        if event.action == "remove" or (type(event.source) is not Points and event.action == "change"):
             # We overwrite the indices so they correspond to indices in the dataframe
             napari_indices = sorted(event.data_indices, reverse=True)
             event.indices = tuple(event.source.metadata["indices"][i] for i in napari_indices)
             if event.action == "remove":
                 for i in napari_indices:
                     del event.source.metadata["indices"][i]
-        elif type(event.source) == Points and event.action == "change":
+        elif type(event.source) is Points and event.action == "change":
             logger.warning(
                 "Moving events of Points in napari can't be cached due to a bug in napari 0.4.18. This will"
                 "be available in napari 0.4.19"
