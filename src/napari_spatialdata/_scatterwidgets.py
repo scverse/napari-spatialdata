@@ -989,6 +989,8 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.hovered_point.setData([self.x_data[idx]], [self.y_data[idx]])
                 self.hovered_point.setZValue(10)
                 value = self.color_vec[idx] if self.color_vec is not None else "N/A"
+                if self.color_names is not None:
+                    value = self.color_names[value]
                 self.data_point_label.setText(f"Value: {value}")
             else:
                 self.hovered_point.setData([], [])
