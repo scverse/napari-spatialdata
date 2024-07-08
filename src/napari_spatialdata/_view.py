@@ -152,11 +152,17 @@ class QtAdataScatterWidget(QWidget):
                 # modify andata table
                 self.model.adata.obs[self.annotation_name] = self.selected_vector
 
-                # trigger a change of the adata table
-                # TODO re-think in a context of interacting with the main napari window
-                self.x_widget.widget._onChange()
-                self.y_widget.widget._onChange()
-                self.color_widget.widget._onChange()
+                # add the new option to the obs widget
+                # without changing the current selection
+                widgets = {
+                    "color_widget": self.color_widget.widget,
+                    "x_widget": self.x_widget.widget,
+                    "y_widget": self.y_widget.widget,
+                }
+
+                for widget in widgets.values():
+                    if widget.getAttribute() == "obs":
+                        widget.addItems(self.annotation_name)
 
             else:
 

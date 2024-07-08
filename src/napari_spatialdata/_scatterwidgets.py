@@ -18,6 +18,7 @@ from pyqtgraph.widgets.ColorButton import ColorButton
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
 from qtpy.QtWidgets import QPushButton
+from scipy.spatial import cKDTree
 from shapely.geometry import Point, Polygon
 
 from napari_spatialdata._model import DataModel
@@ -286,14 +287,32 @@ class DiscreteColorWidget(GraphicsWidget):
         self.paletteChanged.emit()
 
 
+class HoverScatterPlotItem(pg.PlotDataItem):
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.setAcceptHoverEvents(True)
+
+    def hoverEvent(self, event: Any) -> None:
+        widget = self.getViewWidget()
+        if event.isExit():
+            widget.clearHoverHighlight()
+        else:
+            scene_pos = event.scenePos()
+            plot_pos = self.mapToParent(scene_pos)
+            widget.updateHoverHighlight(plot_pos.x(), plot_pos.y())
+
+
 class PlotWidget(GraphicsLayoutWidget):
 
-    def __init__(self, viewer: Viewer | None, model: DataModel):
+    def __init__(self, viewer: Viewer | None, model: DataModel) -> None:
 
         self.is_widget = False
         if viewer is None:
             viewer = Viewer()
             self.is_widget = True
+
+        self._init_complete = False
 
         super().__init__()
 
@@ -303,20 +322,33 @@ class PlotWidget(GraphicsLayoutWidget):
         if self.is_widget:
             self._viewer.close()
 
-        self.scatter_plot = self.addPlot(title="")
-        self.scatter_plot.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-
-        self.scatter = None
+        self.scatter: HoverScatterPlotItem | None = None
         self.x_data: NDArrayA | pd.Series | None = None
         self.y_data: NDArrayA | pd.Series | None = None
+        self.kd_tree: cKDTree | None = None
+        self.dist_threshold = [None, None]
         self.color_data: dict[str, Any] | None = None
         self.color_label: str | None = None
-        self.x_label: str | None = None
-        self.y_label: str | None = None
+        self.x_label: str | None = "None"
+        self.y_label: str | None = "None"
         self.brushes: list[Any] | None = None
         self.lut: pg.HistogramLUTItem | None = None
         self.discrete_color_widget: DiscreteColorWidget | None = None
         self.wrapped_widget: QtWidgets.QGraphicsProxyWidget | None = None
+
+        self.scatter_plot = self.addPlot(title="")
+        self.scatter_plot.setLabel("bottom", self.x_label)
+        self.scatter_plot.setLabel("left", self.x_label)
+        self.scatter_plot.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+
+        # Create a separate ScatterPlotItem for the highlighted point
+        self.hovered_point = pg.ScatterPlotItem(
+            pen=pg.mkPen("r", width=2), symbol="o", size=6, brush=pg.mkBrush(255, 0, 0)
+        )
+        self.scatter_plot.addItem(self.hovered_point)
+
+        # get default color of the scatter plot
+        self.color = tuple([x * 255 for x in self.scatter_plot.getAxis("bottom").pen().color().getRgbF()[:3]])
 
         # threshold for adding new vertex to the ROI
         self.vertex_add_threshold = 20
@@ -344,14 +376,14 @@ class PlotWidget(GraphicsLayoutWidget):
         self.drawing_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-polygon-80.png"))
         self.drawing_mode_button.setIconSize(QSize(24, 24))
         self.drawing_mode_button.setStyleSheet(
-            """
-            QPushButton {
+            f"""
+            QPushButton {{
                 background-color: transparent;
                 border: none;
-            }
-            QPushButton:checked {
-                border: 1px solid white;
-            }
+            }}
+            QPushButton:checked {{
+                border: 1px solid rgb{self.color};
+            }}
         """
         )
         self.drawing_mode_button.setCheckable(True)
@@ -365,14 +397,14 @@ class PlotWidget(GraphicsLayoutWidget):
         self.rectangle_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-rectangle-48.png"))
         self.rectangle_mode_button.setIconSize(QSize(24, 24))
         self.rectangle_mode_button.setStyleSheet(
-            """
-            QPushButton {
+            f"""
+            QPushButton {{
                 background-color: transparent;
                 border: none;
-            }
-            QPushButton:checked {
-                border: 1px solid white;
-            }
+            }}
+            QPushButton:checked {{
+                border: 1px solid rgb{self.color};
+            }}
         """
         )
         self.rectangle_mode_button.setCheckable(True)
@@ -384,6 +416,33 @@ class PlotWidget(GraphicsLayoutWidget):
         self.scatter_plot.setMouseEnabled(x=True, y=True)
         self.scatter_plot.scene().sigMouseClicked.connect(self.mousePressEvent)
         self.scatter_plot.scene().sigMouseClicked.connect(self.mouseMoveEvent)
+
+        # Add labels for cursor position and data point value
+        self.cursor_position_label = QtWidgets.QLabel(self)
+        self.cursor_position_label.setStyleSheet(f"QLabel {{ background-color : black; color : rgb{self.color}; }}")
+        self.cursor_position_label.setFixedSize(150, 20)
+
+        self.data_point_label = QtWidgets.QLabel(self)
+        self.data_point_label.setStyleSheet(f"QLabel {{ background-color : black; color : rgb{self.color}; }}")
+        self.data_point_label.setFixedSize(150, 20)
+
+        # Connect mouse events
+        self.scatter_plot.scene().sigMouseMoved.connect(self.mouseMoveEvent)
+
+        self._init_complete = True
+        self.update_label_positions()
+
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+        """Resizing of the window."""
+        super().resizeEvent(event)
+        if self._init_complete:
+            self.update_label_positions()
+
+    def update_label_positions(self) -> None:
+        """Update the position of the cursor position and data point labels."""
+        widget_height = self.size().height()
+        self.cursor_position_label.move(30, widget_height - 25)
+        self.data_point_label.move(170, widget_height - 25)
 
     def on_gradient_changed(self) -> None:
         """Update the scatter plot colors when the gradient is changed."""
@@ -433,7 +492,6 @@ class PlotWidget(GraphicsLayoutWidget):
     def _update_scatter_plot(self, mouse_enabled: bool, menu_enabled: bool, auto_range_enabled: bool) -> None:
         self.scatter_plot.setMouseEnabled(x=mouse_enabled, y=mouse_enabled)
         self.scatter_plot.setMenuEnabled(menu_enabled)
-        # self.scatter_plot.enableAutoRange("xy", auto_range_enabled)
 
     def _enable_drawing_mode(self) -> None:
         self._update_scatter_plot(mouse_enabled=False, menu_enabled=False, auto_range_enabled=False)
@@ -529,6 +587,16 @@ class PlotWidget(GraphicsLayoutWidget):
 
         else:
             super().mouseMoveEvent(event)
+
+        # Get cursor position
+        scene_pos = event.pos()
+        plot_pos = self.scatter_plot.vb.mapSceneToView(scene_pos)
+
+        # Update the cursor position label
+        self.cursor_position_label.setText(f"X: {plot_pos.x():.2f}, Y: {plot_pos.y():.2f}")
+
+        # Call the hover highlight update function
+        self.updateHoverHighlight(plot_pos.x(), plot_pos.y())
 
     def switch_to_default_mode(self) -> None:
         self.drawing = False
@@ -746,7 +814,20 @@ class PlotWidget(GraphicsLayoutWidget):
             self.scatter_plot.enableAutoRange("xy", True)
             self.update_ticks()
 
+            # build the KD tree
+            if self.x_data is not None and self.y_data is not None:
+                self.kd_tree = cKDTree(np.column_stack((self.x_data, self.y_data)))
+            else:
+                self.kd_tree = None
+
+            # Connect the view range change signal to the update function
+            self.scatter_plot.sigRangeChanged.connect(self.updateProximitySensitivity)
+
+            # Initial call to set the correct size
+            self.updateProximitySensitivity()
+
     def update_ticks(self) -> None:
+        """Update the ticks on the scatter plot axes."""
 
         axis = self.scatter_plot.getAxis("bottom")
         if self.x_ticks is not None:
@@ -762,13 +843,18 @@ class PlotWidget(GraphicsLayoutWidget):
 
         if self.x_data is not None or self.y_data is not None:
 
+            # clear previous
+            self.scatter_plot.removeItem(self.scatter)
+
             logger.info("Generating scatter plot...")
 
             # plot the scatter plot
             if self.x_data is not None and self.y_data is not None:
-                self.scatter = self.scatter_plot.plot(
-                    self.x_data, self.y_data, pen=None, symbol="o", symbolBrush=self.brushes, clear=True
+                self.scatter = HoverScatterPlotItem(
+                    x=self.x_data, y=self.y_data, pen=None, symbol="o", clear=True, symbolBrush=self.brushes
                 )
+                self.scatter_plot.addItem(self.scatter)
+
             # plot the pseudo scatter plot on x axis
             elif self.x_data is not None:
                 ps = pg.pseudoScatter(self.x_data)
@@ -808,6 +894,7 @@ class PlotWidget(GraphicsLayoutWidget):
         return boolean_vector
 
     def rois_to_polygons(self) -> list[Polygon]:
+        """Convert ROIs to Shapely Polygons."""
 
         # create a list of polygons
         polygon_list = []
@@ -846,6 +933,7 @@ class PlotWidget(GraphicsLayoutWidget):
         return polygon_list
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+        """Handle key press events."""
         if event.key() == Qt.Key_D:
             modifiers = QtWidgets.QApplication.keyboardModifiers()
             if modifiers == Qt.ShiftModifier:
@@ -856,12 +944,14 @@ class PlotWidget(GraphicsLayoutWidget):
             super().keyPressEvent(event)
 
     def remove_all_rois(self) -> None:
+        """Remove all ROIs."""
         logger.info("Removing all ROIs.")
         for roi in self.roi_list:
             self.scatter_plot.removeItem(roi)
         self.roi_list = []
 
     def remove_roi_under_cursor(self) -> None:
+        """Remove the ROI under the cursor."""
         pos = QtGui.QCursor.pos()
         scene_pos = self.scatter_plot.vb.mapSceneToView(self.mapFromGlobal(pos))
         point = Point(scene_pos.x(), scene_pos.y())
@@ -887,3 +977,32 @@ class PlotWidget(GraphicsLayoutWidget):
             logger.info(f"Remove {roi} ROI.")
             self.scatter_plot.removeItem(roi)
             self.roi_list.remove(roi)
+
+    def updateHoverHighlight(self, x: float, y: float) -> None:
+        """Update the hover highlight based on the cursor position."""
+        if self.kd_tree is not None and self.x_data is not None and self.y_data is not None:
+            # Query the k-d tree for the nearest neighbor
+            dist, idx = self.kd_tree.query([x, y], k=1)
+            dist_x = abs(x - self.x_data[idx])
+            dist_y = abs(y - self.y_data[idx])
+            if dist_x < self.dist_threshold[0] and dist_y < self.dist_threshold[1]:
+                self.hovered_point.setData([self.x_data[idx]], [self.y_data[idx]])
+                self.hovered_point.setZValue(10)
+                value = self.color_vec[idx] if self.color_vec is not None else "N/A"
+                self.data_point_label.setText(f"Value: {value}")
+            else:
+                self.hovered_point.setData([], [])
+                self.data_point_label.setText("Value: N/A")
+        else:
+            self.hovered_point.setData([], [])
+            self.data_point_label.setText("Value: N/A")
+
+    def clearHoverHighlight(self) -> None:
+        """Clear the hover highlight."""
+        self.hovered_point.setData([], [])
+        self.data_point_label.setText("Value: N/A")
+
+    def updateProximitySensitivity(self) -> None:
+        """Update the proximity sensitivity of the hover highlight."""
+        if self.scatter is not None:
+            self.dist_threshold = [x * 15 for x in self.scatter.pixelSize()]  # Adjust this factor as needed
