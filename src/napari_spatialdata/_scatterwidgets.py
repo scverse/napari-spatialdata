@@ -444,32 +444,63 @@ class PlotWidget(GraphicsLayoutWidget):
         self.cursor_position_label.move(30, widget_height - 25)
         self.data_point_label.move(170, widget_height - 25)
 
-    def on_gradient_changed(self) -> None:
-        """Update the scatter plot colors when the gradient is changed."""
+    def updateProximitySensitivity(self) -> None:
+        """Update the proximity sensitivity of the hover highlight."""
+        if self.scatter is not None:
+            self.dist_threshold = [x * 15 for x in self.scatter.pixelSize()]  # Adjust this factor as needed
+
+    def updateHoverHighlight(self, x: float, y: float) -> None:
+        """Update the hover highlight based on the cursor position."""
+        if self.kd_tree is not None and self.x_data is not None and self.y_data is not None:
+            # Query the k-d tree for the nearest neighbor
+            dist, idx = self.kd_tree.query([x, y], k=1)
+            dist_x = abs(x - self.x_data[idx])
+            dist_y = abs(y - self.y_data[idx])
+            if dist_x < self.dist_threshold[0] and dist_y < self.dist_threshold[1]:
+                self.hovered_point.setData([self.x_data[idx]], [self.y_data[idx]])
+                self.hovered_point.setZValue(10)
+                value = self.color_vec[idx] if self.color_vec is not None else "N/A"
+                if self.color_names is not None:
+                    value = self.color_names[value]
+                self.data_point_label.setText(f"Value: {value}")
+            else:
+                self.hovered_point.setData([], [])
+                self.data_point_label.setText("Value: N/A")
+        else:
+            self.hovered_point.setData([], [])
+            self.data_point_label.setText("Value: N/A")
+
+    def clearHoverHighlight(self) -> None:
+        """Clear the hover highlight."""
+        self.hovered_point.setData([], [])
+        self.data_point_label.setText("Value: N/A")
+
+    def use_auto_range(self) -> None:
+        """Default display of the graph."""
+        if self.lut is not None:
+            color_min = self.color_vec.min()
+            color_max = self.color_vec.max()
+
+            self.lut.setLevels(color_min, color_max)
+
+        elif self.color_data and self.discrete_color_widget is not None:
+
+            # rebuild discrete color widget
+            self.removeItem(self.wrapped_widget)
+
+            self.discrete_color_widget = DiscreteColorWidget(self._model, self.color_data)
+            self.wrapped_widget = self.wrap_discrete_color_widget()
+            self.addItem(self.wrapped_widget, row=0, col=2)
+
+            # connect the signal to update the scatter plot colors
+            self.discrete_color_widget.paletteChanged.connect(self.on_gradient_changed)
+
         self.brushes = self.get_brushes()
         self.plot()
+        self.scatter_plot.enableAutoRange("xy", True)
 
-    def get_brushes(self, event: Any = None) -> list[QColor] | None:
-        """Get the brushes for the scatter plot based on the color data."""
-
-        logger.info("Generating brushes...")
-
-        # for discrete data
-        if self.discrete_color_widget is not None:
-
-            return [pg.mkBrush(*x) for x in self.discrete_color_widget.palette.map(self.color_vec + 1) * 255]
-
-        # for continuos data
-        if self.lut is not None:
-
-            level_min, level_max = self.lut.getLevels()
-
-            data = np.clip(self.color_vec, level_min, level_max)
-            data = (data - level_min) / (level_max - level_min)
-
-            return [pg.mkBrush(*x) for x in self.lut.gradient.colorMap().map(data)]
-
-        return None
+        # reset ROI modes
+        self.switch_to_default_mode()
 
     def toggle_rectangle_mode(self) -> None:
         self.rectangle = not self.rectangle
@@ -505,99 +536,6 @@ class PlotWidget(GraphicsLayoutWidget):
     def _disable_rectangle_mode(self) -> None:
         self._update_scatter_plot(mouse_enabled=True, menu_enabled=True, auto_range_enabled=True)
 
-    def mousePressEvent(self, event: Any) -> None:
-
-        if (self.drawing or self.rectangle) and event.button() == Qt.LeftButton:
-            logger.debug("Left press detected")
-
-            # Get the position of the click in the scene
-            scene_pos = event.pos()
-
-            # Check if the click is within the scatter plot view box
-            if not self.scatter_plot.vb.sceneBoundingRect().contains(scene_pos):
-                return
-
-            pen = pg.mkPen(color="gray", width=2)
-            hoverPen = pg.mkPen(color="red", width=2)
-            handlePen = pg.mkPen(color="red", width=2)
-
-            self.scatter_plot.enableAutoRange("xy", False)
-
-            if self.drawing:
-
-                self.current_roi = pg.PolyLineROI(
-                    [], closed=True, removable=True, pen=pen, handlePen=handlePen, hoverPen=hoverPen
-                )
-                self.scatter_plot.addItem(self.current_roi)
-
-                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
-                self.current_points = [(plot_pos.x(), plot_pos.y())]
-                self.last_pos = (event.pos().x(), event.pos().y())
-
-                event.accept()
-
-            if self.rectangle:
-
-                logger.info("Rectangle")
-
-                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
-                self.current_roi = pg.RectROI(
-                    pos=(plot_pos.x(), plot_pos.y()),
-                    size=(0, 0),
-                    removable=True,
-                    pen=pen,
-                    handlePen=handlePen,
-                    hoverPen=hoverPen,
-                )
-                self.scatter_plot.addItem(self.current_roi)
-
-                self.initial_pos = plot_pos
-
-                event.accept()
-
-        else:
-            super().mousePressEvent(event)
-
-    def mouseMoveEvent(self, event: Any) -> None:
-
-        if self.drawing and self.current_roi is not None:
-
-            if self.last_pos is not None:
-                dist = np.sqrt((event.pos().x() - self.last_pos[0]) ** 2 + (event.pos().y() - self.last_pos[1]) ** 2)
-
-                if dist > self.vertex_add_threshold:
-
-                    plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
-                    self.current_points.append((plot_pos.x(), plot_pos.y()))
-
-                    self.current_roi.setPoints(self.current_points)
-
-                    self.last_pos = (event.pos().x(), event.pos().y())
-
-            event.accept()
-
-        elif self.rectangle and self.current_roi is not None:
-
-            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
-            width = plot_pos.x() - self.initial_pos.x()
-            height = plot_pos.y() - self.initial_pos.y()
-            self.current_roi.setSize([width, height])
-
-            event.accept()
-
-        else:
-            super().mouseMoveEvent(event)
-
-        # Get cursor position
-        scene_pos = event.pos()
-        plot_pos = self.scatter_plot.vb.mapSceneToView(scene_pos)
-
-        # Update the cursor position label
-        self.cursor_position_label.setText(f"X: {plot_pos.x():.2f}, Y: {plot_pos.y():.2f}")
-
-        # Call the hover highlight update function
-        self.updateHoverHighlight(plot_pos.x(), plot_pos.y())
-
     def switch_to_default_mode(self) -> None:
         self.drawing = False
         self.drawing_mode_button.setChecked(False)
@@ -611,114 +549,66 @@ class PlotWidget(GraphicsLayoutWidget):
         self._disable_rectangle_mode()
         self._disable_drawing_mode()
 
-    def mouseReleaseEvent(self, event: Any) -> None:
+    def get_selection(self) -> NDArrayA | None:
+        """Get the selection from the scatter plot."""
 
-        if self.drawing and event.button() == Qt.LeftButton:
+        if self.scatter is None:
 
-            if (self.current_roi is not None) and (len(self.current_points) > 2):
-                self.current_roi.sigRemoveRequested.connect(self.remove_roi)
-                self.roi_list.append(self.current_roi)
+            return None
 
-            self.switch_to_default_mode()
-            event.accept()
+        boolean_vector = np.zeros(len(self._model.adata), dtype=bool)
 
-        elif self.rectangle and event.button() == Qt.LeftButton:
+        polygon_list = self.rois_to_polygons()
 
-            if self.current_roi is not None:
-                self.current_roi.sigRemoveRequested.connect(self.remove_roi)
-                self.roi_list.append(self.current_roi)
+        for i, (x, y) in enumerate(zip(self.scatter.xData, self.scatter.yData)):
+            point = Point(x, y)
+            # Check if the point belongs to any ROI
+            for polygon in polygon_list:
 
-            self.switch_to_default_mode()
-            event.accept()
+                if polygon.contains(point):
+                    boolean_vector[i] = True
+                    break
 
-        else:
-            super().mouseReleaseEvent(event)
+        return boolean_vector
 
-    def mouseDoubleClickEvent(self, event: Any) -> None:
-        if event.button() == Qt.LeftButton:
+    def rois_to_polygons(self) -> list[Polygon]:
+        """Convert ROIs to Shapely Polygons."""
 
-            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
-            point = Point(plot_pos.x(), plot_pos.y())
+        # create a list of polygons
+        polygon_list = []
 
-            self.remove_roi(point=point)
+        for roi in self.roi_list:
 
-            event.accept()
+            if type(roi) == pg.graphicsItems.ROI.PolyLineROI:
 
-    def use_auto_range(self) -> None:
-        """Default display of the graph."""
-        if self.lut is not None:
-            color_min = self.color_vec.min()
-            color_max = self.color_vec.max()
+                center_point = roi.getState()["pos"]
+                polygon_points = [center_point + x for x in roi.getState()["points"]]
+                polygon = Polygon(polygon_points)
 
-            self.lut.setLevels(color_min, color_max)
+            elif type(roi) == pg.graphicsItems.ROI.RectROI:
 
-        elif self.color_data and self.discrete_color_widget is not None:
+                # Get the position and size of the RectROI
+                pos = roi.pos()
+                size = roi.size()
 
-            # rebuild discrete color widget
-            self.removeItem(self.wrapped_widget)
+                # Calculate the vertices of the RectROI
+                x0, y0 = pos[0], pos[1]
+                x1, y1 = x0 + size[0], y0
+                x2, y2 = x1, y1 + size[1]
+                x3, y3 = x0, y0 + size[1]
 
-            self.discrete_color_widget = DiscreteColorWidget(self._model, self.color_data)
-            self.wrapped_widget = self.wrap_discrete_color_widget()
-            self.addItem(self.wrapped_widget, row=0, col=2)
+                # Create a list of vertices
+                vertices = [(x0, y0), (x1, y1), (x2, y2), (x3, y3), (x0, y0)]
 
-            # connect the signal to update the scatter plot colors
-            self.discrete_color_widget.paletteChanged.connect(self.on_gradient_changed)
+                # Create a Shapely Polygon
+                polygon = Polygon(vertices)
 
-        self.brushes = self.get_brushes()
-        self.plot()
-        self.scatter_plot.enableAutoRange("xy", True)
+            else:
+                raise TypeError("Only PolyLineROI and RectROI are supported.")
 
-        # reset ROI modes
-        self.switch_to_default_mode()
+            polygon_list.append(polygon)
 
-    def create_lut_hist(self) -> pg.HistogramLUTItem:
-
-        # add the gradient widget with the histogram
-        lut = pg.HistogramLUTItem(gradientPosition="right")
-        lut.disableAutoHistogramRange()
-
-        # set default colormap with no triangle ticks
-        color_map = pg.colormap.get("viridis")
-        lut.gradient.setColorMap(color_map)
-        st = lut.gradient.saveState()
-        st["ticksVisible"] = False
-        lut.gradient.restoreState(st)
-
-        y, x = np.histogram(self.color_vec, density=True, bins=100)
-        lut.plot.setData(x[:-1], y)
-        lut.setLevels(np.min(self.color_vec), np.max(self.color_vec))
-        lut.autoHistogramRange()
-
-        return lut
-
-    def wrap_discrete_color_widget(self) -> QtWidgets.QGraphicsProxyWidget:
-        """Wrap the discrete color widget in a GraphicsWidget to make it scrollable."""
-
-        # Create a QGraphicsScene and add the custom widget
-        scene = QtWidgets.QGraphicsScene()
-        scene.addItem(self.discrete_color_widget)
-
-        # Create a QGraphicsView, set the scene, and make it scrollable
-        view = QtWidgets.QGraphicsView(scene)
-        view.setRenderHint(QtGui.QPainter.Antialiasing)
-        # view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
-        # sets stle of the vertical slider
-        view.setStyleSheet(get_current_stylesheet())
-        view.setStyleSheet(
-            """
-            QGraphicsView {
-            border: none;
-            background: rgb(0, 0, 0);
-            }
-            """
-        )
-
-        view.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
-
-        view_proxy = QtWidgets.QGraphicsProxyWidget()
-        view_proxy.setWidget(view)
-
-        return view_proxy
+        return polygon_list
 
     def _onClick(
         self,
@@ -826,18 +716,6 @@ class PlotWidget(GraphicsLayoutWidget):
             # Initial call to set the correct size
             self.updateProximitySensitivity()
 
-    def update_ticks(self) -> None:
-        """Update the ticks on the scatter plot axes."""
-
-        axis = self.scatter_plot.getAxis("bottom")
-        if self.x_ticks is not None:
-            axis.setTicks([[(i, str(x)) for i, x in enumerate(self.x_ticks)]])
-            # axis.setStyle(tickTextAngle=45
-
-        axis = self.scatter_plot.getAxis("left")
-        if self.y_ticks is not None:
-            axis.setTicks([[(i, str(y)) for i, y in enumerate(self.y_ticks)]])
-
     def plot(self, event: Any = None) -> None:
         """Plot the scatter plot or pseudo histogram."""
 
@@ -871,66 +749,222 @@ class PlotWidget(GraphicsLayoutWidget):
             for roi in self.roi_list:
                 self.scatter_plot.addItem(roi)
 
-    def get_selection(self) -> NDArrayA | None:
-        """Get the selection from the scatter plot."""
+    def create_lut_hist(self) -> pg.HistogramLUTItem:
 
-        if self.scatter is None:
+        # add the gradient widget with the histogram
+        lut = pg.HistogramLUTItem(gradientPosition="right")
+        lut.disableAutoHistogramRange()
 
-            return None
+        # set default colormap with no triangle ticks
+        color_map = pg.colormap.get("viridis")
+        lut.gradient.setColorMap(color_map)
+        st = lut.gradient.saveState()
+        st["ticksVisible"] = False
+        lut.gradient.restoreState(st)
 
-        boolean_vector = np.zeros(len(self._model.adata), dtype=bool)
+        y, x = np.histogram(self.color_vec, bins="auto")
+        lut.plot.setData(
+            np.concatenate([[np.min(self.color_vec)], (x[:-1] + x[1:]) / 2, [np.max(self.color_vec)]]),
+            np.concatenate([[0], y, [0]]),
+        )
+        lut.setLevels(np.min(self.color_vec), np.max(self.color_vec))
+        lut.autoHistogramRange()
 
-        polygon_list = self.rois_to_polygons()
+        return lut
 
-        for i, (x, y) in enumerate(zip(self.scatter.xData, self.scatter.yData)):
-            point = Point(x, y)
-            # Check if the point belongs to any ROI
-            for polygon in polygon_list:
+    def on_gradient_changed(self) -> None:
+        """Update the scatter plot colors when the gradient is changed."""
+        self.brushes = self.get_brushes()
+        self.plot()
 
-                if polygon.contains(point):
-                    boolean_vector[i] = True
-                    break
+    def wrap_discrete_color_widget(self) -> QtWidgets.QGraphicsProxyWidget:
+        """Wrap the discrete color widget in a GraphicsWidget to make it scrollable."""
 
-        return boolean_vector
+        # Create a QGraphicsScene and add the custom widget
+        scene = QtWidgets.QGraphicsScene()
+        scene.addItem(self.discrete_color_widget)
 
-    def rois_to_polygons(self) -> list[Polygon]:
-        """Convert ROIs to Shapely Polygons."""
+        # Create a QGraphicsView, set the scene, and make it scrollable
+        view = QtWidgets.QGraphicsView(scene)
+        view.setRenderHint(QtGui.QPainter.Antialiasing)
+        # view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
+        # sets stle of the vertical slider
+        view.setStyleSheet(get_current_stylesheet())
+        view.setStyleSheet(
+            """
+            QGraphicsView {
+            border: none;
+            background: rgb(0, 0, 0);
+            }
+            """
+        )
 
-        # create a list of polygons
-        polygon_list = []
+        view.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
 
-        for roi in self.roi_list:
+        view_proxy = QtWidgets.QGraphicsProxyWidget()
+        view_proxy.setWidget(view)
 
-            if type(roi) == pg.graphicsItems.ROI.PolyLineROI:
+        return view_proxy
 
-                center_point = roi.getState()["pos"]
-                polygon_points = [center_point + x for x in roi.getState()["points"]]
-                polygon = Polygon(polygon_points)
+    def update_ticks(self) -> None:
+        """Update the ticks on the scatter plot axes."""
 
-            elif type(roi) == pg.graphicsItems.ROI.RectROI:
+        axis = self.scatter_plot.getAxis("bottom")
+        if self.x_ticks is not None:
+            axis.setTicks([[(i, str(x)) for i, x in enumerate(self.x_ticks)]])
+            # axis.setStyle(tickTextAngle=45
 
-                # Get the position and size of the RectROI
-                pos = roi.pos()
-                size = roi.size()
+        axis = self.scatter_plot.getAxis("left")
+        if self.y_ticks is not None:
+            axis.setTicks([[(i, str(y)) for i, y in enumerate(self.y_ticks)]])
 
-                # Calculate the vertices of the RectROI
-                x0, y0 = pos[0], pos[1]
-                x1, y1 = x0 + size[0], y0
-                x2, y2 = x1, y1 + size[1]
-                x3, y3 = x0, y0 + size[1]
+    def get_brushes(self, event: Any = None) -> list[QColor] | None:
+        """Get the brushes for the scatter plot based on the color data."""
 
-                # Create a list of vertices
-                vertices = [(x0, y0), (x1, y1), (x2, y2), (x3, y3), (x0, y0)]
+        logger.info("Generating brushes...")
 
-                # Create a Shapely Polygon
-                polygon = Polygon(vertices)
+        # for discrete data
+        if self.discrete_color_widget is not None:
 
-            else:
-                raise TypeError("Only PolyLineROI and RectROI are supported.")
+            return [pg.mkBrush(*x) for x in self.discrete_color_widget.palette.map(self.color_vec + 1) * 255]
 
-            polygon_list.append(polygon)
+        # for continuos data
+        if self.lut is not None:
 
-        return polygon_list
+            level_min, level_max = self.lut.getLevels()
+
+            data = np.clip(self.color_vec, level_min, level_max)
+            data = (data - level_min) / (level_max - level_min)
+
+            return [pg.mkBrush(*x) for x in self.lut.gradient.colorMap().map(data)]
+
+        return None
+
+    def mousePressEvent(self, event: Any) -> None:
+
+        if (self.drawing or self.rectangle) and event.button() == Qt.LeftButton:
+            logger.debug("Left press detected")
+
+            # Get the position of the click in the scene
+            scene_pos = event.pos()
+
+            # Check if the click is within the scatter plot view box
+            if not self.scatter_plot.vb.sceneBoundingRect().contains(scene_pos):
+                return
+
+            pen = pg.mkPen(color="gray", width=2)
+            hoverPen = pg.mkPen(color="red", width=2)
+            handlePen = pg.mkPen(color="red", width=2)
+
+            self.scatter_plot.enableAutoRange("xy", False)
+
+            if self.drawing:
+
+                self.current_roi = pg.PolyLineROI(
+                    [], closed=True, removable=True, pen=pen, handlePen=handlePen, hoverPen=hoverPen
+                )
+                self.scatter_plot.addItem(self.current_roi)
+
+                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                self.current_points = [(plot_pos.x(), plot_pos.y())]
+                self.last_pos = (event.pos().x(), event.pos().y())
+
+                event.accept()
+
+            if self.rectangle:
+
+                logger.info("Rectangle")
+
+                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                self.current_roi = pg.RectROI(
+                    pos=(plot_pos.x(), plot_pos.y()),
+                    size=(0, 0),
+                    removable=True,
+                    pen=pen,
+                    handlePen=handlePen,
+                    hoverPen=hoverPen,
+                )
+                self.scatter_plot.addItem(self.current_roi)
+
+                self.initial_pos = plot_pos
+
+                event.accept()
+
+        else:
+            super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: Any) -> None:
+
+        if self.drawing and self.current_roi is not None:
+
+            if self.last_pos is not None:
+                dist = np.sqrt((event.pos().x() - self.last_pos[0]) ** 2 + (event.pos().y() - self.last_pos[1]) ** 2)
+
+                if dist > self.vertex_add_threshold:
+
+                    plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                    self.current_points.append((plot_pos.x(), plot_pos.y()))
+
+                    self.current_roi.setPoints(self.current_points)
+
+                    self.last_pos = (event.pos().x(), event.pos().y())
+
+            event.accept()
+
+        elif self.rectangle and self.current_roi is not None and self.initial_pos is not None:
+
+            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+            width = plot_pos.x() - self.initial_pos.x()
+            height = plot_pos.y() - self.initial_pos.y()
+            self.current_roi.setSize([width, height])
+
+            event.accept()
+
+        else:
+            super().mouseMoveEvent(event)
+
+        # Get cursor position
+        scene_pos = event.pos()
+        plot_pos = self.scatter_plot.vb.mapSceneToView(scene_pos)
+
+        # Update the cursor position label
+        self.cursor_position_label.setText(f"X: {plot_pos.x():.2f}, Y: {plot_pos.y():.2f}")
+
+        # Call the hover highlight update function
+        self.updateHoverHighlight(plot_pos.x(), plot_pos.y())
+
+    def mouseReleaseEvent(self, event: Any) -> None:
+
+        if self.drawing and event.button() == Qt.LeftButton:
+
+            if (self.current_roi is not None) and (len(self.current_points) > 2):
+                self.current_roi.sigRemoveRequested.connect(self.remove_roi)
+                self.roi_list.append(self.current_roi)
+
+            self.switch_to_default_mode()
+            event.accept()
+
+        elif self.rectangle and event.button() == Qt.LeftButton:
+
+            if self.current_roi is not None:
+                self.current_roi.sigRemoveRequested.connect(self.remove_roi)
+                self.roi_list.append(self.current_roi)
+
+            self.switch_to_default_mode()
+            event.accept()
+
+        else:
+            super().mouseReleaseEvent(event)
+
+    def mouseDoubleClickEvent(self, event: Any) -> None:
+        if event.button() == Qt.LeftButton:
+
+            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+            point = Point(plot_pos.x(), plot_pos.y())
+
+            self.remove_roi(point=point)
+
+            event.accept()
 
     def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         """Handle key press events."""
@@ -977,34 +1011,3 @@ class PlotWidget(GraphicsLayoutWidget):
             logger.info(f"Remove {roi} ROI.")
             self.scatter_plot.removeItem(roi)
             self.roi_list.remove(roi)
-
-    def updateHoverHighlight(self, x: float, y: float) -> None:
-        """Update the hover highlight based on the cursor position."""
-        if self.kd_tree is not None and self.x_data is not None and self.y_data is not None:
-            # Query the k-d tree for the nearest neighbor
-            dist, idx = self.kd_tree.query([x, y], k=1)
-            dist_x = abs(x - self.x_data[idx])
-            dist_y = abs(y - self.y_data[idx])
-            if dist_x < self.dist_threshold[0] and dist_y < self.dist_threshold[1]:
-                self.hovered_point.setData([self.x_data[idx]], [self.y_data[idx]])
-                self.hovered_point.setZValue(10)
-                value = self.color_vec[idx] if self.color_vec is not None else "N/A"
-                if self.color_names is not None:
-                    value = self.color_names[value]
-                self.data_point_label.setText(f"Value: {value}")
-            else:
-                self.hovered_point.setData([], [])
-                self.data_point_label.setText("Value: N/A")
-        else:
-            self.hovered_point.setData([], [])
-            self.data_point_label.setText("Value: N/A")
-
-    def clearHoverHighlight(self) -> None:
-        """Clear the hover highlight."""
-        self.hovered_point.setData([], [])
-        self.data_point_label.setText("Value: N/A")
-
-    def updateProximitySensitivity(self) -> None:
-        """Update the proximity sensitivity of the hover highlight."""
-        if self.scatter is not None:
-            self.dist_threshold = [x * 15 for x in self.scatter.pixelSize()]  # Adjust this factor as needed
