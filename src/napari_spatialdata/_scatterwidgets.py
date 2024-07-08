@@ -340,6 +340,8 @@ class PlotWidget(GraphicsLayoutWidget):
         self.scatter_plot.setLabel("bottom", self.x_label)
         self.scatter_plot.setLabel("left", self.x_label)
         self.scatter_plot.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        # Connect the view range change signal to the update function
+        self.scatter_plot.sigRangeChanged.connect(self.on_zoom_event)
 
         # Create a separate ScatterPlotItem for the highlighted point
         self.hovered_point = pg.ScatterPlotItem(
@@ -352,6 +354,11 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # threshold for adding new vertex to the ROI
         self.vertex_add_threshold = 20
+
+        # Setup a timer for debouncing
+        self.debounce_timer = QtCore.QTimer()
+        self.debounce_timer.setSingleShot(True)
+        self.debounce_timer.timeout.connect(self.on_debounced_zoom_event)
 
         # initialize shapes info
         self.current_roi: ROI | None = None
@@ -432,6 +439,14 @@ class PlotWidget(GraphicsLayoutWidget):
         self._init_complete = True
         self.update_label_positions()
 
+    def on_zoom_event(self) -> None:
+        # Start or restart the debounce timer with a 100ms delay
+        self.debounce_timer.start(100)
+
+    def on_debounced_zoom_event(self) -> None:
+        # Update the proximity sensitivity
+        self.updateProximitySensitivity()
+
     def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         """Resizing of the window."""
         super().resizeEvent(event)
@@ -447,6 +462,7 @@ class PlotWidget(GraphicsLayoutWidget):
     def updateProximitySensitivity(self) -> None:
         """Update the proximity sensitivity of the hover highlight."""
         if self.scatter is not None:
+            logger.info("Updating proximity sensitivity...")
             self.dist_threshold = [x * 15 for x in self.scatter.pixelSize()]  # Adjust this factor as needed
 
     def updateHoverHighlight(self, x: float, y: float) -> None:
@@ -709,9 +725,6 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.kd_tree = cKDTree(np.column_stack((self.x_data, self.y_data)))
             else:
                 self.kd_tree = None
-
-            # Connect the view range change signal to the update function
-            self.scatter_plot.sigRangeChanged.connect(self.updateProximitySensitivity)
 
             # Initial call to set the correct size
             self.updateProximitySensitivity()
