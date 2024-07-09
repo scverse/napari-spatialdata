@@ -3,12 +3,14 @@ from __future__ import annotations
 from typing import Any, Sequence
 
 import napari
+import numpy as np
 import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
 from napari._qt.utils import QImg2array
 from napari.layers import Image, Labels, Layer, Points, Shapes
+from napari.layers._multiscale_data import MultiScaleData
 from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
@@ -242,12 +244,24 @@ class QtAdataViewWidget(QWidget):
 
             has_sdata = layer is not None and layer.metadata.get("sdata") is not None
             has_adata = layer is not None and layer.metadata.get("adata") is not None
+
+            # has_adata is added so we see the channels in the view widget under vars
             if layer is not None and is_image and has_sdata and has_adata:
                 c_channel = event.value[0]
 
-                image = layer.data[c_channel, :, :].compute()
-                min_value = image.min()
-                max_value = image.max()
+                # TODO remove once contrast limits in napari are fixed
+                if isinstance(layer.data, MultiScaleData):
+                    # just compute lowest resolution
+                    image = layer.data[-1][c_channel, :, :].compute()
+                    min_value = image.min().data
+                    max_value = image.max().data
+                else:
+                    image = layer.data[c_channel, :, :].compute()
+                    min_value = image.min()
+                    max_value = image.max()
+                if min_value == max_value:
+                    min_value = np.iinfo(image.data.dtype).min
+                    max_value = np.iinfo(image.data.dtype).max
                 layer.contrast_limits = [min_value, max_value]
 
                 item = self.var_widget.item(c_channel)
@@ -718,14 +732,18 @@ class QtAdataAnnotationWidget(QWidget):
         """Update current annotator when the text of the annotator dropdown has changed."""
         self._current_annotator = self.annotation_widget.annotators.currentText()
 
-    def _update_table_name_widget(self, sdata: SpatialData, element_name: str) -> None:
+    def _update_table_name_widget(self, sdata: SpatialData, element_name: str, table_name: str = "") -> None:
         table_names = list(get_element_annotators(sdata, element_name))
 
         table_names_to_add = []
         for name in table_names:
             if any("color" in key for key in sdata[name].uns):
                 table_names_to_add.append(name)
+
+        self.annotation_widget.table_name_widget.clear()
         self.annotation_widget.table_name_widget.addItems(table_names_to_add)
+        if table_name != "":
+            self.annotation_widget.table_name_widget.setCurrentText(table_name)
 
     def _import_table_information(self) -> None:
         table_name = self.annotation_widget.table_name_widget.currentText()
@@ -776,7 +794,8 @@ class QtAdataAnnotationWidget(QWidget):
 
     def _open_save_dialog(self) -> None:
         layer = self.viewer.layers.selection.active
-        save_dialog = SaveDialog(layer)
+        previous_shape_name = layer.metadata["name"]
+        save_dialog = SaveDialog(layer, self.annotation_widget.table_name_widget.currentText())
         save_dialog.exec_()
         table_name = save_dialog.get_save_table_name()
         shape_name = save_dialog.get_save_shape_name()
@@ -788,7 +807,19 @@ class QtAdataAnnotationWidget(QWidget):
                 table_columns=[self._current_class_column, self._current_class_column + "_color"],
                 overwrite=True,
             )
-            self._update_table_name_widget(layer.metadata["sdata"], layer.metadata["name"])
+            if (
+                (previous_table := self.annotation_widget.table_name_widget.currentText()) != table_name
+                and previous_table != ""
+                and shape_name == previous_shape_name
+            ):
+                del layer.metadata["sdata"].tables[previous_table]
+                layer.metadata["sdata"].delete_element_from_disk(previous_table)
+                show_info(f"Table name has changed and table with name {previous_table} has been deleted.")
+            if previous_table == table_name and shape_name != previous_shape_name and previous_table != "":
+                del layer.metadata["sdata"].shapes[previous_shape_name]
+                layer.metadata["sdata"].delete_element_from_disk(previous_shape_name)
+                self._viewer_model.layer_saved.emit(layer.metadata["_current_cs"])
+            self._update_table_name_widget(layer.metadata["sdata"], layer.metadata["name"], table_name)
         else:
             show_info("Saving canceled.")
 

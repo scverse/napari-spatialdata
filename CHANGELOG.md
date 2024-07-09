@@ -8,7 +8,19 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [0.4.x] - 2024-xx-xx
+## [0.5.1] - 2024-xx-xx
+
+## [0.5.0] - 2024-07-03
+
+### Added
+
+- New annotation widget for managing shapes annotations @melonora #233 #261
+- Showing image channel names in var widget for easy channel selection #254
+
+### Fixed
+
+- Fixed scatterplot widget #247
+- Fixed contrast limits for images #265
 
 ## [0.4.1] - 2024-03-30
 

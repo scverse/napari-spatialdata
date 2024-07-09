@@ -113,14 +113,14 @@ class SpatialDataViewer(QObject):
     def _update_cache_indices(self, event: Event) -> None:
         del event.value
         # This needs to be changed when we switch to napari 0.4.19
-        if event.action == "remove" or (type(event.source) != Points and event.action == "change"):
+        if event.action == "remove" or (type(event.source) is not Points and event.action == "change"):
             # We overwrite the indices so they correspond to indices in the dataframe
             napari_indices = sorted(event.data_indices, reverse=True)
             event.indices = tuple(event.source.metadata["indices"][i] for i in napari_indices)
             if event.action == "remove":
                 for i in napari_indices:
                     del event.source.metadata["indices"][i]
-        elif type(event.source) == Points and event.action == "change":
+        elif type(event.source) is Points and event.action == "change":
             logger.warning(
                 "Moving events of Points in napari can't be cached due to a bug in napari 0.4.18. This will"
                 "be available in napari 0.4.19"
@@ -154,6 +154,21 @@ class SpatialDataViewer(QObject):
             else:
                 raise OSError(f"`{element_name}` already exists. Use overwrite=True to rewrite.")
 
+    def _write_element_to_disk(
+        self,
+        sdata: SpatialData,
+        element_name: str,
+        element: tuple[DaskDataFrame | GeoDataFrame | AnnData],
+        overwrite: bool,
+    ) -> None:
+        if sdata.is_backed:
+            self._delete_from_disk(sdata, element_name, overwrite)
+            sdata[element_name] = element
+            sdata.write_element(element_name)
+        else:
+            sdata[element_name] = element
+            logger.warning("Spatialdata object is not stored on disk, could only add element in memory.")
+
     def _save_points_to_sdata(
         self, layer_to_save: Points, spatial_element_name: str | None, overwrite: bool
     ) -> tuple[DaskDataFrame, str]:
@@ -172,9 +187,7 @@ class SpatialDataViewer(QObject):
             swap_data = swap_data[:, :2]
         parsed = PointsModel.parse(swap_data, transformations=transformation)
 
-        self._delete_from_disk(sdata, spatial_element_name, overwrite)
-        sdata.points[spatial_element_name] = parsed
-        sdata.write_element(spatial_element_name)
+        self._write_element_to_disk(sdata, spatial_element_name, parsed, overwrite)
 
         return parsed, coordinate_system
 
@@ -221,9 +234,7 @@ class SpatialDataViewer(QObject):
                 instance_key=instance_key,
             )
 
-            self._delete_from_disk(sdata, table_name, overwrite)
-            sdata[table_name] = sdata_table
-            sdata.write_element(table_name)
+            self._write_element_to_disk(sdata, table_name, sdata_table, overwrite)
 
     def _save_shapes_to_sdata(
         self, layer_to_save: Shapes, spatial_element_name: str | None, overwrite: bool
@@ -242,10 +253,7 @@ class SpatialDataViewer(QObject):
         force_2d(gdf)
         parsed = ShapesModel.parse(gdf, transformations=transformation)
 
-        self._delete_from_disk(sdata, spatial_element_name, overwrite)
-
-        sdata.shapes[spatial_element_name] = parsed
-        sdata.write_element(spatial_element_name)
+        self._write_element_to_disk(sdata, spatial_element_name, parsed, overwrite)
 
         return parsed, coordinate_system
 
