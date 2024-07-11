@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from collections import Counter
+from contextlib import contextmanager
 from functools import wraps
 from random import randint
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, Optional, Sequence, Union
 
 import numpy as np
 import packaging.version
@@ -14,7 +15,6 @@ from datatree import DataTree
 from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
-from multiscale_spatial_image.multiscale_spatial_image import MultiscaleSpatialImage
 from napari import __version__
 from napari.layers import Layer
 from numba import njit, prange
@@ -26,12 +26,13 @@ from pandas.core.dtypes.common import (
     is_object_dtype,
     is_string_dtype,
 )
+from qtpy.QtCore import QObject
 from scipy.sparse import issparse, spmatrix
 from scipy.spatial import KDTree
-from spatial_image import SpatialImage
 from spatialdata import SpatialData, get_extent, join_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
+from xarray import DataArray
 
 from napari_spatialdata.constants._pkg_constants import Key
 from napari_spatialdata.utils._categoricals_utils import (
@@ -42,7 +43,6 @@ if TYPE_CHECKING:
     from napari import Viewer
     from napari.utils.events import EventedList
     from qtpy.QtWidgets import QListWidgetItem
-    from xarray import DataArray
 
     from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget
 
@@ -190,7 +190,7 @@ def _transform_coordinates(data: list[Any], f: Callable[..., Any]) -> list[Any]:
 
 
 def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | NDArrayA:
-    if not isinstance(element, (SpatialImage, MultiscaleSpatialImage, DaskDataFrame, GeoDataFrame)):
+    if not isinstance(element, (DataArray, DataTree, DaskDataFrame, GeoDataFrame)):
         raise RuntimeError("Cannot get transform for {type(element)}")
 
     transformations = get_transformation(element, get_all=True)
@@ -229,7 +229,7 @@ def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
     return out
 
 
-def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tuple[DataArray, bool]:
+def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray, bool]:
     """Swap the axes to y, x, c and check if an image supports rgb(a) visualization.
 
     Checks whether c dim is present in the axes and if so, transposes the dimensions to have c last.
@@ -237,7 +237,7 @@ def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tu
 
     Parameters
     ----------
-    element: SpatialImage | MultiScaleSpatialImage
+    element: DataArray | DataTree
         Element in sdata.images
 
     Returns
@@ -251,9 +251,9 @@ def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tu
 
     if "c" in axes:
         assert axes.index("c") == 0
-        if isinstance(element, SpatialImage):
+        if isinstance(element, DataArray):
             n_channels = element.shape[0]
-        elif isinstance(element, MultiscaleSpatialImage):
+        elif isinstance(element, DataTree):
             v = element["scale0"].values()
             assert len(v) == 1
             n_channels = v.__iter__().__next__().shape[0]
@@ -269,9 +269,7 @@ def _adjust_channels_order(element: SpatialImage | MultiscaleSpatialImage) -> tu
         rgb = False
         new_raster = element
 
-    # TODO: after we call .transpose() on a MultiscaleSpatialImage object we get a DataTree object. We should look at
-    # this better and either cast somehow back to MultiscaleSpatialImage or fix/report this
-    if isinstance(new_raster, (MultiscaleSpatialImage, DataTree)):
+    if isinstance(new_raster, DataTree):
         list_of_xdata = []
         for k in new_raster:
             v = new_raster[k].values()
@@ -489,3 +487,12 @@ def _get_ellipses_from_circles(yx: NDArrayA, radii: NDArrayA) -> NDArrayA:
 
 def get_napari_version() -> packaging.version.Version:
     return packaging.version.parse(__version__)
+
+
+@contextmanager
+def block_signals(widget: QObject) -> Generator[None, None, None]:
+    try:
+        widget.blockSignals(True)
+        yield
+    finally:
+        widget.blockSignals(False)

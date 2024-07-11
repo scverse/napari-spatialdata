@@ -6,6 +6,7 @@ import pandas as pd
 from anndata import AnnData
 from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
+from spatialdata.models import get_table_keys
 
 from napari_spatialdata.constants._constants import Symbol
 from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
@@ -243,20 +244,20 @@ class DataModel:
     @property
     def region_key(self) -> Optional[str]:  # noqa: D102
         """The region key of the currently active table in the widget."""
-        return self._region_key
-
-    @region_key.setter
-    def region_key(self, region_key: str) -> None:
-        self._region_key = region_key
+        if self.adata is not None:
+            _, region_key, _ = get_table_keys(self.adata)
+            assert isinstance(region_key, str)
+            return region_key
+        return None
 
     @property
     def instance_key(self) -> Optional[str]:  # noqa: D102
         """The instance key of the currently active table in the widget."""
-        return self._instance_key
-
-    @instance_key.setter
-    def instance_key(self, instance_key: str) -> None:
-        self._instance_key = instance_key
+        if self.adata is not None:
+            _, _, instance_key = get_table_keys(self.adata)
+            assert isinstance(instance_key, str)
+            return instance_key
+        return None
 
     @property
     def palette(self) -> Optional[str]:  # noqa: D102

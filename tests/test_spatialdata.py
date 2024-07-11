@@ -8,7 +8,8 @@ from anndata import AnnData
 from dask.array.random import randint
 from dask.dataframe import DataFrame as DaskDataFrame
 from dask.dataframe import from_dask_array
-from multiscale_spatial_image import MultiscaleSpatialImage, to_multiscale
+from datatree import DataTree
+from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
 from napari_spatialdata import QtAdataViewWidget
@@ -16,13 +17,13 @@ from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWid
 from napari_spatialdata.constants import config
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
-from spatial_image import SpatialImage
 from spatialdata import SpatialData, deepcopy
-from spatialdata._core.query.relational_query import _get_unique_label_values_as_index
+from spatialdata._core.query.relational_query import get_element_instances
 from spatialdata.datasets import blobs
 from spatialdata.models import PointsModel, TableModel
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
+from xarray import DataArray
 
 RNG = np.random.default_rng(seed=0)
 
@@ -286,8 +287,8 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
         "blobs_polygons",
     ]:
         element = original_sdata[region]
-        if isinstance(element, (SpatialImage, MultiscaleSpatialImage)):
-            index = _get_unique_label_values_as_index(element).values
+        if isinstance(element, (DataArray, DataTree)):
+            index = get_element_instances(element).values
         elif isinstance(element, DaskDataFrame):
             index = element.index.compute().values
         else:
@@ -307,7 +308,7 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
         # when instance_key_type == 'str' (and when the element is not Labels), let's change the type of instance_key
         # column and of the corresponding index in the spatial element to string. Labels need to have int as they are
         # tensors of non-negative integers.
-        if not isinstance(element, (SpatialImage, MultiscaleSpatialImage)) and instance_key_type == "str":
+        if not isinstance(element, (DataArray, DataTree)) and instance_key_type == "str":
             element.index = element.index.astype(str)
             table.obs[INSTANCE_KEY] = table.obs[INSTANCE_KEY].astype(str)
 
@@ -315,7 +316,7 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
         shuffled_table = deepcopy(table)
 
         # shuffle the order of the rows of the element (when the element is not Labels)
-        if not isinstance(element, (SpatialImage, MultiscaleSpatialImage)):
+        if not isinstance(element, (DataArray, DataTree)):
             shuffled_element = shuffled_element.loc[RNG.permutation(shuffled_element.index)]
         # shuffle the order of the rows of the table
         shuffled_table = shuffled_table[RNG.permutation(shuffled_table.obs.index), :].copy()
@@ -333,6 +334,7 @@ def test_partial_table_matching_with_arbitrary_ordering(qtbot, make_napari_viewe
     # and the shuffled sdata object
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([original_sdata, shuffled_sdata]))
+    viewer.window.add_dock_widget(widget, name="SpatialData")
     view_widget = QtAdataViewWidget(viewer)
 
     # Click on `global` coordinate system
