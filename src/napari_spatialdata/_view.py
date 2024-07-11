@@ -42,7 +42,6 @@ from napari_spatialdata._widgets import (
     RangeSliderWidget,
 )
 
-
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
 from napari_spatialdata.utils._utils import _get_init_table_list, block_signals
@@ -106,7 +105,6 @@ class QtAdataScatterWidget(QWidget):
         control_widget = QWidget()
         control_layout = QGridLayout()
         control_widget.setLayout(control_layout)
-
 
         # Names of tables annotating respective layer.
         table_label = QLabel("Tables annotating layer:")

@@ -8,12 +8,6 @@ import pyqtgraph as pg
 from loguru import logger
 from napari.qt import get_current_stylesheet
 from napari.utils.colormaps import label_colormap
-from matplotlib.axes import Axes
-from matplotlib.collections import Collection
-from matplotlib.path import Path
-from matplotlib.widgets import LassoSelector
-from napari.layers import Layer
-from napari.utils.notifications import show_infof
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
 from pyqtgraph import GraphicsLayoutWidget, GraphicsWidget
@@ -30,9 +24,7 @@ from shapely.geometry import Point, Polygon
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
 from napari_spatialdata.utils._utils import NDArrayA
-from napari_spatialdata.constants.config import POINT_SIZE_SCATTERPLOT_WIDGET
-from napari_spatialdata.utils._categoricals_utils import _add_categorical_legend
-from napari_spatialdata.utils._utils import NDArrayA, _get_categorical, _set_palette
+
 __all__ = [
     "PlotWidget",
     "AxisWidgets",
