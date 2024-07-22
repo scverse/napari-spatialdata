@@ -8,15 +8,15 @@ import pandas as pd
 from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
-from napari._qt.utils import QImg2array
 from napari._qt.qt_resources import get_stylesheet
+from napari._qt.utils import QImg2array
 from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.layers._multiscale_data import MultiScaleData
 from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
-from qtpy.QtCore import Qt, QSize, Qt
+from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -94,7 +94,7 @@ class QtAdataScatterWidget(QWidget):
             self._viewer.layers.selection.events.changed.connect(self._on_selection)
 
         elif isinstance(input, AnnData):
-        
+
             self._viewer = None
 
             self._model = DataModel()
@@ -102,7 +102,7 @@ class QtAdataScatterWidget(QWidget):
 
             # fake an instance key as we don't have a napari layer
             col = self._model.adata.obs.columns[0]
-            temp = {'region': 'na', 'region_key': 'na', 'instance_key': col}
+            temp = {"region": "na", "region_key": "na", "instance_key": col}
             self._model.adata.uns["spatialdata_attrs"] = temp
 
             self.setStyleSheet(get_stylesheet("dark"))

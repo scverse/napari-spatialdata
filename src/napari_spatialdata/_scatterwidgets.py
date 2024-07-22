@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Iterable
 
 import numpy as np
@@ -49,7 +50,7 @@ class ScatterListWidget(AListWidget):
         self.chosen = None
 
     def _onAction(self, items: Iterable[str]) -> None:
-        
+
         for item in sorted(set(items)):
 
             try:
