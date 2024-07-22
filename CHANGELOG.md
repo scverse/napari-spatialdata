@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ## [0.5.1] - 2024-xx-xx
 
+### Changed
+
+- RGB is now detected based on axis names in .c (pass `("r","g","b")` or
+  `("r","g","b", "a")`to c_coords argument when parsing the Image(2D / 3D)Model)
+  @aeisenbarth #153
+
 ## [0.5.0] - 2024-07-03
 
 ### Added
