@@ -251,20 +251,19 @@ def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | l
 
     if "c" in axes:
         assert axes.index("c") == 0
+
         if isinstance(element, DataArray):
-            n_channels = element.shape[0]
+            c_coords = element.coords.indexes["c"]
         elif isinstance(element, DataTree):
-            v = element["scale0"].values()
-            assert len(v) == 1
-            n_channels = v.__iter__().__next__().shape[0]
+            c_coords = element["scale0"].coords.indexes["c"]
         else:
             raise TypeError(f"Unsupported type for images or labels: {type(element)}")
     else:
-        n_channels = 0
+        c_coords = []
 
-    if n_channels in [3, 4]:
+    if len(c_coords) != 0 and set(c_coords) - {"r", "g", "b"} <= {"a"}:
         rgb = True
-        new_raster = element.transpose("y", "x", "c")
+        new_raster = element.transpose("y", "x", "c").reindex(c=["r", "g", "b", "a"][: len(c_coords)])
     else:
         rgb = False
         new_raster = element
