@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from typing import TYPE_CHECKING, Any, Iterable
 
 import numpy as np
@@ -45,18 +44,15 @@ class ScatterListWidget(AListWidget):
 
     def _onChange(self) -> None:
         AListWidget._onChange(self)
+        self.data = None
         self.text = None
         self.chosen = None
 
     def _onAction(self, items: Iterable[str]) -> None:
+        
         for item in sorted(set(items)):
 
-            # check if there is an annotation connecting to the main viewer
-            # if not, only the main column will be retrieved
-            # test!!!
-
             try:
-                self._model.instance_key = item
                 vec, _ = self._getter(item, index=self.getIndex())
             except Exception as e:  # noqa: BLE001
                 logger.error(e)
@@ -82,7 +78,6 @@ class ScatterListWidget(AListWidget):
     def _onOneClick(self, items: Iterable[str]) -> None:
         if self.getAttribute() == "obsm":
             return
-        logger.info(f"{self} is calling action")
         self._onAction(items)
         return
 

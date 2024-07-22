@@ -9,13 +9,14 @@ from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
 from napari._qt.utils import QImg2array
+from napari._qt.qt_resources import get_stylesheet
 from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.layers._multiscale_data import MultiScaleData
 from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QSize, Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
@@ -75,46 +76,62 @@ class AnnotationDialog(QDialog):
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, napari_viewer: Viewer, model: DataModel | None = None):
+    def __init__(self, napari_viewer: Viewer | AnnData, model: DataModel | None = None):
         super().__init__()
 
-        self._model = (
-            model
-            if model is not None
-            else napari_viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
-        )
+        input = napari_viewer
+        if isinstance(input, Viewer):
+            self._viewer = input
 
+            self._model = (
+                model
+                if model is not None
+                else self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
+            )
+
+            self._select_layer()
+            self._viewer.layers.selection.events.changed.connect(self._select_layer)
+            self._viewer.layers.selection.events.changed.connect(self._on_selection)
+
+        elif isinstance(input, AnnData):
+        
+            self._viewer = None
+
+            self._model = DataModel()
+            self._model.adata = input
+
+            # fake an instance key as we don't have a napari layer
+            col = self._model.adata.obs.columns[0]
+            temp = {'region': 'na', 'region_key': 'na', 'instance_key': col}
+            self._model.adata.uns["spatialdata_attrs"] = temp
+
+            self.setStyleSheet(get_stylesheet("dark"))
+
+        # create the layout
         self.setLayout(QGridLayout())
-
-        self._viewer = napari_viewer
-        self._select_layer()
-        self._viewer.layers.selection.events.changed.connect(self._select_layer)
-        self._viewer.layers.selection.events.changed.connect(self._on_selection)
-
-        # Plot widget
-
-        self.plot_widget = PlotWidget(self.viewer, self.model)
-        self.layout().addWidget(self.plot_widget, 1, 0, 1, 3)
 
         # Create the splitter
         splitter = QSplitter(Qt.Vertical)
 
+        # Plot widget
+        self.plot_widget = PlotWidget(self.viewer, self.model)
         splitter.addWidget(self.plot_widget)
 
-        # Widget for table label and combo box, and other controls
+        # Control widget
         control_widget = QWidget()
         control_layout = QGridLayout()
         control_widget.setLayout(control_layout)
 
-        # Names of tables annotating respective layer.
-        table_label = QLabel("Tables annotating layer:")
-        self.table_name_widget = QComboBox()
-        if (table_names := self.model.table_names) is not None:
-            self.table_name_widget.addItems(table_names)
+        if self._viewer is not None:
 
-        self.table_name_widget.currentTextChanged.connect(self._update_adata)
-        control_layout.addWidget(table_label, 0, 0, Qt.AlignLeft)
-        control_layout.addWidget(self.table_name_widget, 0, 1, 1, 2)
+            table_label = QLabel("Tables annotating layer:")
+            self.table_name_widget = QComboBox()
+            if (table_names := self.model.table_names) is not None:
+                self.table_name_widget.addItems(table_names)
+
+            self.table_name_widget.currentTextChanged.connect(self._update_adata)
+            control_layout.addWidget(table_label, 0, 0, Qt.AlignLeft)
+            control_layout.addWidget(self.table_name_widget, 0, 1, 1, 2)
 
         self.x_widget = AxisWidgets(self.model, "X-axis")
         control_layout.addWidget(self.x_widget, 1, 0, 1, 1)
