@@ -29,7 +29,7 @@ def reader_function(path: str) -> list[tuple[None]]:
 
     # use Interactive class to load plugin
     sdata = SpatialData.read(path)  # Change this path!
-    _ = Interactive(sdata)
+    _ = Interactive(sdata, headless=True)
 
     # Readers are expected to return data as a list of tuples, where each tuple
     # is (data, [meta_dict, [layer_type]])
