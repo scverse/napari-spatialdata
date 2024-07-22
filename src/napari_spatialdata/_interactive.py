@@ -40,6 +40,7 @@ class Interactive:
     -------
     None
     """
+
     def get_random_subset_of_columns(self, coordinate_system_name: str) -> pd.Dataframe:
         annotation_element = self._sdata.table.uns[TableModel.ATTRS_KEY][TableModel.REGION_KEY]
         annotation_key = self._sdata.table.uns[TableModel.ATTRS_KEY][TableModel.REGION_KEY_KEY]
@@ -60,7 +61,6 @@ class Interactive:
             return v
 
         return None
-
 
     def add_element(self, element: str, element_coordinate_system: str, view_element_system: bool = False) -> None:
         """
@@ -155,7 +155,5 @@ class Interactive:
         """Run the napari application."""
         napari.run()
 
-
     def screenshot(self, canvas_only: bool) -> NDArrayA | Any:
         return self._viewer.screenshot(canvas_only=canvas_only)
-
