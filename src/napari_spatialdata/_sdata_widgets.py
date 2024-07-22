@@ -9,8 +9,8 @@ from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
-from napari_spatialdata._constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
 from napari_spatialdata._viewer import SpatialDataViewer
+from napari_spatialdata.constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
 from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names, get_elements_meta_mapping
 
 if TYPE_CHECKING:
@@ -42,7 +42,7 @@ class ElementWidget(QListWidget):
             item = QListWidgetItem(key)
             if element_type == "shapes":
                 if (
-                    type((element := sdata.shapes[element_name]).iloc[0].geometry) == shapely.Point
+                    type((element := sdata.shapes[element_name]).iloc[0].geometry) is shapely.Point
                     and len(element) > N_CIRCLES_WARNING_THRESHOLD
                 ):
                     item.setIcon(self._icon)
@@ -161,10 +161,10 @@ class SdataWidget(QWidget):
     def _add_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key[: key.rfind("_")] if multi else key
 
-        if type(sdata.shapes[original_name].iloc[0].geometry) == shapely.geometry.point.Point:
+        if type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.point.Point:
             self.viewer_model.add_sdata_circles(sdata, key, selected_cs, multi)
-        elif (type(sdata.shapes[original_name].iloc[0].geometry) == shapely.geometry.polygon.Polygon) or (
-            type(sdata.shapes[original_name].iloc[0].geometry) == shapely.geometry.multipolygon.MultiPolygon
+        elif (type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.polygon.Polygon) or (
+            type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.multipolygon.MultiPolygon
         ):
             self.viewer_model.add_sdata_shapes(sdata, key, selected_cs, multi)
         else:
