@@ -102,12 +102,21 @@ def test_get_transform():
     assert (_get_transform(sdata.images["blobs_image"]) == np.identity(3)).all()
 
 
-@pytest.mark.parametrize("n_channels", [3, 4, 5])
-def test_transform_to_rgb(n_channels):
-    sdata = blobs(n_channels=n_channels)
+@pytest.mark.parametrize(
+    ("c_coords", "expected_rgb"),
+    [
+        (["Trans", "GFP", "DAPI"], False),
+        (["r", "g", "b"], True),
+        (["r", "g", "b", "a"], True),
+        (["Trans", "GFP", "DAPI", "Cy5"], False),
+        (["Trans", "GFP", "DAPI", "Cy5", "Cy7"], False),
+    ],
+)
+def test_transform_to_rgb(c_coords, expected_rgb):
+    sdata = blobs(c_coords=c_coords)
     raster, rgb = _adjust_channels_order(sdata.images["blobs_image"])
     raster_multiscales, rgb_multiscales = _adjust_channels_order(sdata.images["blobs_multiscale_image"])
-    if n_channels not in (3, 4):
+    if not expected_rgb:
         assert not rgb
         assert not rgb_multiscales
         assert sdata.images["blobs_image"].shape == raster.shape
