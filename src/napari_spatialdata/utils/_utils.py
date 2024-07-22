@@ -229,7 +229,7 @@ def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
     return out
 
 
-def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray, bool]:
+def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | list[DataArray], bool]:
     """Swap the axes to y, x, c and check if an image supports rgb(a) visualization.
 
     Checks whether c dim is present in the axes and if so, transposes the dimensions to have c last.
