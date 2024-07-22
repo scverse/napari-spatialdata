@@ -300,7 +300,7 @@ class QtAdataViewWidget(QWidget):
         has_adata = layer is not None and layer.metadata.get("adata") is not None
 
         # has_adata is added so we see the channels in the view widget under vars
-        if layer is None or not is_image or not has_sdata or not has_adata:
+        if layer is None or not is_image or not has_sdata or not has_adata or layer.rgb:
             return
 
         current_point = list(event.value)
