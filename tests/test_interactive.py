@@ -1,11 +1,14 @@
 from napari_spatialdata._interactive import Interactive
 from spatialdata import SpatialData
+from spatialdata.models import Image2DModel
 
 from tests.conftest import PlotTester, PlotTesterMeta
 
 
 class TestImages(PlotTester, metaclass=PlotTesterMeta):
     def test_plot_can_add_element_image(self, sdata_blobs: SpatialData):
+        blobs_image = Image2DModel.parse(sdata_blobs["blobs_image"], c_coords=("r", "g", "b"))
+        sdata_blobs["blobs_image"] = blobs_image
         i = Interactive(sdata=sdata_blobs, headless=True)
         i.add_element(element="blobs_image", element_coordinate_system="global")
 
@@ -14,6 +17,8 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         i.add_element(element="blobs_labels", element_coordinate_system="global")
 
     def test_plot_can_add_element_multiple(self, sdata_blobs: SpatialData):
+        blobs_image = Image2DModel.parse(sdata_blobs["blobs_image"], c_coords=("r", "g", "b"))
+        sdata_blobs["blobs_image"] = blobs_image
         i = Interactive(sdata=sdata_blobs, headless=True)
         i.add_element(element="blobs_image", element_coordinate_system="global")
         i.add_element(element="blobs_labels", element_coordinate_system="global")
