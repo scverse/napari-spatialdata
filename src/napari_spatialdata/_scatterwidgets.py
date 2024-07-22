@@ -12,14 +12,16 @@ from matplotlib.collections import Collection
 from matplotlib.path import Path
 from matplotlib.widgets import LassoSelector
 from napari.layers import Layer
+from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from napari_matplotlib.base import NapariMPLWidget
-from pandas.api.types import is_categorical_dtype
+from pandas.api.types import CategoricalDtype
 from qtpy import QtWidgets
 from qtpy.QtCore import Signal
 
-from napari_spatialdata._model import ImageModel
+from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
+from napari_spatialdata.constants.config import POINT_SIZE_SCATTERPLOT_WIDGET
 from napari_spatialdata.utils._categoricals_utils import _add_categorical_legend
 from napari_spatialdata.utils._utils import NDArrayA, _get_categorical, _set_palette
 
@@ -57,11 +59,12 @@ class SelectFromCollection:
 
     def __init__(
         self,
-        model: ImageModel,
+        model: DataModel,
         ax: Axes,
         collection: Collection,
         data: list[NDArrayA],
         alpha_other: float = 0.3,
+        viewer: Viewer | None = None,
     ):
         self.model = model
         self.canvas = ax.figure.canvas
@@ -70,6 +73,7 @@ class SelectFromCollection:
         self.exported_data = None
         self.data = data
         self.axes = ax
+        self.viewer = viewer
 
         self.xys = collection.get_offsets()
         self.Npts = len(self.xys)
@@ -90,8 +94,26 @@ class SelectFromCollection:
         model_layer: Layer = self.model.layer
         obs_name = model_layer.name + "_LASSO_SELECTED"
 
-        adata.obs[obs_name] = self.exported_data
-        logger.info("Exported selected coordinates to obs in AnnData as: {}", obs_name)  # noqa: P103
+        # wrong! adata can be a copy
+        # adata.obs[obs_name] = self.exported_data
+        sdata = model_layer.metadata["sdata"]
+        table_name = self.model.active_table_name
+
+        # TODO: we need to find the correct table_name; currently this is `None`:
+        #  1. the combobox "Tables annotating layer:" in the scatterplot widget is empty because the model doesn't
+        #     contain information on the available tables
+        #  2. the model also doesn't contain informations on the active table
+        # Here I use a workaround to look for the first table in the sdata object with a size that matches the data
+        # to be exported.
+        if table_name is None:
+            for table_name in sdata.tables:
+                table = sdata.tables[table_name]
+                assert isinstance(table, AnnData)
+                if table.shape[0] == self.exported_data.shape[0]:  # type: ignore[attr-defined]
+                    break
+
+        sdata[table_name].obs[obs_name] = self.exported_data
+        show_info(f"Exported selected coordinates to obs in AnnData as: {obs_name}")
 
     def onselect(self, verts: list[NDArrayA]) -> None:
         self.path = Path(verts)
@@ -113,7 +135,7 @@ class ScatterListWidget(AListWidget):
     _text = None
     _chosen = None
 
-    def __init__(self, model: ImageModel, attr: str, color: bool, **kwargs: Any):
+    def __init__(self, model: DataModel, attr: str, color: bool, **kwargs: Any):
         AListWidget.__init__(self, None, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
@@ -136,7 +158,7 @@ class ScatterListWidget(AListWidget):
             self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = vec
-            elif is_categorical_dtype(vec):
+            elif vec is not None and isinstance(vec.dtype, CategoricalDtype):
                 self.data = vec
                 colortypes = _set_palette(self.model.adata, key=item, palette=self.model.palette, vec=vec)
                 if self._color:
@@ -209,7 +231,7 @@ class ScatterListWidget(AListWidget):
 
 
 class MatplotlibWidget(NapariMPLWidget):
-    def __init__(self, viewer: Viewer | None, model: ImageModel):
+    def __init__(self, viewer: Viewer | None, model: DataModel):
         self.is_widget = False
         if viewer is None:
             viewer = Viewer()
@@ -259,7 +281,9 @@ class MatplotlibWidget(NapariMPLWidget):
 
         self.clear()
 
-        self.scatterplot = self.axes.scatter(x=self.data[0], y=self.data[1], c=self.data[2])
+        self.scatterplot = self.axes.scatter(
+            x=self.data[0], y=self.data[1], c=self.data[2], s=POINT_SIZE_SCATTERPLOT_WIDGET
+        )
         self.axes.set_xlabel(self.x_label)
         self.axes.set_ylabel(self.y_label)
 
@@ -279,7 +303,7 @@ class MatplotlibWidget(NapariMPLWidget):
         self.canvas.draw()
 
         self.selector = SelectFromCollection(
-            self._model, self.axes, self.scatterplot, self.data
+            model=self._model, ax=self.axes, collection=self.scatterplot, data=self.data, viewer=self._viewer
         )  # type:ignore[assignment]
 
     def clear(self) -> None:
@@ -291,7 +315,7 @@ class MatplotlibWidget(NapariMPLWidget):
 
 
 class AxisWidgets(QtWidgets.QWidget):
-    def __init__(self, model: ImageModel, name: str, color: bool = False):
+    def __init__(self, model: DataModel, name: str, color: bool = False):
         super().__init__()
 
         self._model = model
@@ -346,6 +370,6 @@ class AxisWidgets(QtWidgets.QWidget):
         self.component_widget.clear()
 
     @property
-    def model(self) -> ImageModel:
+    def model(self) -> DataModel:
         """:mod:`napari` viewer."""
         return self._model

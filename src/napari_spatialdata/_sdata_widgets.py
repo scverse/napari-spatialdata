@@ -1,23 +1,29 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
 import shapely
 from napari.utils.events import EventedList
+from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 
 from napari_spatialdata._viewer import SpatialDataViewer
+from napari_spatialdata.constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
 from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names, get_elements_meta_mapping
 
 if TYPE_CHECKING:
     from napari import Viewer
     from napari.utils.events.event import Event
 
+icon_path = Path(__file__).parent / "resources/exclamation.png"
+
 
 class ElementWidget(QListWidget):
     def __init__(self, sdata: EventedList):
         super().__init__()
+        self._icon = QIcon(str(icon_path))
         self._sdata = sdata
         self._duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
         self._elements: None | dict[str, dict[str, str | int]] = None
@@ -25,8 +31,37 @@ class ElementWidget(QListWidget):
     def _onItemChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         self.clear()
         elements, _ = get_elements_meta_mapping(self._sdata, selected_coordinate_system, self._duplicate_element_names)
-        self.addItems(elements.keys())
+        self._set_element_widget_items(elements)
         self._elements = elements
+
+    def _set_element_widget_items(self, elements: dict[str, dict[str, str | int]]) -> None:
+        for key, dict_val in elements.items():
+            sdata = self._sdata[dict_val["sdata_index"]]
+            element_type = dict_val["element_type"]
+            element_name = dict_val["original_name"]
+            item = QListWidgetItem(key)
+            if element_type == "shapes":
+                if (
+                    type((element := sdata.shapes[element_name]).iloc[0].geometry) is shapely.Point
+                    and len(element) > N_CIRCLES_WARNING_THRESHOLD
+                ):
+                    item.setIcon(self._icon)
+                    item.setToolTip(
+                        "Visualizing this many circles is currently slow in napari. Consider whether you want to "
+                        "visualize."
+                    )
+                    self.addItem(item)
+                elif (
+                    type((element := sdata.shapes[element_name]).iloc[0].geometry)
+                    in [shapely.Polygon, shapely.MultiPolygon]
+                    and len(element) > N_SHAPES_WARNING_THRESHOLD
+                ):
+                    item.setIcon(self._icon)
+                    item.setToolTip(
+                        "Visualizing this many shapes is currently slow in napari. Consider whether you want to "
+                        "visualize."
+                    )
+            self.addItem(item)
 
 
 class CoordinateSystemWidget(QListWidget):
@@ -65,6 +100,7 @@ class SdataWidget(QWidget):
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
+        self.viewer_model.layer_saved.connect(self.elements_widget._onItemChange)
         self.coordinate_system_widget.currentItemChanged.connect(self._update_layers_visibility)
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.viewer_model._affine_transform_layers(item.text())
@@ -112,7 +148,9 @@ class SdataWidget(QWidget):
             for layer in self.viewer_model.viewer.layers:
                 element_name = layer.metadata.get("name")
                 if element_name:
-                    if elements and element_name not in elements:
+                    if elements and (
+                        layer.name not in elements or element_name != elements[layer.name]["original_name"]
+                    ):
                         layer.visible = False
                     elif layer.metadata["_active_in_cs"]:
                         layer.visible = True
@@ -123,10 +161,10 @@ class SdataWidget(QWidget):
     def _add_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
         original_name = key[: key.rfind("_")] if multi else key
 
-        if type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.point.Point:
+        if type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.point.Point:
             self.viewer_model.add_sdata_circles(sdata, key, selected_cs, multi)
-        elif (type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.polygon.Polygon) or (
-            type(sdata.shapes[original_name].iloc[0][0]) == shapely.geometry.multipolygon.MultiPolygon
+        elif (type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.polygon.Polygon) or (
+            type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.multipolygon.MultiPolygon
         ):
             self.viewer_model.add_sdata_shapes(sdata, key, selected_cs, multi)
         else:

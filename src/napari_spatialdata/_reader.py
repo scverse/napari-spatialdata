@@ -3,7 +3,6 @@ from __future__ import annotations
 from typing import Callable
 
 from loguru import logger
-from napari_plugin_engine import napari_hook_implementation
 from spatialdata import SpatialData
 
 from napari_spatialdata import Interactive
@@ -11,7 +10,6 @@ from napari_spatialdata import Interactive
 readable_extensions = (".zarr",)
 
 
-@napari_hook_implementation
 def get_reader(path: str) -> Callable[..., list[tuple[None]]] | None:
     """Napari hook specification that start the napari-spatialdata plugin with the given path."""
     # if we know we cannot read the file, we immediately return None.
@@ -31,7 +29,7 @@ def reader_function(path: str) -> list[tuple[None]]:
 
     # use Interactive class to load plugin
     sdata = SpatialData.read(path)  # Change this path!
-    _ = Interactive(sdata)
+    _ = Interactive(sdata, headless=True)
 
     # Readers are expected to return data as a list of tuples, where each tuple
     # is (data, [meta_dict, [layer_type]])
