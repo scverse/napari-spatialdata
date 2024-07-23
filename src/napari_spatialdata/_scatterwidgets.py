@@ -417,8 +417,9 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # Connect mouse events
         self.scatter_plot.setMouseEnabled(x=True, y=True)
+        self.scatter_plot.scene().sigMouseMoved.connect(self.mouseMoveEvent)
         self.scatter_plot.scene().sigMouseClicked.connect(self.mousePressEvent)
-        self.scatter_plot.scene().sigMouseClicked.connect(self.mouseMoveEvent)
+        self.scatter_plot.scene().sigMouseClicked.connect(self.mouseReleaseEvent)
 
         # Add labels for cursor position and data point value
         self.cursor_position_label = QtWidgets.QLabel(self)
@@ -591,13 +592,13 @@ class PlotWidget(GraphicsLayoutWidget):
 
         for roi in self.roi_list:
 
-            if type(roi) == pg.graphicsItems.ROI.PolyLineROI:
+            if type(roi) is pg.graphicsItems.ROI.PolyLineROI:
 
                 center_point = roi.getState()["pos"]
                 polygon_points = [center_point + x for x in roi.getState()["points"]]
                 polygon = Polygon(polygon_points)
 
-            elif type(roi) == pg.graphicsItems.ROI.RectROI:
+            elif type(roi) is pg.graphicsItems.ROI.RectROI:
 
                 # Get the position and size of the RectROI
                 pos = roi.pos()
@@ -859,6 +860,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
             # Check if the click is within the scatter plot view box
             if not self.scatter_plot.vb.sceneBoundingRect().contains(scene_pos):
+                logger.debug("Click outside scatter plot view box, scene position: {scene_pos}")
                 return
 
             pen = pg.mkPen(color="gray", width=2)
@@ -869,14 +871,16 @@ class PlotWidget(GraphicsLayoutWidget):
 
             if self.drawing:
 
+                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+
                 self.current_roi = pg.PolyLineROI(
                     [], closed=True, removable=True, pen=pen, handlePen=handlePen, hoverPen=hoverPen
                 )
                 self.scatter_plot.addItem(self.current_roi)
 
-                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
                 self.current_points = [(plot_pos.x(), plot_pos.y())]
                 self.last_pos = (event.pos().x(), event.pos().y())
+                logger.debug(f"Initial points for PolyLineROI: {self.current_points}")
 
                 event.accept()
 
@@ -902,12 +906,15 @@ class PlotWidget(GraphicsLayoutWidget):
         else:
             super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event: Any) -> None:
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+
+        logger.debug("Movement detected")
 
         if self.drawing and self.current_roi is not None:
 
             if self.last_pos is not None:
                 dist = np.sqrt((event.pos().x() - self.last_pos[0]) ** 2 + (event.pos().y() - self.last_pos[1]) ** 2)
+                logger.debug(f"Distance: {dist}")
 
                 if dist > self.vertex_add_threshold:
 
@@ -917,6 +924,8 @@ class PlotWidget(GraphicsLayoutWidget):
                     self.current_roi.setPoints(self.current_points)
 
                     self.last_pos = (event.pos().x(), event.pos().y())
+
+                    logger.debug(f"Updated points for PolyLineROI: {self.current_points}")
 
             event.accept()
 
@@ -943,6 +952,8 @@ class PlotWidget(GraphicsLayoutWidget):
         self.updateHoverHighlight(plot_pos.x(), plot_pos.y())
 
     def mouseReleaseEvent(self, event: Any) -> None:
+
+        logger.debug(f"Mouse release event detected at {self.scatter_plot.vb.mapSceneToView(event.pos())}")
 
         if self.drawing and event.button() == Qt.LeftButton:
 

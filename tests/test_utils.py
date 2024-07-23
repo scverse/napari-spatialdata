@@ -85,12 +85,12 @@ def test_min_max_norm(vec: np.ndarray) -> None:
 
 def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
     from napari_spatialdata._model import DataModel
-    from napari_spatialdata._scatterwidgets import MatplotlibWidget
+    from napari_spatialdata._scatterwidgets import PlotWidget
 
     viewer = make_napari_viewer()
     model = DataModel()
 
-    m = MatplotlibWidget(viewer, model)
+    m = PlotWidget(viewer, model)
     m._onClick(np.ones(10), np.ones(10), np.ones(10), "X", "Y", "Color")
 
     with caplog.at_level(logging.INFO):
