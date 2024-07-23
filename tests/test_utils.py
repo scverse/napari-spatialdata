@@ -15,6 +15,8 @@ from napari_spatialdata.utils._utils import (
 )
 from spatialdata.datasets import blobs
 
+from .test_scatterwidgets import prepare_cont_test_data
+
 
 def test_get_categorical(adata_labels: AnnData):
     assert _get_categorical(adata_labels, key="categorical").shape == (adata_labels.n_obs, 3)
@@ -91,7 +93,8 @@ def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
     model = DataModel()
 
     m = PlotWidget(viewer, model)
-    m._onClick(np.ones(10), np.ones(10), np.ones(10), "X", "Y", "Color")
+    x_data, y_data, color_data, x_label, y_label, color_label = prepare_cont_test_data()
+    m._onClick(x_data, y_data, color_data, x_label, y_label, color_label)
 
     with caplog.at_level(logging.INFO):
         assert "Plotting" in caplog.records[0].message

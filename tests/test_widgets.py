@@ -147,11 +147,17 @@ def test_scatterlistwidget(
 
     widget.x_widget.widget._onAction(items=[item])
     if attr == "obsm":
-        assert np.array_equal(widget.x_widget.widget.data, getattr(adata_labels, attr)[item][:, text])
+        expected = getattr(adata_labels, attr)[item][:, text]
+        actual = widget.x_widget.widget.data["vec"]
+        assert np.array_equal(actual, expected), f"Expected: {expected}, but got: {actual}"
     elif attr == "obs":
-        assert np.array_equal(widget.x_widget.widget.data, getattr(adata_labels, attr)[item])
+        expected = getattr(adata_labels, attr)[item]
+        actual = widget.x_widget.widget.data["vec"]
+        assert np.array_equal(actual, expected), f"Expected: {expected}, but got: {actual}"
     else:
-        assert np.array_equal(widget.x_widget.widget.data, adata_labels.X[:, item])
+        expected = adata_labels.X[:, item]
+        actual = widget.x_widget.widget.data["vec"]
+        assert np.array_equal(actual, expected), f"Expected: {expected}, but got: {actual}"
 
 
 # TODO fix adata_labels as this does not annotate element, tests fail

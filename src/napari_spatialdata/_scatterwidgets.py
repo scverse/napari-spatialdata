@@ -633,6 +633,8 @@ class PlotWidget(GraphicsLayoutWidget):
         color_label: str | None,
     ) -> None:
 
+        logger.info("Plotting has been requested.")
+
         self.cat = None
         self.palette = None
 
