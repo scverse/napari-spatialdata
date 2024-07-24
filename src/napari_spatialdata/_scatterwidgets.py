@@ -882,7 +882,6 @@ class PlotWidget(GraphicsLayoutWidget):
 
                 self.current_points = [(plot_pos.x(), plot_pos.y())]
                 self.last_pos = (event.pos().x(), event.pos().y())
-                logger.debug(f"Initial points for PolyLineROI: {self.current_points}")
 
                 event.accept()
 
@@ -910,13 +909,10 @@ class PlotWidget(GraphicsLayoutWidget):
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
 
-        logger.debug("Movement detected")
-
         if self.drawing and self.current_roi is not None:
 
             if self.last_pos is not None:
                 dist = np.sqrt((event.pos().x() - self.last_pos[0]) ** 2 + (event.pos().y() - self.last_pos[1]) ** 2)
-                logger.debug(f"Distance: {dist}")
 
                 if dist > self.vertex_add_threshold:
 
