@@ -71,12 +71,13 @@ class ScatterAnnotationDialog(QDialog):
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, napari_viewer: Viewer | AnnData, model: DataModel | None = None):
+    def __init__(
+        self, napari_viewer: Viewer | None = None, adata: AnnData | None = None, model: DataModel | None = None
+    ):
         super().__init__()
 
-        input = napari_viewer
-        if isinstance(input, Viewer):
-            self._viewer = input
+        if napari_viewer is not None:
+            self._viewer = napari_viewer
 
             self._model = (
                 model
@@ -88,12 +89,12 @@ class QtAdataScatterWidget(QWidget):
             self._viewer.layers.selection.events.changed.connect(self._select_layer)
             self._viewer.layers.selection.events.changed.connect(self._on_selection)
 
-        elif isinstance(input, AnnData):
+        elif adata is not None:
 
             self._viewer = None
 
             self._model = DataModel()
-            self._model.adata = input
+            self._model.adata = adata
 
             # fake an instance key as we don't have a napari layer
             col = self._model.adata.obs.columns[0]
@@ -101,6 +102,9 @@ class QtAdataScatterWidget(QWidget):
             self._model.adata.uns["spatialdata_attrs"] = temp
 
             self.setStyleSheet(get_stylesheet("dark"))
+
+        else:
+            raise ValueError("Either napari viewer or adata object must be provided.")
 
         # create the layout
         self.setLayout(QGridLayout())
