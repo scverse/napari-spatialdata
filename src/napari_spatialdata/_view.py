@@ -393,8 +393,7 @@ class QtAdataViewWidget(QWidget):
 
         current_point = list(event.value)
         displayed = self._viewer.dims.displayed
-
-        for i, (lo_size, hi_size, cord) in enumerate(zip(layer.data[-1].shape, layer.data[0].shape, displayed)):
+        for i, (lo_size, hi_size, cord) in enumerate(zip(layer.data[-1].shape, layer.data[0].shape, current_point)):
             if i in displayed:
                 current_point[i] = slice(None)
             else:
