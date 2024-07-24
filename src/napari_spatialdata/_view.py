@@ -72,7 +72,7 @@ class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
 
     def __init__(
-        self, napari_viewer: Viewer | None = None, adata: AnnData | None = None, model: DataModel | None = None
+        self, napari_viewer: Viewer | None = None, model: DataModel | None = None, adata: AnnData | None = None
     ):
         super().__init__()
 
