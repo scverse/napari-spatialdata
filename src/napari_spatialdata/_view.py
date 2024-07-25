@@ -180,7 +180,9 @@ class QtAdataScatterWidget(QWidget):
             # display a message window to get the column name
             self.annotation_name = self.open_annotation_dialog()
 
-            if self.annotation_name is not None:
+            if (self.annotation_name != "") and (self.annotation_name not in self.model.adata.obs.columns):
+
+                logger.info(f"Exporting selected points as {self.annotation_name}")
 
                 # get selected points
                 self.selected_vector = self.plot_widget.get_selection()
@@ -200,15 +202,23 @@ class QtAdataScatterWidget(QWidget):
                     if widget.getAttribute() == "obs":
                         widget.addItems(self.annotation_name)
 
+            elif self.annotation_name == "":
+
+                # display status message that no column name was provided
+                self.plot_widget.cursor_position_label.setText("")
+                self.plot_widget.data_point_label.setText("No name provided.")
+
             else:
 
                 # display status message that no column name was provided
-                pass
+                self.plot_widget.cursor_position_label.setText("")
+                self.plot_widget.data_point_label.setText("Annotation already exists.")
 
         else:
 
-            # display status message that no ROIs are available to save the selection
-            pass
+            # display status message that no column name was provided
+            self.plot_widget.cursor_position_label.setText("")
+            self.plot_widget.data_point_label.setText("No rois selected.")
 
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":

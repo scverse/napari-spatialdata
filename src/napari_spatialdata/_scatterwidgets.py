@@ -645,7 +645,7 @@ class PlotWidget(GraphicsLayoutWidget):
             x_changed = True
             self.x_data = x_data["vec"] if x_data else None
             self.x_ticks = x_data.get("labels") if x_data else None
-            self.x_label = x_label if x_label else "Count"
+            self.x_label = x_label if x_label != "None: None" else "Count"
 
             self.scatter_plot.setLabel("bottom", self.x_label)
 
@@ -653,11 +653,20 @@ class PlotWidget(GraphicsLayoutWidget):
             y_changed = True
             self.y_data = y_data["vec"] if y_data else None
             self.y_ticks = y_data.get("labels") if y_data else None
-            self.y_label = y_label if y_label else "Count"
+            self.y_label = y_label if y_label != "None: None" else "Count"
 
             self.scatter_plot.setLabel("left", self.y_label)
 
+        # both x and y data are set to None
+        if self.x_label == "Count" and self.y_label == "Count":
+            self.x_label = None
+            self.y_label = None
+            color_label = None
+            color_data = None
+
         if color_label != self.color_label:
+
+            logger.info("Change in color label detected.")
 
             self.color_data = color_data
             self.color_vec = color_data["vec"] if color_data else None
@@ -731,10 +740,10 @@ class PlotWidget(GraphicsLayoutWidget):
     def plot(self, event: Any = None) -> None:
         """Plot the scatter plot or pseudo histogram."""
 
-        if self.x_data is not None or self.y_data is not None:
+        # clear previous
+        self.scatter_plot.removeItem(self.scatter)
 
-            # clear previous
-            self.scatter_plot.removeItem(self.scatter)
+        if self.x_data is not None or self.y_data is not None:
 
             logger.info("Generating scatter plot...")
 
