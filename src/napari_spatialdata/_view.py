@@ -190,6 +190,32 @@ class QtAdataScatterWidget(QWidget):
                 # modify andata table
                 self.model.adata.obs[self.annotation_name] = self.selected_vector
 
+                # save modification of a layer
+                if self._viewer is not None:
+                    selected_layer = self._viewer.layers.selection.active
+                    selected_table = self.table_name_widget.currentText()
+
+                    # change adata of the layer
+                    selected_layer.metadata["adata"] = self.model.adata
+
+                    # change sdata of the layer
+                    sel_obs = selected_layer.metadata["sdata"][selected_table].obs
+                    columns_to_add = [col for col in self.model.adata.obs.columns if col not in sel_obs.columns]
+                    merge_on = [
+                        self.model.adata.uns["spatialdata_attrs"]["region_key"],
+                        self.model.adata.uns["spatialdata_attrs"]["instance_key"],
+                    ]
+                    selected_layer.metadata["sdata"][selected_table].obs = pd.merge(
+                        sel_obs, self.model.adata.obs[merge_on + columns_to_add], on=merge_on, how="left"
+                    )
+
+                    # trigger update of the viewer
+                    list(self._viewer.window._dock_widgets.items())[-2][1].children()[4]._on_layer_update()
+
+                    # trigger saving of the table
+                    # self._viewer_model._write_element_to_disk(selected_layer.metadata["sdata"],
+                    # selected_table, self.model.adata, overwrite=True)
+
                 # add the new option to the obs widget
                 # without changing the current selection
                 widgets = {
