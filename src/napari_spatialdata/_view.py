@@ -36,36 +36,11 @@ from spatialdata.models import TableModel
 from napari_spatialdata._annotationwidgets import MainWindow
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, PlotWidget
-from napari_spatialdata._widgets import AListWidget, CBarWidget, ComponentWidget, RangeSliderWidget, SaveDialog
+from napari_spatialdata._widgets import AListWidget, CBarWidget, ComponentWidget, RangeSliderWidget, SaveDialog, AnnDataSaveDialog, ScatterAnnotationDialog    
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
 from napari_spatialdata.utils._utils import _get_init_table_list, block_signals
-
-
-class ScatterAnnotationDialog(QDialog):
-    def __init__(self, parent: QWidget | None = None):
-        super().__init__(parent)
-
-        self.setWindowTitle("Name Obs")
-
-        self.layout = QVBoxLayout()
-
-        self.label = QLabel("Annotation Name:")
-        self.layout.addWidget(self.label)
-
-        self.textbox = QLineEdit(self)
-        self.layout.addWidget(self.textbox)
-
-        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
-        self.layout.addWidget(self.buttonBox)
-
-        self.setLayout(self.layout)
-
-    def get_annotation_name(self) -> str:
-        return str(self.textbox.text())
 
 
 class QtAdataScatterWidget(QWidget):
@@ -84,6 +59,8 @@ class QtAdataScatterWidget(QWidget):
                 if model is not None
                 else self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
             )
+
+            self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
 
             self._select_layer()
             self._viewer.layers.selection.events.changed.connect(self._select_layer)
@@ -153,11 +130,15 @@ class QtAdataScatterWidget(QWidget):
             )
         )
 
-        self.export_button_widget = QPushButton("Export")
-        self.export_button_widget.clicked.connect(self.export)
+        self.annotate_button_widget = QPushButton("Annotate")
+        self.annotate_button_widget.clicked.connect(self.export)
 
-        control_layout.addWidget(self.plot_button_widget, 2, 0, 1, 2)
-        control_layout.addWidget(self.export_button_widget, 2, 2, 1, 1)
+        self.save_button_widget = QPushButton("Save")
+        self.save_button_widget.clicked.connect(self.save_sdata)
+
+        control_layout.addWidget(self.plot_button_widget, 2, 0, 1, 1)
+        control_layout.addWidget(self.annotate_button_widget, 2, 1, 1, 1)
+        control_layout.addWidget(self.save_button_widget, 2, 2, 1, 1)
 
         splitter.addWidget(control_widget)
 
@@ -182,7 +163,7 @@ class QtAdataScatterWidget(QWidget):
 
             if (self.annotation_name != "") and (self.annotation_name not in self.model.adata.obs.columns):
 
-                logger.info(f"Exporting selected points as {self.annotation_name}")
+                logger.info(f"Annotating selected points as {self.annotation_name}")
 
                 # get selected points
                 self.selected_vector = self.plot_widget.get_selection()
@@ -190,7 +171,7 @@ class QtAdataScatterWidget(QWidget):
                 # modify andata table
                 self.model.adata.obs[self.annotation_name] = self.selected_vector
 
-                # save modification of a layer
+                # modify sdata of the viewer
                 if self._viewer is not None:
                     selected_layer = self._viewer.layers.selection.active
                     selected_table = self.table_name_widget.currentText()
@@ -205,16 +186,13 @@ class QtAdataScatterWidget(QWidget):
                         self.model.adata.uns["spatialdata_attrs"]["region_key"],
                         self.model.adata.uns["spatialdata_attrs"]["instance_key"],
                     ]
-                    selected_layer.metadata["sdata"][selected_table].obs = pd.merge(
-                        sel_obs, self.model.adata.obs[merge_on + columns_to_add], on=merge_on, how="left"
-                    )
+
+                    new_table = pd.merge(sel_obs, self.model.adata.obs[merge_on + columns_to_add], on=merge_on, how="left")
+                    new_table[self.annotation_name] = new_table[self.annotation_name].astype("category")
+                    selected_layer.metadata["sdata"][selected_table].obs = new_table
 
                     # trigger update of the viewer
                     list(self._viewer.window._dock_widgets.items())[-2][1].children()[4]._on_layer_update()
-
-                    # trigger saving of the table
-                    # self._viewer_model._write_element_to_disk(selected_layer.metadata["sdata"],
-                    # selected_table, self.model.adata, overwrite=True)
 
                 # add the new option to the obs widget
                 # without changing the current selection
@@ -236,7 +214,7 @@ class QtAdataScatterWidget(QWidget):
 
             else:
 
-                # display status message that no column name was provided
+                # display status message that this annotation already exists
                 self.plot_widget.cursor_position_label.setText("")
                 self.plot_widget.data_point_label.setText("Annotation already exists.")
 
@@ -245,6 +223,43 @@ class QtAdataScatterWidget(QWidget):
             # display status message that no column name was provided
             self.plot_widget.cursor_position_label.setText("")
             self.plot_widget.data_point_label.setText("No rois selected.")
+
+    def save_sdata(self) -> None:
+        """Saving of sdata or AnnData."""
+
+        # data taken from the viewer
+        if self._viewer is not None:
+
+            selected_layer = self._viewer.layers.selection.active
+            selected_table = self.table_name_widget.currentText()
+
+            # trigger saving of the table
+            self._viewer_model._write_element_to_disk(selected_layer.metadata["sdata"],
+                                                      selected_table, 
+                                                      selected_layer.metadata["sdata"][selected_table], 
+                                                      overwrite=True)
+        # data provided directly as AnnData
+        else:
+            d = AnnDataSaveDialog()
+            file_path = d.show_dialog()
+
+            if file_path:
+                if file_path.endswith(".h5ad") or file_path.endswith(".zarr") or file_path.endswith(".csv"):
+                    if file_path.endswith(".h5ad"):
+                        self.model.adata.write(file_path)
+                    if file_path.endswith(".zarr"):
+                        self.model.adata.write_zarr(file_path)
+                    if file_path.endswith(".csv"):
+                        self.model.adata.write_csvs(file_path)
+                    # display status message that AnnData was saved
+                    self.plot_widget.cursor_position_label.setText("")
+                    self.plot_widget.data_point_label.setText("AnnData saved!")
+                    
+                else:
+                    logger.info("File format not supported.")
+                    # display status message that no valid file format was provided
+                    self.plot_widget.cursor_position_label.setText("")
+                    self.plot_widget.data_point_label.setText("Only h5ad, zarr and csv are supported.")
 
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":
