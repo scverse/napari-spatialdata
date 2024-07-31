@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from abc import abstractmethod
 from collections import defaultdict
 from functools import singledispatchmethod
@@ -31,7 +32,7 @@ __all__ = [
     "AListWidget",
     "CBarWidget",
     "RangeSliderWidget",
-    "ComponentWidget",
+    "ComponentWidget"
 ]
 
 # label string: attribute name
@@ -640,3 +641,53 @@ class SaveDialog(QtWidgets.QDialog):
 
     def get_save_shape_name(self) -> str | None:
         return getattr(self, "shape_name", None)
+
+
+class ScatterAnnotationDialog(QtWidgets.QDialog):
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Name Obs")
+
+        self.layout = QtWidgets.QVBoxLayout()
+
+        self.label = QtWidgets.QLabel("Annotation Name:")
+        self.layout.addWidget(self.label)
+
+        self.textbox = QtWidgets.QLineEdit(self)
+        self.layout.addWidget(self.textbox)
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        self.layout.addWidget(self.buttonBox)
+
+        self.setLayout(self.layout)
+
+    def get_annotation_name(self) -> str:
+        return str(self.textbox.text())
+
+
+class AnnDataSaveDialog(QtWidgets.QDialog):
+    def __init__(self, parent: QtWidgets.QWidget | None = None) -> str | None:
+        super().__init__(parent)
+
+    def show_dialog(self) -> None:
+
+        # Define file filters
+        file_filters = "All Files (*);;H5AD Files (*.h5ad);;Zarr Files (*.zarr);; Csv Files (*.csv)"
+        
+        # Open the file dialog with the specified options and filters
+        filePath, selected_filter = QtWidgets.QFileDialog.getSaveFileName(self, "Save AnnData", "", file_filters)
+        
+        if filePath:
+            # Add the correct extension if not provided
+            if selected_filter == "H5AD Files (*.h5ad)" and not filePath.endswith('.h5ad'):
+                filePath += '.h5ad'
+            elif selected_filter == "Zarr Files (*.zarr)" and not filePath.endswith('.zarr'):
+                filePath += '.zarr'
+            elif selected_filter == "Text Files (*.csv)" and not filePath.endswith('.csv'):
+                filePath += '.csv'
+
+            return filePath
+

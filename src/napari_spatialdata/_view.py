@@ -161,7 +161,12 @@ class QtAdataScatterWidget(QWidget):
             # display a message window to get the column name
             self.annotation_name = self.open_annotation_dialog()
 
-            if (self.annotation_name != "") and (self.annotation_name not in self.model.adata.obs.columns):
+            if self.annotation_name != "":
+                
+                if self.annotation_name in self.model.adata.obs.columns:
+                    new_name = False
+                else:
+                    new_name = True
 
                 logger.info(f"Annotating selected points as {self.annotation_name}")
 
@@ -194,29 +199,25 @@ class QtAdataScatterWidget(QWidget):
                     # trigger update of the viewer
                     list(self._viewer.window._dock_widgets.items())[-2][1].children()[4]._on_layer_update()
 
-                # add the new option to the obs widget
-                # without changing the current selection
-                widgets = {
-                    "color_widget": self.color_widget.widget,
-                    "x_widget": self.x_widget.widget,
-                    "y_widget": self.y_widget.widget,
-                }
+                # a new annotation
+                if new_name == True:
+                    # add the new option to the obs widget
+                    # without changing the current selection
+                    widgets = {
+                        "color_widget": self.color_widget.widget,
+                        "x_widget": self.x_widget.widget,
+                        "y_widget": self.y_widget.widget,
+                    }
 
-                for widget in widgets.values():
-                    if widget.getAttribute() == "obs":
-                        widget.addItems(self.annotation_name)
+                    for widget in widgets.values():
+                        if widget.getAttribute() == "obs":
+                            widget.addItems(self.annotation_name)
 
-            elif self.annotation_name == "":
+            else:
 
                 # display status message that no column name was provided
                 self.plot_widget.cursor_position_label.setText("")
                 self.plot_widget.data_point_label.setText("No name provided.")
-
-            else:
-
-                # display status message that this annotation already exists
-                self.plot_widget.cursor_position_label.setText("")
-                self.plot_widget.data_point_label.setText("Annotation already exists.")
 
         else:
 
