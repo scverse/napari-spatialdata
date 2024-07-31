@@ -663,15 +663,17 @@ class ScatterAnnotationDialog(QtWidgets.QDialog):
 
 
 class AnnDataSaveDialog(QtWidgets.QDialog):
-    def __init__(self, parent: QtWidgets.QWidget | None = None) -> str | None:
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
         super().__init__(parent)
 
-    def show_dialog(self) -> None:
+    def show_dialog(self) -> str | None:
 
         # Define file filters
         file_filters = "All Files (*);;H5AD Files (*.h5ad);;Zarr Files (*.zarr);; Csv Files (*.csv)"
 
         # Open the file dialog with the specified options and filters
+        filePath: str
+        selected_filter: str
         filePath, selected_filter = QtWidgets.QFileDialog.getSaveFileName(self, "Save AnnData", "", file_filters)
 
         if filePath:
@@ -684,3 +686,5 @@ class AnnDataSaveDialog(QtWidgets.QDialog):
                 filePath += ".csv"
 
             return filePath
+
+        return None
