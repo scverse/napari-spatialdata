@@ -671,7 +671,7 @@ class PlotWidget(GraphicsLayoutWidget):
             self.color_data = color_data
             self.color_vec = color_data["vec"] if color_data else None
             self.color_names = color_data.get("labels") if color_data else None
-            self.color_label = color_label
+            self.color_label = color_label.replace("__change__", "") if color_label else None
 
             # clear previous color widgets
             if self.lut:

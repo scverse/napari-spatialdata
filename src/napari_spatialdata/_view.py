@@ -170,10 +170,7 @@ class QtAdataScatterWidget(QWidget):
 
             if self.annotation_name != "":
 
-                if self.annotation_name in self.model.adata.obs.columns:
-                    new_name = False
-                else:
-                    new_name = True
+                new_name = self.annotation_name not in self.model.adata.obs.columns
 
                 logger.info(f"Annotating selected points as {self.annotation_name}")
 
@@ -193,6 +190,12 @@ class QtAdataScatterWidget(QWidget):
 
                     # change sdata of the layer
                     sel_obs = selected_layer.metadata["sdata"][selected_table].obs
+
+                    if not new_name:
+                        logger.info("Dropping a column")
+                        # clear the old annotation column
+                        sel_obs = sel_obs.drop(self.annotation_name, axis=1)
+
                     columns_to_add = [col for col in self.model.adata.obs.columns if col not in sel_obs.columns]
                     merge_on = [
                         self.model.adata.uns["spatialdata_attrs"]["region_key"],
@@ -209,7 +212,7 @@ class QtAdataScatterWidget(QWidget):
                     list(self._viewer.window._dock_widgets.items())[-2][1].children()[4]._on_layer_update()
 
                 # a new annotation
-                if new_name == True:
+                if new_name:
                     # add the new option to the obs widget
                     # without changing the current selection
                     widgets = {
@@ -221,6 +224,30 @@ class QtAdataScatterWidget(QWidget):
                     for widget in widgets.values():
                         if widget.getAttribute() == "obs":
                             widget.addItems(self.annotation_name)
+
+                # old annotation
+                else:
+                    # change widget data if the annotation already exists and is selected
+                    if (self.color_widget.widget.getAttribute() == "obs") and (
+                        self.color_widget.widget.chosen == self.annotation_name
+                    ):
+                        logger.info("OLD_ANNOTATION")
+                        if self.color_widget.widget.data is not None:
+                            self.color_widget.widget.data["vec"] = self.selected_vector
+
+                        color_label = self.color_widget.getFormattedLabel()
+                        if color_label is not None:
+                            color_label = color_label + "__change__"
+
+                        # automatically replot - may revisit later for performance
+                        self.plot_widget._onClick(
+                            self.x_widget.widget.data,
+                            self.y_widget.widget.data,
+                            self.color_widget.widget.data,
+                            self.x_widget.getFormattedLabel(),
+                            self.y_widget.getFormattedLabel(),
+                            color_label,
+                        )
 
             else:
 
@@ -235,7 +262,7 @@ class QtAdataScatterWidget(QWidget):
             self.plot_widget.data_point_label.setText("No rois selected.")
 
     def save_sdata(self) -> None:
-        """Saving of sdata or AnnData."""
+        """Save sdata or AnnData."""
         # data taken from the viewer
         if self._viewer is not None:
 
