@@ -148,12 +148,27 @@ class QtAdataScatterWidget(QWidget):
         control_layout.addWidget(self.annotate_button_widget, 2, 1, 1, 1)
         control_layout.addWidget(self.save_button_widget, 2, 2, 1, 1)
 
+        self.status_label = QLabel("Status: ")
+        control_layout.addWidget(self.status_label, 3, 0, 1, 3)
+
+        if self._viewer is not None:
+            if self._viewer.layers.selection.active.metadata["sdata"].is_backed():
+                self.change_status("Sdata is backed - annotations can be saved.")
+            else:
+                self.change_status("Sdata is not backed - annotations can be created but not saved.")
+        else:
+            self.change_status("No napari viewer detected. You can change annotations to AnnData directly.")
+
         splitter.addWidget(control_widget)
 
         # Add the splitter to the main layout
         self.layout().addWidget(splitter, 1, 0, 1, 3)
 
         self.model.events.adata.connect(self._on_selection)
+
+    def change_status(self, new_status: str) -> None:
+        """Change the status label text."""
+        self.status_label.setText(f"Status: {new_status}")
 
     def open_annotation_dialog(self) -> str:
         dialog = ScatterAnnotationDialog(self)
@@ -237,13 +252,14 @@ class QtAdataScatterWidget(QWidget):
                         if widget.getAttribute() == "obs":
                             widget.addItems(self.annotation_name)
 
+                    self.change_status("Annotation added.")
+
                 # old annotation - change data and replot
                 else:
                     # change widget data if the annotation already exists and is selected
                     if (self.color_widget.widget.getAttribute() == "obs") and (
                         self.color_widget.widget.chosen == self.annotation_name
                     ):
-                        logger.info("OLD_ANNOTATION")
                         if self.color_widget.widget.data is not None:
                             self.color_widget.widget.data["vec"] = self.selected_vector
 
@@ -261,17 +277,17 @@ class QtAdataScatterWidget(QWidget):
                             color_label,
                         )
 
+                        self.change_status("Annotation updated.")
+
             # display status message that no column name was provided
             else:
 
-                self.plot_widget.cursor_position_label.setText("")
-                self.plot_widget.data_point_label.setText("No name provided.")
+                self.change_status("No column name provided.")
 
         # display status message - no rois
         else:
 
-            self.plot_widget.cursor_position_label.setText("")
-            self.plot_widget.data_point_label.setText("No rois selected.")
+            self.change_status("No rois selected.")
 
     def save_sdata(self) -> None:
         """Save sdata or AnnData."""
@@ -302,14 +318,12 @@ class QtAdataScatterWidget(QWidget):
                     if file_path.endswith(".csv"):
                         self.model.adata.write_csvs(file_path)
                     # display status message that AnnData was saved
-                    self.plot_widget.cursor_position_label.setText("")
-                    self.plot_widget.data_point_label.setText("AnnData saved!")
+                    self.change_status("AnnData saved!")
 
                 else:
                     logger.info("File format not supported.")
                     # display status message that no valid file format was provided
-                    self.plot_widget.cursor_position_label.setText("")
-                    self.plot_widget.data_point_label.setText("Only h5ad, zarr and csv are supported.")
+                    self.change_status("Data not saved. Only h5ad, zarr and csv are supported.")
 
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":
