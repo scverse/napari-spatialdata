@@ -16,6 +16,7 @@ from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
+from qtpy import QtWidgets
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QComboBox,
@@ -172,6 +173,17 @@ class QtAdataScatterWidget(QWidget):
 
                 new_name = self.annotation_name not in self.model.adata.obs.columns
 
+                if not new_name:
+                    reply = QtWidgets.QMessageBox.question(
+                        self,
+                        "Overwrite Annotation",
+                        f"The annotation'{self.annotation_name}' already exists. Do you want to overwrite it?",
+                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                        QtWidgets.QMessageBox.No,
+                    )
+                    if reply == QtWidgets.QMessageBox.No:
+                        return
+
                 logger.info(f"Annotating selected points as {self.annotation_name}")
 
                 # get selected points
@@ -211,7 +223,7 @@ class QtAdataScatterWidget(QWidget):
                     # trigger update of the viewer
                     list(self._viewer.window._dock_widgets.items())[-2][1].children()[4]._on_layer_update()
 
-                # a new annotation
+                # new annotation - update options
                 if new_name:
                     # add the new option to the obs widget
                     # without changing the current selection
@@ -225,7 +237,7 @@ class QtAdataScatterWidget(QWidget):
                         if widget.getAttribute() == "obs":
                             widget.addItems(self.annotation_name)
 
-                # old annotation
+                # old annotation - change data and replot
                 else:
                     # change widget data if the annotation already exists and is selected
                     if (self.color_widget.widget.getAttribute() == "obs") and (
@@ -249,15 +261,15 @@ class QtAdataScatterWidget(QWidget):
                             color_label,
                         )
 
+            # display status message that no column name was provided
             else:
 
-                # display status message that no column name was provided
                 self.plot_widget.cursor_position_label.setText("")
                 self.plot_widget.data_point_label.setText("No name provided.")
 
+        # display status message - no rois
         else:
 
-            # display status message that no column name was provided
             self.plot_widget.cursor_position_label.setText("")
             self.plot_widget.data_point_label.setText("No rois selected.")
 
