@@ -169,7 +169,7 @@ class QtAdataScatterWidget(QWidget):
             self.annotation_name = self.open_annotation_dialog()
 
             if self.annotation_name != "":
-                
+
                 if self.annotation_name in self.model.adata.obs.columns:
                     new_name = False
                 else:
