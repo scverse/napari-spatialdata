@@ -20,7 +20,6 @@ from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QComboBox,
     QDialog,
-    QDialogButtonBox,
     QGridLayout,
     QInputDialog,
     QLabel,
@@ -36,7 +35,15 @@ from spatialdata.models import TableModel
 from napari_spatialdata._annotationwidgets import MainWindow
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import AxisWidgets, PlotWidget
-from napari_spatialdata._widgets import AListWidget, CBarWidget, ComponentWidget, RangeSliderWidget, SaveDialog, AnnDataSaveDialog, ScatterAnnotationDialog    
+from napari_spatialdata._widgets import (
+    AListWidget,
+    AnnDataSaveDialog,
+    CBarWidget,
+    ComponentWidget,
+    RangeSliderWidget,
+    SaveDialog,
+    ScatterAnnotationDialog,
+)
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
@@ -192,7 +199,9 @@ class QtAdataScatterWidget(QWidget):
                         self.model.adata.uns["spatialdata_attrs"]["instance_key"],
                     ]
 
-                    new_table = pd.merge(sel_obs, self.model.adata.obs[merge_on + columns_to_add], on=merge_on, how="left")
+                    new_table = pd.merge(
+                        sel_obs, self.model.adata.obs[merge_on + columns_to_add], on=merge_on, how="left"
+                    )
                     new_table[self.annotation_name] = new_table[self.annotation_name].astype("category")
                     selected_layer.metadata["sdata"][selected_table].obs = new_table
 
@@ -227,7 +236,6 @@ class QtAdataScatterWidget(QWidget):
 
     def save_sdata(self) -> None:
         """Saving of sdata or AnnData."""
-
         # data taken from the viewer
         if self._viewer is not None:
 
@@ -235,10 +243,12 @@ class QtAdataScatterWidget(QWidget):
             selected_table = self.table_name_widget.currentText()
 
             # trigger saving of the table
-            self._viewer_model._write_element_to_disk(selected_layer.metadata["sdata"],
-                                                      selected_table, 
-                                                      selected_layer.metadata["sdata"][selected_table], 
-                                                      overwrite=True)
+            self._viewer_model._write_element_to_disk(
+                selected_layer.metadata["sdata"],
+                selected_table,
+                selected_layer.metadata["sdata"][selected_table],
+                overwrite=True,
+            )
         # data provided directly as AnnData
         else:
             d = AnnDataSaveDialog()
@@ -255,7 +265,7 @@ class QtAdataScatterWidget(QWidget):
                     # display status message that AnnData was saved
                     self.plot_widget.cursor_position_label.setText("")
                     self.plot_widget.data_point_label.setText("AnnData saved!")
-                    
+
                 else:
                     logger.info("File format not supported.")
                     # display status message that no valid file format was provided
