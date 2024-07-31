@@ -17,21 +17,9 @@ This repository contains a napari plugin for interactively exploring and annotat
 
 You can install `napari-spatialdata` via [pip]:
 
-    pip install napari-spatialdata[extra]
+    pip install napari-spatialdata[all]
 
-The `extra` command will install the qt bindings `PyQt5`.
-
-Note: if you have an M1/M2 Mac then you may get an error when installing `PyQt5` via `pip`. A solution is to first install `napari` via conda (which will correctly install `PyQt5`), using
-
-```
-mamba install -c conda-forge napari pyqt
-```
-
-and then install `napari-spatialdata` via `pip`, but without the `extra` option:
-
-```
-pip install napari-spatialdata
-```
+The `all` command will install the qt bindings `PyQt5`.
 
 You can find more details on this in the [installation instructions](https://spatialdata.scverse.org/en/latest/installation.html).
 
