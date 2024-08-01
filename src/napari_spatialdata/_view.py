@@ -68,8 +68,6 @@ class QtAdataScatterWidget(QWidget):
                 else self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
             )
 
-            self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
-
             self._select_layer()
             self._viewer.layers.selection.events.changed.connect(self._select_layer)
             self._viewer.layers.selection.events.changed.connect(self._on_selection)
@@ -152,12 +150,18 @@ class QtAdataScatterWidget(QWidget):
         control_layout.addWidget(self.status_label, 3, 0, 1, 3)
 
         if self._viewer is not None:
-            if self._viewer.layers.selection.active.metadata["sdata"].is_backed():
-                self.change_status("Sdata is backed - annotations can be saved.")
+            if self._viewer.layers.selection.active is not None:
+                if "sdata" in self._viewer.layers.selection.active.metadata:
+                    if self._viewer.layers.selection.active.metadata["sdata"].is_backed():
+                        self.change_status("Sdata is backed - annotations can be saved.")
+                    else:
+                        self.change_status("Sdata present but not backed - annotations can be created but not saved.")
+                else:
+                    self.change_status("No sdata associated with the layer.")
             else:
-                self.change_status("Sdata is not backed - annotations can be created but not saved.")
+                self.change_status("No layer selected.")
         else:
-            self.change_status("No napari viewer detected. You can change annotations to AnnData directly.")
+            self.change_status("No napari viewer detected. You can save annotations to AnnData directly.")
 
         splitter.addWidget(control_widget)
 
@@ -298,6 +302,9 @@ class QtAdataScatterWidget(QWidget):
             selected_table = self.table_name_widget.currentText()
 
             # trigger saving of the table
+            # TODO: have to find another way to pass this as this is deprecated from 0.5.0 onwards
+            # it's used in the save_sdata method
+            self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
             self._viewer_model._write_element_to_disk(
                 selected_layer.metadata["sdata"],
                 selected_table,
