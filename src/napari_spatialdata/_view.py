@@ -281,7 +281,7 @@ class QtAdataScatterWidget(QWidget):
                             color_label,
                         )
 
-                        self.change_status("Annotation updated.")
+                    self.change_status("Annotation updated.")
 
             # display status message that no column name was provided
             else:

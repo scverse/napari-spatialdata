@@ -69,6 +69,13 @@ def adata_labels() -> AnnData:
 
 
 @pytest.fixture
+def annotation_values(adata_labels):
+    """Generate random annotation values."""
+    rng = np.random.default_rng()
+    return rng.integers(0, 10, size=len(adata_labels.obs))
+
+
+@pytest.fixture
 def blobs_extra_cs() -> SpatialData:
     return blobs(extra_coord_system="space")
 
