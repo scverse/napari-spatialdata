@@ -1,6 +1,3 @@
-import random
-import string
-
 import numpy as np
 import pyqtgraph as pg
 import pytest
@@ -9,13 +6,7 @@ from napari_spatialdata._scatterwidgets import PlotWidget
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 from shapely.geometry import Polygon
 
-RNG = np.random.default_rng(seed=0)
 DATA_LEN = 100
-
-
-def generate_random_string(length):
-    letters = string.ascii_letters  # Includes both lowercase and uppercase letters
-    return "".join(random.choice(letters) for i in range(length))
 
 
 def normalize_coordinates(coords):
@@ -30,38 +21,6 @@ def coordinates_are_equal(coords1, coords2, tol=1e-6):
         return False
 
     return all(np.allclose(c1, c2, atol=tol) for c1, c2 in zip(norm_coords1, norm_coords2))
-
-
-@pytest.fixture
-def prepare_cont_test_data():
-    x_vec = RNG.random(DATA_LEN)
-    y_vec = RNG.random(DATA_LEN)
-    color_vec = RNG.random(DATA_LEN)
-
-    x_data = {"vec": x_vec}
-    y_data = {"vec": y_vec}
-    color_data = {"vec": color_vec}
-
-    x_label = generate_random_string(10)
-    y_label = generate_random_string(10)
-    color_label = generate_random_string(10)
-    return x_data, y_data, color_data, x_label, y_label, color_label
-
-
-@pytest.fixture
-def prepare_disc_test_data():
-    x_vec = RNG.random(DATA_LEN)
-    y_vec = RNG.random(DATA_LEN)
-    color_vec = np.zeros(DATA_LEN).astype(int)
-
-    x_data = {"vec": x_vec}
-    y_data = {"vec": y_vec}
-    color_data = {"vec": color_vec, "labels": ["a"]}
-
-    x_label = generate_random_string(10)
-    y_label = generate_random_string(10)
-    color_label = generate_random_string(10)
-    return x_data, y_data, color_data, x_label, y_label, color_label
 
 
 @pytest.fixture
