@@ -569,7 +569,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
             return None
 
-        boolean_vector = np.zeros(len(self._model.adata), dtype=bool)
+        boolean_vector = np.zeros(len(self.scatter.xData), dtype=bool)
 
         polygon_list = self.rois_to_polygons()
 
@@ -1000,7 +1000,7 @@ class PlotWidget(GraphicsLayoutWidget):
             if modifiers == Qt.ShiftModifier:
                 self.remove_all_rois()
             else:
-                self.remove_roi_under_cursor()
+                self.remove_hovered_roi()
         else:
             super().keyPressEvent(event)
 
@@ -1011,16 +1011,16 @@ class PlotWidget(GraphicsLayoutWidget):
             self.scatter_plot.removeItem(roi)
         self.roi_list = []
 
-    def remove_roi_under_cursor(self) -> None:
+    def remove_hovered_roi(self) -> None:
         """Remove the ROI under the cursor."""
-        pos = QtGui.QCursor.pos()
-        scene_pos = self.scatter_plot.vb.mapSceneToView(self.mapFromGlobal(pos))
-        point = Point(scene_pos.x(), scene_pos.y())
 
-        self.remove_roi(point=point)
+        for roi in self.roi_list:
+            if roi.mouseHovering:
+                self.remove_roi(roi=roi)
+                break
 
     def remove_roi(self, roi: ROI | None = None, point: Point | None = None) -> None:
-        """Remove specified ROI or ROI under the cursor."""
+        """Remove specified ROI."""
 
         # find roi by point
         if point is not None:
