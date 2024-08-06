@@ -292,11 +292,11 @@ class HoverScatterPlotItem(pg.PlotDataItem):
     def hoverEvent(self, event: Any) -> None:
         widget = self.getViewWidget()
         if event.isExit():
-            widget.clearHoverHighlight()
+            widget.clear_hover_highlight()
         else:
             scene_pos = event.scenePos()
             plot_pos = self.mapToParent(scene_pos)
-            widget.updateHoverHighlight(plot_pos.x(), plot_pos.y())
+            widget.update_hover_highlight(plot_pos.x(), plot_pos.y())
 
 
 class PlotWidget(GraphicsLayoutWidget):
@@ -417,9 +417,9 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # Connect mouse events
         self.scatter_plot.setMouseEnabled(x=True, y=True)
-        self.scatter_plot.scene().sigMouseMoved.connect(self.mouseMoveEvent)
-        self.scatter_plot.scene().sigMouseClicked.connect(self.mousePressEvent)
-        self.scatter_plot.scene().sigMouseClicked.connect(self.mouseReleaseEvent)
+        self.scatter_plot.scene().sigMouseMoved.connect(self.mouse_move_event)
+        self.scatter_plot.scene().sigMouseClicked.connect(self.mouse_press_event)
+        self.scatter_plot.scene().sigMouseClicked.connect(self.mouse_release_event)
 
         # Add labels for cursor position and data point value
         self.cursor_position_label = QtWidgets.QLabel(self)
@@ -431,7 +431,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.data_point_label.setFixedSize(150, 20)
 
         # Connect mouse events
-        self.scatter_plot.scene().sigMouseMoved.connect(self.mouseMoveEvent)
+        self.scatter_plot.scene().sigMouseMoved.connect(self.mouse_move_event)
 
         self._init_complete = True
         self.update_label_positions()
@@ -442,11 +442,11 @@ class PlotWidget(GraphicsLayoutWidget):
 
     def on_debounced_zoom_event(self) -> None:
         # Update the proximity sensitivity
-        self.updateProximitySensitivity()
+        self.update_proximity_sensitivity()
 
-    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
+    def resize_event(self, event: QtGui.QResizeEvent) -> None:
         """Resizing of the window."""
-        super().resizeEvent(event)
+        super().resize_event(event)
         if self._init_complete:
             self.update_label_positions()
 
@@ -456,13 +456,13 @@ class PlotWidget(GraphicsLayoutWidget):
         self.cursor_position_label.move(30, widget_height - 25)
         self.data_point_label.move(170, widget_height - 25)
 
-    def updateProximitySensitivity(self) -> None:
+    def update_proximity_sensitivity(self) -> None:
         """Update the proximity sensitivity of the hover highlight."""
         if self.scatter is not None:
-            logger.info("Updating proximity sensitivity...")
+            logger.debug("Updating proximity sensitivity...")
             self.dist_threshold = [x * 15 for x in self.scatter.pixelSize()]  # Adjust this factor as needed
 
-    def updateHoverHighlight(self, x: float, y: float) -> None:
+    def update_hover_highlight(self, x: float, y: float) -> None:
         """Update the hover highlight based on the cursor position."""
         if self.kd_tree is not None and self.x_data is not None and self.y_data is not None:
             # Query the k-d tree for the nearest neighbor
@@ -483,7 +483,7 @@ class PlotWidget(GraphicsLayoutWidget):
             self.hovered_point.setData([], [])
             self.data_point_label.setText("Value: N/A")
 
-    def clearHoverHighlight(self) -> None:
+    def clear_hover_highlight(self) -> None:
         """Clear the hover highlight."""
         self.hovered_point.setData([], [])
         self.data_point_label.setText("Value: N/A")
@@ -633,7 +633,7 @@ class PlotWidget(GraphicsLayoutWidget):
         color_label: str | None,
     ) -> None:
 
-        logger.info("Plotting has been requested.")
+        logger.debug("Plotting has been requested.")
 
         self.cat = None
         self.palette = None
@@ -666,7 +666,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         if color_label != self.color_label:
 
-            logger.info("Change in color label detected.")
+            logger.debug("Change in color label detected.")
 
             self.color_data = color_data
             self.color_vec = color_data["vec"] if color_data else None
@@ -712,7 +712,7 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.brushes = None
 
         if x_changed or y_changed:
-            logger.info("A change in x or y data has been detected.")
+            logger.debug("A change in x or y data has been detected.")
             self.scatter_plot.getAxis("bottom").setTicks(None)
             self.scatter_plot.getAxis("left").setTicks(None)
 
@@ -735,7 +735,7 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.kd_tree = None
 
             # Initial call to set the correct size
-            self.updateProximitySensitivity()
+            self.update_proximity_sensitivity()
 
     def plot(self, event: Any = None) -> None:
         """Plot the scatter plot or pseudo histogram."""
@@ -745,7 +745,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         if self.x_data is not None or self.y_data is not None:
 
-            logger.info("Generating scatter plot...")
+            logger.debug("Generating scatter plot...")
 
             # plot the scatter plot
             if self.x_data is not None and self.y_data is not None:
@@ -842,7 +842,7 @@ class PlotWidget(GraphicsLayoutWidget):
     def get_brushes(self, event: Any = None) -> list[QColor] | None:
         """Get the brushes for the scatter plot based on the color data."""
 
-        logger.info("Generating brushes...")
+        logger.debug("Generating brushes...")
 
         # for discrete data
         if self.discrete_color_widget is not None:
@@ -861,7 +861,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         return None
 
-    def mousePressEvent(self, event: Any) -> None:
+    def mouse_press_event(self, event: Any) -> None:
 
         if (self.drawing or self.rectangle) and event.button() == Qt.LeftButton:
             logger.debug("Left press detected")
@@ -914,9 +914,9 @@ class PlotWidget(GraphicsLayoutWidget):
                 event.accept()
 
         else:
-            super().mousePressEvent(event)
+            super().mouse_press_event(event)
 
-    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
+    def mouse_move_event(self, event: QtGui.QMouseEvent) -> None:
 
         if self.drawing and self.current_roi is not None:
 
@@ -946,7 +946,7 @@ class PlotWidget(GraphicsLayoutWidget):
             event.accept()
 
         else:
-            super().mouseMoveEvent(event)
+            super().mouse_move_event(event)
 
         # Get cursor position
         scene_pos = event.pos()
@@ -956,9 +956,9 @@ class PlotWidget(GraphicsLayoutWidget):
         self.cursor_position_label.setText(f"X: {plot_pos.x():.2f}, Y: {plot_pos.y():.2f}")
 
         # Call the hover highlight update function
-        self.updateHoverHighlight(plot_pos.x(), plot_pos.y())
+        self.update_hover_highlight(plot_pos.x(), plot_pos.y())
 
-    def mouseReleaseEvent(self, event: Any) -> None:
+    def mouse_release_event(self, event: Any) -> None:
 
         logger.debug(f"Mouse release event detected at {self.scatter_plot.vb.mapSceneToView(event.pos())}")
 
@@ -981,9 +981,9 @@ class PlotWidget(GraphicsLayoutWidget):
             event.accept()
 
         else:
-            super().mouseReleaseEvent(event)
+            super().mouse_release_event(event)
 
-    def mouseDoubleClickEvent(self, event: Any) -> None:
+    def mouse_double_click_event(self, event: Any) -> None:
         if event.button() == Qt.LeftButton:
 
             plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
@@ -993,7 +993,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
             event.accept()
 
-    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
+    def key_press_event(self, event: QtGui.QKeyEvent) -> None:
         """Handle key press events."""
         if event.key() == Qt.Key_D:
             modifiers = QtWidgets.QApplication.keyboardModifiers()
@@ -1002,11 +1002,11 @@ class PlotWidget(GraphicsLayoutWidget):
             else:
                 self.remove_hovered_roi()
         else:
-            super().keyPressEvent(event)
+            super().key_press_event(event)
 
     def remove_all_rois(self) -> None:
         """Remove all ROIs."""
-        logger.info("Removing all ROIs.")
+        logger.debug("Removing all ROIs.")
         for roi in self.roi_list:
             self.scatter_plot.removeItem(roi)
         self.roi_list = []
@@ -1035,6 +1035,6 @@ class PlotWidget(GraphicsLayoutWidget):
                     break
 
         if roi is not None:
-            logger.info(f"Remove {roi} ROI.")
+            logger.debug(f"Remove {roi} ROI.")
             self.scatter_plot.removeItem(roi)
             self.roi_list.remove(roi)

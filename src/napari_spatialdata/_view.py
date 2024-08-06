@@ -203,7 +203,7 @@ class QtAdataScatterWidget(QWidget):
                     if reply == QtWidgets.QMessageBox.No:
                         return
 
-                logger.info(f"Annotating selected points as {self.annotation_name}")
+                logger.debug(f"Annotating selected points as {self.annotation_name}")
 
                 # get selected points
                 self.selected_vector = self.plot_widget.get_selection()
@@ -223,7 +223,7 @@ class QtAdataScatterWidget(QWidget):
                     sel_obs = selected_layer.metadata["sdata"][selected_table].obs
 
                     if not new_name:
-                        logger.info("Dropping a column")
+                        logger.debug("Dropping a column")
                         # clear the old annotation column
                         sel_obs = sel_obs.drop(self.annotation_name, axis=1)
 
@@ -546,7 +546,7 @@ class QtAdataViewWidget(QWidget):
 
     def _on_layer_update(self, event: Any | None = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
-        logger.info("Updating layer.")
+        logger.debug("Updating layer.")
 
         self.table_name_widget.clear()
 
