@@ -121,11 +121,11 @@ def test_hover_highlight_cont(plot_widget, prepare_cont_test_data):
     plot_widget._onClick(x_data, y_data, color_data, x_label, y_label, color_label)
     plot_widget.plot()
 
-    plot_widget.updateHoverHighlight(x_data["vec"][0], y_data["vec"][0])
+    plot_widget.update_hover_highlight(x_data["vec"][0], y_data["vec"][0])
     assert plot_widget.hovered_point.data[0][0] == x_data["vec"][0]
     assert plot_widget.hovered_point.data[0][1] == y_data["vec"][0]
 
-    plot_widget.updateHoverHighlight(-1, -1)
+    plot_widget.update_hover_highlight(-1, -1)
     assert plot_widget.data_point_label.text() == "Value: N/A"
     assert plot_widget.hovered_point.data.size == 0
 
@@ -136,11 +136,11 @@ def test_clear_hover_highlight(plot_widget, prepare_disc_test_data):
     plot_widget._onClick(x_data, y_data, color_data, x_label, y_label, color_label)
     plot_widget.plot()
 
-    plot_widget.updateHoverHighlight(x_data["vec"][0], y_data["vec"][0])
+    plot_widget.update_hover_highlight(x_data["vec"][0], y_data["vec"][0])
     assert plot_widget.hovered_point.data[0][0] == x_data["vec"][0]
     assert plot_widget.hovered_point.data[0][1] == y_data["vec"][0]
 
-    plot_widget.clearHoverHighlight()
+    plot_widget.clear_hover_highlight()
     assert plot_widget.hovered_point.data.size == 0
 
 

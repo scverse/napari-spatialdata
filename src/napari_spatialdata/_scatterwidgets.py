@@ -417,9 +417,9 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # Connect mouse events
         self.scatter_plot.setMouseEnabled(x=True, y=True)
-        self.scatter_plot.scene().sigMouseMoved.connect(self.mouse_move_event)
-        self.scatter_plot.scene().sigMouseClicked.connect(self.mouse_press_event)
-        self.scatter_plot.scene().sigMouseClicked.connect(self.mouse_release_event)
+        self.scatter_plot.scene().sigMouseMoved.connect(self.mouseMoveEvent)
+        self.scatter_plot.scene().sigMouseClicked.connect(self.mousePressEvent)
+        self.scatter_plot.scene().sigMouseClicked.connect(self.mouseReleaseEvent)
 
         # Add labels for cursor position and data point value
         self.cursor_position_label = QtWidgets.QLabel(self)
@@ -431,7 +431,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.data_point_label.setFixedSize(150, 20)
 
         # Connect mouse events
-        self.scatter_plot.scene().sigMouseMoved.connect(self.mouse_move_event)
+        self.scatter_plot.scene().sigMouseMoved.connect(self.mouseMoveEvent)
 
         self._init_complete = True
         self.update_label_positions()
@@ -861,7 +861,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         return None
 
-    def mouse_press_event(self, event: Any) -> None:
+    def mousePressEvent(self, event: Any) -> None:
 
         if (self.drawing or self.rectangle) and event.button() == Qt.LeftButton:
             logger.debug("Left press detected")
@@ -914,9 +914,9 @@ class PlotWidget(GraphicsLayoutWidget):
                 event.accept()
 
         else:
-            super().mouse_press_event(event)
+            super().mousePressEvent(event)
 
-    def mouse_move_event(self, event: QtGui.QMouseEvent) -> None:
+    def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
 
         if self.drawing and self.current_roi is not None:
 
@@ -946,7 +946,7 @@ class PlotWidget(GraphicsLayoutWidget):
             event.accept()
 
         else:
-            super().mouse_move_event(event)
+            super().mouseMoveEvent(event)
 
         # Get cursor position
         scene_pos = event.pos()
@@ -958,7 +958,7 @@ class PlotWidget(GraphicsLayoutWidget):
         # Call the hover highlight update function
         self.update_hover_highlight(plot_pos.x(), plot_pos.y())
 
-    def mouse_release_event(self, event: Any) -> None:
+    def mouseReleaseEvent(self, event: Any) -> None:
 
         logger.debug(f"Mouse release event detected at {self.scatter_plot.vb.mapSceneToView(event.pos())}")
 
@@ -981,9 +981,9 @@ class PlotWidget(GraphicsLayoutWidget):
             event.accept()
 
         else:
-            super().mouse_release_event(event)
+            super().mouseReleaseEvent(event)
 
-    def mouse_double_click_event(self, event: Any) -> None:
+    def mouseDoubleClickEvent(self, event: Any) -> None:
         if event.button() == Qt.LeftButton:
 
             plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
@@ -993,7 +993,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
             event.accept()
 
-    def key_press_event(self, event: QtGui.QKeyEvent) -> None:
+    def keyPressEvent(self, event: QtGui.QKeyEvent) -> None:
         """Handle key press events."""
         if event.key() == Qt.Key_D:
             modifiers = QtWidgets.QApplication.keyboardModifiers()
@@ -1002,7 +1002,7 @@ class PlotWidget(GraphicsLayoutWidget):
             else:
                 self.remove_hovered_roi()
         else:
-            super().key_press_event(event)
+            super().keyPressEvent(event)
 
     def remove_all_rois(self) -> None:
         """Remove all ROIs."""
