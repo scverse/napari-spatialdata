@@ -185,3 +185,8 @@ def caplog(caplog):
     handler_id = logger.add(caplog.handler, format="{message}")
     yield caplog
     logger.remove(handler_id)
+
+
+@pytest.fixture(autouse=True)
+def always_sync(monkeypatch):
+    monkeypatch.setattr("napari_spatialdata._sdata_widgets.ARM_PROBLEM", True)
