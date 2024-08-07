@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import platform
+import sys
+from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, cast
 
@@ -7,6 +10,7 @@ import shapely
 from napari.layers import Points, Shapes
 from napari.utils.events import EventedList
 from napari.utils.notifications import show_info
+from packaging.version import parse as parse_version
 from qtpy.QtCore import QThread, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QProgressBar, QVBoxLayout, QWidget
@@ -21,6 +25,10 @@ if TYPE_CHECKING:
     from napari.utils.events.event import Event
 
 icon_path = Path(__file__).parent / "resources/exclamation.png"
+
+ARM_PROBLEM = (
+    parse_version(version("numpy")) < parse_version("2") and sys.platform == "darwin" and platform.machine() == "arm64"
+)
 
 
 class ElementWidget(QListWidget):
@@ -102,7 +110,10 @@ class DataLoadThread(QThread):
         self._selected_cs = selected_cs
         self._multi = multi
 
-        self.start()
+        if ARM_PROBLEM:
+            self.run()
+        else:
+            self.start()
 
     def run(self) -> None:
         if not self._data_type:
@@ -192,7 +203,8 @@ class SdataWidget(QWidget):
             type_ = cast(str, type_)
 
             self.worker_thread.load_data(type_, text, sdata, selected_cs, multi)
-            self.slider.setVisible(True)
+            if not ARM_PROBLEM:
+                self.slider.setVisible(True)
 
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
         """Toggle active in the coordinate system metadata when changing visibility of layer."""
