@@ -188,5 +188,6 @@ def caplog(caplog):
 
 
 @pytest.fixture(autouse=True)
-def always_sync(monkeypatch):
-    monkeypatch.setattr("napari_spatialdata._sdata_widgets.ARM_PROBLEM", True)
+def always_sync(monkeypatch, request):
+    if request.node.get_closest_marker("use_thread_loader") is None:
+        monkeypatch.setattr("napari_spatialdata._sdata_widgets.ARM_PROBLEM", True)
