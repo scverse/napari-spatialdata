@@ -66,7 +66,7 @@ class Interactive:
                 self._sdata_widget._onClick(name_to_add)
                 self._sdata_widget.elements_widget._elements = cache_elements
                 self._sdata_widget.coordinate_system_widget._system = cache_coordinate_system
-                self._viewer.layers[-1].visible = True
+                # self._viewer.layers[-1].visible = True
         else:
             raise ValueError(f"Element {element} not found in coordinate system {element_coordinate_system}.")
 
