@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from operator import itemgetter
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable
 
@@ -8,6 +9,7 @@ from napari.utils.events import EventedList
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
 from spatialdata import SpatialData
+from spatialdata.models._utils import DEFAULT_COORDINATE_SYSTEM
 
 from napari_spatialdata._viewer import SpatialDataViewer
 from napari_spatialdata.constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
@@ -35,7 +37,7 @@ class ElementWidget(QListWidget):
         self._elements = elements
 
     def _set_element_widget_items(self, elements: dict[str, dict[str, str | int]]) -> None:
-        for key, dict_val in elements.items():
+        for key, dict_val in sorted(elements.items(), key=itemgetter(0)):
             sdata = self._sdata[dict_val["sdata_index"]]
             element_type = dict_val["element_type"]
             element_name = dict_val["original_name"]
@@ -71,7 +73,11 @@ class CoordinateSystemWidget(QListWidget):
         self._sdata = sdata
         self._system: None | str = None
 
-        coordinate_systems = {cs for sdata in self._sdata for cs in sdata.coordinate_systems}
+        # Sort alphabetically, but keep default "global" at the top.
+        coordinate_systems = sorted(cs for sdata in self._sdata for cs in sdata.coordinate_systems)
+        if DEFAULT_COORDINATE_SYSTEM in coordinate_systems:
+            coordinate_systems.remove(DEFAULT_COORDINATE_SYSTEM)
+            coordinate_systems.insert(0, DEFAULT_COORDINATE_SYSTEM)
         self.addItems(coordinate_systems)
 
     def _select_coord_sys(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
