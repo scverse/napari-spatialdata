@@ -238,37 +238,7 @@ class QtAdataViewWidget(QWidget):
         self.var_widget = AListWidget(self.viewer, self.model, attr="var")
         self.var_widget.setAdataLayer("X")
 
-        def channel_changed(event: Event) -> None:
-            layer = self.model.layer
-            is_image = isinstance(layer, Image)
-
-            has_sdata = layer is not None and layer.metadata.get("sdata") is not None
-            has_adata = layer is not None and layer.metadata.get("adata") is not None
-
-            # has_adata is added so we see the channels in the view widget under vars
-            if layer is not None and is_image and has_sdata and has_adata:
-                c_channel = event.value[0]
-
-                # TODO remove once contrast limits in napari are fixed
-                if isinstance(layer.data, MultiScaleData):
-                    # just compute lowest resolution
-                    image = layer.data[-1][c_channel, :, :].compute()
-                    min_value = image.min().data
-                    max_value = image.max().data
-                else:
-                    image = layer.data[c_channel, :, :].compute()
-                    min_value = image.min()
-                    max_value = image.max()
-                if min_value == max_value:
-                    min_value = np.iinfo(image.data.dtype).min
-                    max_value = np.iinfo(image.data.dtype).max
-                layer.contrast_limits = [min_value, max_value]
-
-                item = self.var_widget.item(c_channel)
-                index = self.var_widget.indexFromItem(item)
-                self.var_widget.setCurrentIndex(index)
-
-        self.viewer.dims.events.current_step.connect(channel_changed)
+        self.viewer.dims.events.current_step.connect(self._channel_changed)
 
         # layers
         adata_layer_label = QLabel("Layers:")
@@ -321,6 +291,48 @@ class QtAdataViewWidget(QWidget):
 
         self.model.events.adata.connect(self._on_layer_update)
         self.model.events.color_by.connect(self._change_color_by)
+
+    def _channel_changed(self, event: Event) -> None:
+        layer = self.model.layer
+        is_image = isinstance(layer, Image)
+
+        has_sdata = layer is not None and layer.metadata.get("sdata") is not None
+        has_adata = layer is not None and layer.metadata.get("adata") is not None
+
+        # has_adata is added so we see the channels in the view widget under vars
+        if layer is None or not is_image or not has_sdata or not has_adata or layer.rgb:
+            return
+
+        current_point = list(event.value)
+        displayed = self._viewer.dims.displayed
+        for i, (lo_size, hi_size, cord) in enumerate(zip(layer.data[-1].shape, layer.data[0].shape, current_point)):
+            if i in displayed:
+                current_point[i] = slice(None)
+            else:
+                current_point[i] = int(cord * lo_size / hi_size)
+
+        # TODO remove once contrast limits in napari are fixed
+        if isinstance(layer.data, MultiScaleData):
+            # just compute lowest resolution
+            image = layer.data[-1][tuple(current_point)].compute()
+            min_value = image.min().data
+            max_value = image.max().data
+        else:
+            image = layer.data[tuple(current_point)].compute()
+            min_value = image.min()
+            max_value = image.max()
+        if min_value == max_value:
+            min_value = np.iinfo(image.data.dtype).min
+            max_value = np.iinfo(image.data.dtype).max
+        layer.contrast_limits = [min_value, max_value]
+        try:
+            channel_num = next(x for x in current_point if not isinstance(x, slice))
+        except StopIteration:
+            return
+
+        item = self.var_widget.item(channel_num)
+        index = self.var_widget.indexFromItem(item)
+        self.var_widget.setCurrentIndex(index)
 
     def _on_layer_update(self, event: Any | None = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
