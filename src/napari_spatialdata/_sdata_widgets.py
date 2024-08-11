@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import platform
-import sys
 from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, cast
 
+import numpy as np
 import shapely
 from napari.layers import Points, Shapes
 from napari.utils.events import EventedList
@@ -26,9 +26,20 @@ if TYPE_CHECKING:
 
 icon_path = Path(__file__).parent / "resources/exclamation.png"
 
-ARM_PROBLEM = (
-    parse_version(version("numpy")) < parse_version("2") and sys.platform == "darwin" and platform.machine() == "arm64"
-)
+# if run with numpy<2 on macOS arm64 architecture compiled from pypi wheels,
+# then it will crash with bus error if numpy is used in different thread
+# Issue reported https://github.com/numpy/numpy/issues/21799
+if (
+    parse_version(version("numpy")) < parse_version("2")
+    and platform.system() == "Darwin"
+    and platform.machine() == "arm64"
+):  # pragma: no cover
+    try:
+        PROBLEMATIC_NUMPY_MACOS = "cibw-run" in np.show_config("dicts")["Python Information"]["path"]  # type: ignore
+    except (KeyError, TypeError):
+        PROBLEMATIC_NUMPY_MACOS = False
+else:
+    PROBLEMATIC_NUMPY_MACOS = False
 
 
 class ElementWidget(QListWidget):
@@ -110,7 +121,7 @@ class DataLoadThread(QThread):
         self._selected_cs = selected_cs
         self._multi = multi
 
-        if ARM_PROBLEM:
+        if PROBLEMATIC_NUMPY_MACOS:
             self.run()
         else:
             self.start()
@@ -203,7 +214,7 @@ class SdataWidget(QWidget):
             type_ = cast(str, type_)
 
             self.worker_thread.load_data(type_, text, sdata, selected_cs, multi)
-            if not ARM_PROBLEM:
+            if not PROBLEMATIC_NUMPY_MACOS:
                 self.slider.setVisible(True)
 
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
