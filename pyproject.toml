@@ -89,3 +89,4 @@ convention = "numpy"
     "src/napari_spatialdata/_constants/_utils.py" = ["D101","D102", "B024"]
     "src/napari_spatialdata/_widgets.py" = ["D"]
     "src/napari_spatialdata/_scatterwidgets.py" = ["D"]
+    "benchmarks/*" = ["D"]
