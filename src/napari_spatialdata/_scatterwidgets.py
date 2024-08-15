@@ -914,6 +914,8 @@ class PlotWidget(GraphicsLayoutWidget):
                 event.accept()
 
         else:
+            if not isinstance(event, QtGui.QMouseEvent):
+                return
             super().mousePressEvent(event)
 
     def mouseMoveEvent(self, event: QtGui.QMouseEvent) -> None:
@@ -946,6 +948,9 @@ class PlotWidget(GraphicsLayoutWidget):
             event.accept()
 
         else:
+
+            if not isinstance(event, QtGui.QMouseEvent):
+                return
             super().mouseMoveEvent(event)
 
         # Get cursor position
@@ -981,6 +986,8 @@ class PlotWidget(GraphicsLayoutWidget):
             event.accept()
 
         else:
+            if not isinstance(event, QtGui.QMouseEvent):
+                return
             super().mouseReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event: Any) -> None:
