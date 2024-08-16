@@ -30,7 +30,8 @@ jobs:
           echo "dist=${{ steps.build_dist.outputs.dist }}"
           ls -l ${{ steps.build_dist.outputs.dist }}
           mkdir -p dist
-          cp -r ${{ steps.build_dist.outputs.dist }}/* ./dist/
+          cp ${{ steps.build_dist.outputs.dist }}/*.whl ./dist/
+          cp ${{ steps.build_dist.outputs.dist }}/*.gz ./dist/
 
       - name: Create Release
         uses: "softprops/action-gh-release@v2"
