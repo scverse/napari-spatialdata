@@ -67,7 +67,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: plotting-results
+          name: plotting-results-${{ matrix.python-version }}-${{ matrix.platform }}
           path: /home/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/*
 
   test_benchmarks:
