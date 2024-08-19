@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable
 
 import numpy as np
@@ -364,9 +365,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # Adding a button to toggle auto-range
         self.auto_range_button = QPushButton(self)
-        self.auto_range_button.setIcon(
-            QIcon(r"../../src/napari_spatialdata/resources/icons8-home-48.png")
-        )  # Set the icon image
+        self.auto_range_button.setIcon(QIcon(str(Path(__file__).parent / "resources/icons8-home-48.png")))
         self.auto_range_button.setIconSize(QSize(24, 24))  # Icon size
         self.auto_range_button.setStyleSheet("QPushButton {background-color: transparent;}")
         self.auto_range_button.clicked.connect(self.use_auto_range)
@@ -376,7 +375,7 @@ class PlotWidget(GraphicsLayoutWidget):
         # Polygon drawing mode toggle button
         self.drawing = False
         self.drawing_mode_button = QPushButton(self)
-        self.drawing_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-polygon-80.png"))
+        self.drawing_mode_button.setIcon(QIcon(str(Path(__file__).parent / "resources/icons8-polygon-80.png")))
         self.drawing_mode_button.setIconSize(QSize(24, 24))
         self.drawing_mode_button.setStyleSheet(
             f"""
@@ -397,7 +396,7 @@ class PlotWidget(GraphicsLayoutWidget):
         # Rectangle drawing mode toggle button
         self.rectangle = False
         self.rectangle_mode_button = QPushButton(self)
-        self.rectangle_mode_button.setIcon(QIcon(r"../../src/napari_spatialdata/resources/icons8-rectangle-48.png"))
+        self.rectangle_mode_button.setIcon(QIcon(str(Path(__file__).parent / "resources/icons8-rectangle-48.png")))
         self.rectangle_mode_button.setIconSize(QSize(24, 24))
         self.rectangle_mode_button.setStyleSheet(
             f"""
