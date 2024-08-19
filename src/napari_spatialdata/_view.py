@@ -6,6 +6,7 @@ from typing import Any
 import napari
 import numpy as np
 import pandas as pd
+import xarray
 from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
@@ -322,6 +323,12 @@ class QtAdataViewWidget(QWidget):
             image = layer.data[tuple(current_point)].compute()
             min_value = image.min()
             max_value = image.max()
+
+        if isinstance(min_value, xarray.DataArray):
+            min_value = min_value.item()
+        if isinstance(max_value, xarray.DataArray):
+            max_value = max_value.item()
+
         if min_value == max_value:
             min_value = np.iinfo(image.data.dtype).min
             max_value = np.iinfo(image.data.dtype).max
