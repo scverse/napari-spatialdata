@@ -79,12 +79,12 @@ def test_plot_data_widget_change(plot_widget, prepare_cont_test_data, prepare_di
     assert plot_widget.discrete_color_widget is not None
     assert plot_widget.lut is None
 
-    # change from discrte to contiuous
+    # change from discrete to continuous
     plot_widget._onClick(*prepare_cont_test_data)
     assert plot_widget.lut is not None
     assert plot_widget.discrete_color_widget is None
 
-    # change from contiuous to discrete
+    # change from continuous to discrete
     plot_widget._onClick(*prepare_disc_test_data)
     assert plot_widget.discrete_color_widget is not None
     assert plot_widget.lut is None

@@ -209,7 +209,7 @@ class QtAdataScatterWidget(QWidget):
                 # get selected points
                 self.selected_vector = self.plot_widget.get_selection()
 
-                # modify andata table
+                # modify anndata table
                 self.model.adata.obs[self.annotation_name] = self.selected_vector
 
                 # modify sdata of the viewer
@@ -234,11 +234,9 @@ class QtAdataScatterWidget(QWidget):
                         self.model.adata.uns["spatialdata_attrs"]["instance_key"],
                     ]
 
-                    new_table = pd.merge(
-                        sel_obs, self.model.adata.obs[merge_on + columns_to_add], on=merge_on, how="left"
-                    )
-                    new_table[self.annotation_name] = new_table[self.annotation_name].astype("category")
-                    selected_layer.metadata["sdata"][selected_table].obs = new_table
+                    new_df = pd.merge(sel_obs, self.model.adata.obs[merge_on + columns_to_add], on=merge_on, how="left")
+                    new_df[self.annotation_name] = new_df[self.annotation_name].astype("category")
+                    selected_layer.metadata["sdata"][selected_table].obs = new_df
 
                     # trigger update of the viewer
                     list(self._viewer.window._dock_widgets.items())[-2][1].children()[4]._on_layer_update()

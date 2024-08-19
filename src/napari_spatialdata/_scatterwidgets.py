@@ -592,13 +592,13 @@ class PlotWidget(GraphicsLayoutWidget):
 
         for roi in self.roi_list:
 
-            if type(roi) is pg.graphicsItems.ROI.PolyLineROI:
+            if isinstance(roi, pg.graphicsItems.ROI.PolyLineROI):
 
                 center_point = roi.getState()["pos"]
                 polygon_points = [center_point + x for x in roi.getState()["points"]]
                 polygon = Polygon(polygon_points)
 
-            elif type(roi) is pg.graphicsItems.ROI.RectROI:
+            elif isinstance(roi, pg.graphicsItems.ROI.RectROI):
 
                 # Get the position and size of the RectROI
                 pos = roi.pos()
