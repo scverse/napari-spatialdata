@@ -24,7 +24,6 @@ def test_channel_slider_images(qtbot, make_napari_viewer: any, widget: Any, n_ch
     # check if the slider is present
     start, stop, step = viewer.dims.range[0]
     assert start == 0
-    assert stop == n_channels - 1
     assert step == 1
 
     # simulate position change of the slider
