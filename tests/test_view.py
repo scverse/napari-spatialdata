@@ -15,13 +15,6 @@ def test_channel_slider_images(qtbot, make_napari_viewer: any, widget: Any, n_ch
     viewer = make_napari_viewer()
     sdata_widget = SdataWidget(viewer, EventedList([sdata_blobs]))
 
-    # # Click on `global` coordinate system
-    # center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
-    # click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
-    #
-    # widget._onClick(list(sdata_blobs.images.keys())[0])
-    # viewer.add_image(viewer.layers[0].data)
-
     viewer.window.add_dock_widget(sdata_widget, name="SpatialData")
     sdata_widget.viewer_model.add_sdata_image(sdata_blobs, "blobs_image", "global", False)
 
