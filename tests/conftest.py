@@ -1,9 +1,11 @@
+from __future__ import annotations
+
 import random
 import string
 from abc import ABC, ABCMeta
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any, Callable
 
 import napari
 import numpy as np
@@ -169,13 +171,13 @@ def generate_random_string(length):
     return "".join(random.choice(letters) for i in range(length))
 
 
-def _get_blobs_galaxy() -> Tuple[NDArrayA, NDArrayA]:
+def _get_blobs_galaxy() -> tuple[NDArrayA, NDArrayA]:
     blobs = data.binary_blobs(rng=SEED)
     blobs = ndi.label(blobs)[0]
     return blobs, data.hubble_deep_field()[: blobs.shape[0], : blobs.shape[0]]
 
 
-def generate_adata(n_var: int, obs: pd.DataFrame, obsm: Dict[Any, Any], uns: Dict[Any, Any]) -> AnnData:
+def generate_adata(n_var: int, obs: pd.DataFrame, obsm: dict[Any, Any], uns: dict[Any, Any]) -> AnnData:
     rng = np.random.default_rng(SEED)
     return AnnData(
         rng.normal(size=(obs.shape[0], n_var)),
@@ -198,7 +200,7 @@ class PlotTesterMeta(ABCMeta):
 # but for some reason, pytest erases the metaclass info
 class PlotTester(ABC):
     @classmethod
-    def compare(cls, basename: str, tolerance: Optional[float] = None):
+    def compare(cls, basename: str, tolerance: float | None = None):
         ACTUAL.mkdir(parents=True, exist_ok=True)
         out_path = ACTUAL / f"{basename}.png"
 
@@ -214,7 +216,7 @@ class PlotTester(ABC):
         assert res is None, res
 
 
-def _decorate(fn: Callable, clsname: str, name: Optional[str] = None) -> Callable:
+def _decorate(fn: Callable, clsname: str, name: str | None = None) -> Callable:
     @wraps(fn)
     def save_and_compare(self, *args, **kwargs):
         fn(self, *args, **kwargs)

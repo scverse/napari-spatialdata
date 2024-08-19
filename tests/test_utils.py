@@ -1,5 +1,5 @@
 import logging
-from typing import Any, List
+from typing import Any
 
 import numpy as np
 import pytest
@@ -54,7 +54,7 @@ def test_position_cluster_labels(adata_labels: AnnData):
 
 
 @pytest.mark.parametrize("tri_coord", [[[0, 10, 20], [30, 40, 50]]])
-def test_points_inside_triangles(adata_shapes: AnnData, tri_coord: List[List[int]]):
+def test_points_inside_triangles(adata_shapes: AnnData, tri_coord: list[list[int]]):
     from napari_spatialdata._model import DataModel
 
     coord1, coord2 = tri_coord

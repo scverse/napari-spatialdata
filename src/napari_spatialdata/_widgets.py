@@ -2,8 +2,9 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
+from collections.abc import Iterable, Sequence
 from functools import singledispatchmethod
-from typing import TYPE_CHECKING, Any, Callable, Iterable, Sequence
+from typing import TYPE_CHECKING, Any, Callable
 
 import matplotlib.pyplot as plt
 import napari

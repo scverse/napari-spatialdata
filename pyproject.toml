@@ -7,7 +7,7 @@ write_to = "src/napari_spatialdata/_version.py"
 
 [tool.black]
 line-length = 120
-target-version = ['py38']
+target-version = ['py39']
 include = '\.pyi?$'
 exclude = '''
 (
@@ -38,7 +38,7 @@ exclude = [
     "setup.py",
 ]
 line-length = 120
-target-version = "py38"
+target-version = "py39"
 [tool.ruff.lint]
 ignore = [
     # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
@@ -89,3 +89,4 @@ convention = "numpy"
     "src/napari_spatialdata/_constants/_utils.py" = ["D101","D102", "B024"]
     "src/napari_spatialdata/_widgets.py" = ["D"]
     "src/napari_spatialdata/_scatterwidgets.py" = ["D"]
+    "benchmarks/*" = ["D"]
