@@ -37,7 +37,8 @@ def test_channel_slider_images(qtbot, make_napari_viewer: any, widget: Any, n_ch
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget])
-def test_plot_dataframe_annotation_on_points(qtbot, make_napari_viewer: any, widget: Any):
+@pytest.mark.parametrize("column", ["genes", "instance_id"])
+def test_plot_dataframe_annotation_on_points(qtbot, make_napari_viewer: any, widget: Any, column: str):
     sdata_blobs = blobs()
     viewer = make_napari_viewer()
     sdata_widget = SdataWidget(viewer, EventedList([sdata_blobs]))
@@ -60,5 +61,5 @@ def test_plot_dataframe_annotation_on_points(qtbot, make_napari_viewer: any, wid
         wait_signal="currentItemChanged",
         click="double",
     )
-    widget.dataframe_columns_widget._onAction(["genes"])
+    widget.dataframe_columns_widget._onAction([column])
     viewer.close()
