@@ -198,14 +198,35 @@ class AListWidget(ListWidget):
         if isinstance(layer, Labels):
             element_indices = element_indices[element_indices != 0]
         # When merging if the row is not present in the other table it will be nan so we can give it a default color
-        if (vec_color_name := vec.name + "_color") not in self.model.adata.uns:
-            colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
-            _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
-            colors = colorer.uns["vec_colors"]
-            color_dict = dict(zip(vec.cat.categories, colors))
-            color_dict.update({np.nan: "#808080ff"})
+        vec_color_name = vec.name + "_color"
+        if self._attr != "columns_df":
+            if vec_color_name not in self.model.adata.uns:
+                colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
+                _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
+                colors = colorer.uns["vec_colors"]
+                color_dict = dict(zip(vec.cat.categories, colors))
+                color_dict.update({np.nan: "#808080ff"})
+            else:
+                color_dict = self.model.adata.uns[vec_color_name]
         else:
-            color_dict = self.model.adata.uns[vec_color_name]
+            df = layer.metadata["_columns_df"]
+            if vec_color_name not in df.columns:
+                colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
+                _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
+                colors = colorer.uns["vec_colors"]
+                color_dict = dict(zip(vec.cat.categories, colors))
+                color_dict.update({np.nan: "#808080ff"})
+                color_column = vec.apply(lambda x: color_dict[x])
+                df[vec_color_name] = color_column
+            else:
+                unique_colors = df[[vec.name, vec_color_name]].drop_duplicates()
+                unique_colors.set_index(vec.name, inplace=True)
+                if not unique_colors.index.is_unique:
+                    raise ValueError(
+                        f"The {vec_color_name} column must have unique values for the each {vec.name} level. Found:\n"
+                        f"{unique_colors}"
+                    )
+                color_dict = unique_colors.to_dict()["genes_color"]
 
         if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
             merge_df = pd.merge(
