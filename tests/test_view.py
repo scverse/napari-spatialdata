@@ -5,6 +5,7 @@ import pytest
 from napari.utils.events import EventedList
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataViewWidget
+from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from spatialdata.datasets import blobs
 from spatialdata.transformations import Affine, set_transformation
 
@@ -35,6 +36,35 @@ def test_channel_slider_images_bug_282(qtbot, make_napari_viewer: any, widget: A
     viewer.dims.set_current_step(0, 1)
     qtbot.wait(50)  # wait for a short time to simulate user interaction
 
+    viewer.close()
+
+
+@pytest.mark.parametrize("widget", [QtAdataViewWidget])
+@pytest.mark.parametrize("column", ["genes", "instance_id"])
+def test_plot_dataframe_annotation_on_points(qtbot, make_napari_viewer: any, widget: Any, column: str):
+    sdata_blobs = blobs()
+    viewer = make_napari_viewer()
+    sdata_widget = SdataWidget(viewer, EventedList([sdata_blobs]))
+
+    viewer.window.add_dock_widget(sdata_widget, name="SpatialData")
+
+    # init the adata view widget
+    widget = widget(viewer)
+
+    sdata_widget.viewer_model.add_sdata_points(sdata_blobs, "blobs_points", "global", False)
+
+    # plot dataframe annotations on the points
+    center_pos = get_center_pos_listitem(widget.dataframe_columns_widget, "instance_id")
+    # TODO: the double click doesn't trigger the signal, so below we are calling _onAction directly (looking at a
+    #  screenshot of the qtbot, the interface shows to be correctly clicked)
+    click_list_widget_item(
+        qtbot,
+        widget=widget.dataframe_columns_widget,
+        position=center_pos,
+        wait_signal="currentItemChanged",
+        click="double",
+    )
+    widget.dataframe_columns_widget._onAction([column])
     viewer.close()
 
 
