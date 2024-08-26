@@ -363,6 +363,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.last_pos: tuple[Any, Any] | None = None
         self.current_points: list[tuple[Any, Any]] = []
         self.roi_list: list[ROI] = []
+        self.initial_pos: tuple[Any, Any] | None = None
 
         # Adding a button to toggle auto-range
         self.auto_range_button = QPushButton(self)
@@ -429,9 +430,6 @@ class PlotWidget(GraphicsLayoutWidget):
         self.data_point_label = QtWidgets.QLabel(self)
         self.data_point_label.setStyleSheet(f"QLabel {{ background-color : black; color : rgb{self.color}; }}")
         self.data_point_label.setFixedSize(150, 20)
-
-        # Connect mouse events
-        self.scatter_plot.scene().sigMouseMoved.connect(self.mouseMoveEvent)
 
         self._init_complete = True
         self.update_label_positions()
@@ -533,7 +531,7 @@ class PlotWidget(GraphicsLayoutWidget):
         else:
             self._disable_drawing_mode()
 
-    def _update_scatter_plot(self, mouse_enabled: bool, menu_enabled: bool, auto_range_enabled: bool) -> None:
+    def _update_scatter_plot(self, mouse_enabled: bool, menu_enabled: bool) -> None:
         self.scatter_plot.setMouseEnabled(x=mouse_enabled, y=mouse_enabled)
         self.scatter_plot.setMenuEnabled(menu_enabled)
 
