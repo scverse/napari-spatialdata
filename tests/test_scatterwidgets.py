@@ -30,8 +30,6 @@ def plot_widget(qtbot):
     widget = PlotWidget(None, model)
     qtbot.addWidget(widget)
     yield widget
-    widget.deleteLater()
-    qtbot.wait(50)
 
 
 def test_initialization(plot_widget):
