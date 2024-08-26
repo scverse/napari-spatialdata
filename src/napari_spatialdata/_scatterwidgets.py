@@ -683,6 +683,7 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.wrapped_widget = None
 
             # build a new appropriate color widget
+            # generate brushes
             if self.color_data is not None:
 
                 # discrete color data
@@ -706,10 +707,12 @@ class PlotWidget(GraphicsLayoutWidget):
 
                 # generate brushes
                 self.brushes = self.get_brushes()
+                self.symbolPen = pg.mkPen(color="black", width=1)
 
             else:
 
                 self.brushes = None
+                self.symbolPen = pg.mkPen(color="white", width=1)
 
         if x_changed or y_changed:
             logger.debug("A change in x or y data has been detected.")
@@ -750,7 +753,13 @@ class PlotWidget(GraphicsLayoutWidget):
             # plot the scatter plot
             if self.x_data is not None and self.y_data is not None:
                 self.scatter = HoverScatterPlotItem(
-                    x=self.x_data, y=self.y_data, pen=None, symbol="o", clear=True, symbolBrush=self.brushes
+                    x=self.x_data,
+                    y=self.y_data,
+                    pen=None,
+                    symbolPen=self.symbolPen,
+                    symbol="o",
+                    clear=True,
+                    symbolBrush=self.brushes,
                 )
                 self.scatter_plot.addItem(self.scatter)
 
@@ -758,13 +767,25 @@ class PlotWidget(GraphicsLayoutWidget):
             elif self.x_data is not None:
                 ps = pg.pseudoScatter(self.x_data)
                 self.scatter = self.scatter_plot.plot(
-                    self.x_data, ps, fillLevel=0, pen=None, symbolBrush=self.brushes, clear=True
+                    self.x_data,
+                    ps,
+                    fillLevel=0,
+                    pen=None,
+                    symbolPen=self.symbolPen,
+                    symbolBrush=self.brushes,
+                    clear=True,
                 )
             # plot the pseudo scatter plot on y axis
             elif self.y_data is not None:
                 ps = pg.pseudoScatter(self.y_data)
                 self.scatter = self.scatter_plot.plot(
-                    ps, self.y_data, fillLevel=0, pen=None, symbolBrush=self.brushes, clear=True
+                    ps,
+                    self.y_data,
+                    fillLevel=0,
+                    pen=None,
+                    symbolPen=self.symbolPen,
+                    symbolBrush=self.brushes,
+                    clear=True,
                 )
 
             for roi in self.roi_list:
