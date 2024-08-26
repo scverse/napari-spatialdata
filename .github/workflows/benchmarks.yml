@@ -80,8 +80,8 @@ jobs:
         id: latest_release
         with:
           route: GET /repos/{owner}/{repo}/releases/latest
-          owner: napari
-          repo: napari
+          owner: scverse
+          repo: napari-spatialdata
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
