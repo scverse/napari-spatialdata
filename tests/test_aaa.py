@@ -2,6 +2,7 @@ import pytest
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import PlotWidget
 
+
 @pytest.fixture
 def plot_widget(qtbot):
     """Fixture for creating a PlotWidget instance."""

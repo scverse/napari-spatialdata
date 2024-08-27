@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning][].
 ## [0.5.3] - 2024-08-
 
 ### Added
+
 - New Scatter Widget based on PyQtGraph, replacing the previous Matplotlib-based widget.
   - New Features:
     - Separate color controls for continuous and discrete data:
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning][].
     - Annotation name dialog for saving annotations.
 
 ### Updated
+
 Documentation: Notebooks updated with the new Scatter Widget information and screenshots.
 
 ## [0.5.2] - 2024-08-16
