@@ -239,8 +239,12 @@ class QtAdataScatterWidget(QWidget):
                     new_df[self.annotation_name] = new_df[self.annotation_name].astype("category")
                     selected_layer.metadata["sdata"][selected_table].obs = new_df
 
-                    # trigger update of the viewer
-                    list(self._viewer.window._dock_widgets.items())[-2][1].children()[4]._on_layer_update()
+                    # check that the view widget is present
+                    # and trigger its update
+                    if 'View (napari-spatialdata)' in dict(self._viewer.window._dock_widgets.items()):
+                        view_widget = dict(self._viewer.window._dock_widgets.items())['View (napari-spatialdata)']
+                        qtAdataViewWidget = [x for x in view_widget.children() if isinstance(x,QtAdataViewWidget)][0]
+                        qtAdataViewWidget._on_layer_update()
 
                 # new annotation - update options
                 if new_name:
