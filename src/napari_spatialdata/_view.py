@@ -241,9 +241,9 @@ class QtAdataScatterWidget(QWidget):
 
                     # check that the view widget is present
                     # and trigger its update
-                    if 'View (napari-spatialdata)' in dict(self._viewer.window._dock_widgets.items()):
-                        view_widget = dict(self._viewer.window._dock_widgets.items())['View (napari-spatialdata)']
-                        qtAdataViewWidget = [x for x in view_widget.children() if isinstance(x,QtAdataViewWidget)][0]
+                    if "View (napari-spatialdata)" in dict(self._viewer.window._dock_widgets.items()):
+                        view_widget = dict(self._viewer.window._dock_widgets.items())["View (napari-spatialdata)"]
+                        qtAdataViewWidget = [x for x in view_widget.children() if isinstance(x, QtAdataViewWidget)][0]
                         qtAdataViewWidget._on_layer_update()
 
                 # new annotation - update options
