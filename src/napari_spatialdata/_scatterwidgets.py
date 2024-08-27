@@ -531,9 +531,10 @@ class PlotWidget(GraphicsLayoutWidget):
         else:
             self._disable_drawing_mode()
 
-    def _update_scatter_plot(self, mouse_enabled: bool, menu_enabled: bool) -> None:
+    def _update_scatter_plot(self, mouse_enabled: bool, menu_enabled: bool, auto_range_enabled: bool) -> None:
         self.scatter_plot.setMouseEnabled(x=mouse_enabled, y=mouse_enabled)
         self.scatter_plot.setMenuEnabled(menu_enabled)
+        self.scatter_plot.enableAutoRange('xy', auto_range_enabled)
 
     def _enable_drawing_mode(self) -> None:
         self._update_scatter_plot(mouse_enabled=False, menu_enabled=False, auto_range_enabled=False)
@@ -726,7 +727,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # rescale for new data
         if x_changed or y_changed:
-            self.scatter_plot.enableAutoRange("xy", True)
+            c
             self.update_ticks()
 
             # build the KD tree
