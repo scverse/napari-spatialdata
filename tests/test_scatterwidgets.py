@@ -342,16 +342,17 @@ def test_keyboard_bindings(qtbot, plot_widget, prepare_discrete_test_data):
     QtWidgets.QApplication.sendEvent(plot_widget, event)
     assert len(plot_widget.roi_list) == 3
 
-    # Test d key - delete hovered ROI 
+    # Test d key - delete hovered ROI
     roi2.mouseHovering = True
     event = QtGui.QKeyEvent(QtCore.QEvent.KeyPress, QtCore.Qt.Key_D, QtCore.Qt.NoModifier)
     QtWidgets.QApplication.sendEvent(plot_widget, event)
     assert len(plot_widget.roi_list) == 2
 
-    # Test Shift + d keys - delete all ROIs 
+    # Test Shift + d keys - delete all ROIs
     event = QtGui.QKeyEvent(QtCore.QEvent.KeyPress, QtCore.Qt.Key_D, QtCore.Qt.ShiftModifier)
     QtWidgets.QApplication.sendEvent(plot_widget, event)
     assert len(plot_widget.roi_list) == 0
+
 
 def test_selection_from_roi(plot_widget, prepare_discrete_test_data):
     """Test selection of points from roi."""
