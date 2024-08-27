@@ -534,7 +534,7 @@ class PlotWidget(GraphicsLayoutWidget):
     def _update_scatter_plot(self, mouse_enabled: bool, menu_enabled: bool, auto_range_enabled: bool) -> None:
         self.scatter_plot.setMouseEnabled(x=mouse_enabled, y=mouse_enabled)
         self.scatter_plot.setMenuEnabled(menu_enabled)
-        self.scatter_plot.enableAutoRange('xy', auto_range_enabled)
+        self.scatter_plot.enableAutoRange("xy", auto_range_enabled)
 
     def _enable_drawing_mode(self) -> None:
         self._update_scatter_plot(mouse_enabled=False, menu_enabled=False, auto_range_enabled=False)
