@@ -83,7 +83,7 @@ def test_min_max_norm(vec: np.ndarray) -> None:
     assert (out.min(), out.max()) == (0, 1)
 
 
-def test_logger(caplog, prepare_cont_test_data, adata_labels: AnnData, make_napari_viewer: Any):
+def test_logger(caplog, prepare_continuous_test_data, adata_labels: AnnData, make_napari_viewer: Any):
     from napari_spatialdata._model import DataModel
     from napari_spatialdata._scatterwidgets import PlotWidget
 
@@ -91,7 +91,7 @@ def test_logger(caplog, prepare_cont_test_data, adata_labels: AnnData, make_napa
     model = DataModel()
 
     m = PlotWidget(viewer, model)
-    m._onClick(*prepare_cont_test_data)
+    m._onClick(*prepare_continuous_test_data)
 
     with caplog.at_level(logging.INFO):
         assert "Plotting" in caplog.records[0].message

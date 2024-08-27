@@ -135,7 +135,7 @@ def labels():
 
 
 @pytest.fixture
-def prepare_cont_test_data():
+def prepare_continuous_test_data():
     x_vec = RNG.random(DATA_LEN)
     y_vec = RNG.random(DATA_LEN)
     color_vec = RNG.random(DATA_LEN)
@@ -151,7 +151,7 @@ def prepare_cont_test_data():
 
 
 @pytest.fixture
-def prepare_disc_test_data():
+def prepare_discrete_test_data():
     x_vec = RNG.random(DATA_LEN)
     y_vec = RNG.random(DATA_LEN)
     color_vec = np.zeros(DATA_LEN).astype(int)

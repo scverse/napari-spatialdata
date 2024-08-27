@@ -304,7 +304,7 @@ def test_new_annotation(adata_labels, annotation_values, mocker):
 
 
 def test_old_annotation(adata_labels, annotation_values, mocker):
-    """Test export - adding a new annotation."""
+    """Test updating existing annotation."""
 
     scatter_widget = QtAdataScatterWidget(adata=adata_labels)
     scatter_widget.plot_widget.roi_list = [MagicMock()]

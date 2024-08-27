@@ -727,7 +727,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # rescale for new data
         if x_changed or y_changed:
-            c
+            self.scatter_plot.enableAutoRange("xy", True)
             self.update_ticks()
 
             # build the KD tree

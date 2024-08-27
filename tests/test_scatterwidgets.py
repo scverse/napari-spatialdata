@@ -42,9 +42,9 @@ def test_initialization(plot_widget):
     assert plot_widget.rectangle_mode_button is not None
 
 
-def test_plot_data(plot_widget, prepare_cont_test_data):
+def test_plot_data(plot_widget, prepare_continuous_test_data):
     """Test plotting data."""
-    plot_widget._onClick(*prepare_cont_test_data)
+    plot_widget._onClick(*prepare_continuous_test_data)
     plot_widget.plot()
 
     assert plot_widget.x_data is not None
@@ -53,37 +53,37 @@ def test_plot_data(plot_widget, prepare_cont_test_data):
     assert len(plot_widget.scatter.yData) == DATA_LEN
 
 
-def test_plot_data_cont(plot_widget, prepare_cont_test_data):
+def test_plot_data_cont(plot_widget, prepare_continuous_test_data):
     """Test building lut widget."""
-    plot_widget._onClick(*prepare_cont_test_data)
+    plot_widget._onClick(*prepare_continuous_test_data)
 
     assert plot_widget.lut is not None
     assert plot_widget.discrete_color_widget is None
 
 
-def test_plot_data_disc(plot_widget, prepare_disc_test_data):
-    """Test building disc colors widget."""
-    plot_widget._onClick(*prepare_disc_test_data)
+def test_plot_data_discrete(plot_widget, prepare_discrete_test_data):
+    """Test building discrete colors widget."""
+    plot_widget._onClick(*prepare_discrete_test_data)
 
     assert plot_widget.scatter is not None
     assert plot_widget.lut is None
     assert plot_widget.discrete_color_widget is not None
 
 
-def test_plot_data_widget_change(plot_widget, prepare_cont_test_data, prepare_disc_test_data):
+def test_plot_data_widget_change(plot_widget, prepare_continuous_test_data, prepare_discrete_test_data):
     """Test building color widgets upon changing data type."""
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
 
     assert plot_widget.discrete_color_widget is not None
     assert plot_widget.lut is None
 
     # change from discrete to continuous
-    plot_widget._onClick(*prepare_cont_test_data)
+    plot_widget._onClick(*prepare_continuous_test_data)
     assert plot_widget.lut is not None
     assert plot_widget.discrete_color_widget is None
 
     # change from continuous to discrete
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
     assert plot_widget.discrete_color_widget is not None
     assert plot_widget.lut is None
 
@@ -97,9 +97,9 @@ def test_plot_no_data(plot_widget):
     assert plot_widget.scatter is None
 
 
-def test_plot_pseudo_histogram(plot_widget, prepare_cont_test_data):
+def test_plot_pseudo_histogram(plot_widget, prepare_continuous_test_data):
     """Test plotting no data."""
-    x_data, y_data, color_data, x_label, y_label, color_label = prepare_cont_test_data
+    x_data, y_data, color_data, x_label, y_label, color_label = prepare_continuous_test_data
     plot_widget._onClick(None, y_data, color_data, "None: None", y_label, color_label)
     plot_widget.plot()
 
@@ -113,9 +113,9 @@ def test_plot_pseudo_histogram(plot_widget, prepare_cont_test_data):
     assert plot_widget.scatter is not None
 
 
-def test_hover_highlight_cont(plot_widget, prepare_cont_test_data):
+def test_hover_highlight_cont(plot_widget, prepare_continuous_test_data):
     """Test hover highlight functionality."""
-    x_data, y_data, color_data, x_label, y_label, color_label = prepare_cont_test_data
+    x_data, y_data, color_data, x_label, y_label, color_label = prepare_continuous_test_data
     plot_widget._onClick(x_data, y_data, color_data, x_label, y_label, color_label)
     plot_widget.plot()
 
@@ -128,9 +128,9 @@ def test_hover_highlight_cont(plot_widget, prepare_cont_test_data):
     assert plot_widget.hovered_point.data.size == 0
 
 
-def test_clear_hover_highlight(plot_widget, prepare_disc_test_data):
+def test_clear_hover_highlight(plot_widget, prepare_discrete_test_data):
     """Test clearing of hover highlight."""
-    x_data, y_data, color_data, x_label, y_label, color_label = prepare_disc_test_data
+    x_data, y_data, color_data, x_label, y_label, color_label = prepare_discrete_test_data
     plot_widget._onClick(x_data, y_data, color_data, x_label, y_label, color_label)
     plot_widget.plot()
 
@@ -248,21 +248,21 @@ def test_roi_to_polygon_rect(plot_widget):
     assert coordinates_are_equal(sorted(polygon_vertices), sorted(vertices))
 
 
-def test_coord_change_remove_roi(plot_widget, prepare_disc_test_data):
+def test_coord_change_remove_roi(plot_widget, prepare_discrete_test_data):
     """Test changing coordinates and removing ROI."""
     roi = pg.RectROI([0, 0], [1, 1])
     plot_widget.roi_list = [roi]
 
     assert len(plot_widget.roi_list) == 1
 
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
     assert len(plot_widget.roi_list) == 0
 
 
-def test_add_roi_to_plot(qtbot, plot_widget, prepare_disc_test_data):
+def test_add_roi_to_plot(qtbot, plot_widget, prepare_discrete_test_data):
     """Test changing coordinates and removing ROI."""
     roi = pg.RectROI([0, 0], [1, 1])
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
     plot_widget.roi_list = [roi]
     plot_widget.plot()
 
@@ -273,10 +273,10 @@ def test_add_roi_to_plot(qtbot, plot_widget, prepare_disc_test_data):
     assert len(rois) == 1, "There should be exactly one ROI in the scatter_plot"
 
 
-def test_remove_roi_double_click(qtbot, plot_widget, prepare_disc_test_data):
+def test_remove_roi_double_click(qtbot, plot_widget, prepare_discrete_test_data):
     """Test changing coordinates and removing ROI."""
     roi = pg.RectROI([0, 0], [1, 1])
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
     plot_widget.roi_list = [roi]
     plot_widget.plot()
 
@@ -294,7 +294,7 @@ def test_remove_roi_double_click(qtbot, plot_widget, prepare_disc_test_data):
     assert len(plot_widget.roi_list) == 0
 
 
-def test_remove_hovered_roi(qtbot, plot_widget, prepare_disc_test_data):
+def test_remove_hovered_roi(qtbot, plot_widget, prepare_discrete_test_data):
     """Test changing coordinates and removing ROI."""
     roi = pg.RectROI([0, 0], [1, 1])
     plot_widget.roi_list = [roi]
@@ -310,12 +310,12 @@ def test_remove_hovered_roi(qtbot, plot_widget, prepare_disc_test_data):
     assert len(plot_widget.roi_list) == 0
 
 
-def test_remove_all_rois(qtbot, plot_widget, prepare_disc_test_data):
+def test_remove_all_rois(qtbot, plot_widget, prepare_discrete_test_data):
     """Test changing coordinates and removing ROI."""
     roi1 = pg.RectROI([0, 0], [0.5, 0.5])
     roi2 = pg.RectROI([0.6, 0.6], [0.7, 0.7])
     roi3 = pg.RectROI([0.8, 0.8], [0.9, 0.9])
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
     plot_widget.roi_list = [roi1, roi2, roi3]
     plot_widget.plot()
 
@@ -326,34 +326,36 @@ def test_remove_all_rois(qtbot, plot_widget, prepare_disc_test_data):
     assert len(plot_widget.roi_list) == 0
 
 
-def test_keyboard_bindings(qtbot, plot_widget, prepare_disc_test_data):
-    """Test changing coordinates and removing ROI."""
+def test_keyboard_bindings(qtbot, plot_widget, prepare_discrete_test_data):
+    """Test removing rois with keyboard shortcuts."""
     roi1 = pg.RectROI([0, 0], [0.5, 0.5])
     roi2 = pg.RectROI([0.6, 0.6], [0.7, 0.7])
     roi3 = pg.RectROI([0.8, 0.8], [0.9, 0.9])
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
     plot_widget.roi_list = [roi1, roi2, roi3]
     plot_widget.plot()
 
     assert len(plot_widget.roi_list) == 3
 
+    # Mock test - no deletion expected with any Shift + not d key
     event = QtGui.QKeyEvent(QtCore.QEvent.KeyPress, QtCore.Qt.Key_E, QtCore.Qt.ShiftModifier)
     QtWidgets.QApplication.sendEvent(plot_widget, event)
     assert len(plot_widget.roi_list) == 3
 
+    # Test d key - delete hovered ROI 
     roi2.mouseHovering = True
     event = QtGui.QKeyEvent(QtCore.QEvent.KeyPress, QtCore.Qt.Key_D, QtCore.Qt.NoModifier)
     QtWidgets.QApplication.sendEvent(plot_widget, event)
     assert len(plot_widget.roi_list) == 2
 
+    # Test Shift + d keys - delete all ROIs 
     event = QtGui.QKeyEvent(QtCore.QEvent.KeyPress, QtCore.Qt.Key_D, QtCore.Qt.ShiftModifier)
     QtWidgets.QApplication.sendEvent(plot_widget, event)
     assert len(plot_widget.roi_list) == 0
 
-
-def test_selection_from_roi(plot_widget, prepare_disc_test_data):
+def test_selection_from_roi(plot_widget, prepare_discrete_test_data):
     """Test selection of points from roi."""
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
     roi = pg.RectROI([-0.1, -0.1], [1.2, 1.2])
     plot_widget.roi_list = [roi]
 
@@ -363,9 +365,9 @@ def test_selection_from_roi(plot_widget, prepare_disc_test_data):
     assert np.sum(boolean_vector) == DATA_LEN
 
 
-def test_auto_range_disc(plot_widget, prepare_disc_test_data):
+def test_auto_range_discrete(plot_widget, prepare_discrete_test_data):
     """Test auto range for discrete data."""
-    plot_widget._onClick(*prepare_disc_test_data)
+    plot_widget._onClick(*prepare_discrete_test_data)
 
     label = plot_widget.color_data["labels"][0]
 
@@ -377,14 +379,15 @@ def test_auto_range_disc(plot_widget, prepare_disc_test_data):
 
     assert np.allclose(plot_widget.discrete_color_widget.color_buttons[label].color().getRgbF(), new_color, atol=1e-03)
 
+    # auto range is supposed to trigger a reset of the color
     plot_widget.use_auto_range()
 
     assert np.allclose(plot_widget.discrete_color_widget.color_buttons[label].color().getRgbF(), org_color, atol=1e-03)
 
 
-def test_auto_range_cont(plot_widget, prepare_cont_test_data):
+def test_auto_range_continuous(plot_widget, prepare_continuous_test_data):
     """Test auto range for discrete data."""
-    plot_widget._onClick(*prepare_cont_test_data)
+    plot_widget._onClick(*prepare_continuous_test_data)
 
     color_min = plot_widget.color_vec.min()
     color_max = plot_widget.color_vec.max()
@@ -397,6 +400,7 @@ def test_auto_range_cont(plot_widget, prepare_cont_test_data):
 
     assert np.allclose(plot_widget.lut.getLevels(), (new_color_min, new_color_max), atol=1e-03)
 
+    # auto range is supposed to trigger a reset of the color
     plot_widget.use_auto_range()
 
     assert np.allclose(plot_widget.lut.getLevels(), (color_min, color_max), atol=1e-03)
