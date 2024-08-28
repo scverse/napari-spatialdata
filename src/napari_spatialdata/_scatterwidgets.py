@@ -365,7 +365,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.roi_list: list[ROI] = []
         self.initial_pos: tuple[Any, Any] | None = None
 
-        # Adding a button to toggle auto-range
+        # Adding a button for a default view
         self.auto_range_button = QPushButton(self)
         self.auto_range_button.setIcon(QIcon(str(Path(__file__).parent / "resources/icons8-home-48.png")))
         self.auto_range_button.setIconSize(QSize(24, 24))  # Icon size
@@ -442,9 +442,9 @@ class PlotWidget(GraphicsLayoutWidget):
         # Update the proximity sensitivity
         self.update_proximity_sensitivity()
 
-    def resize_event(self, event: QtGui.QResizeEvent) -> None:
+    def resizeEvent(self, event: QtGui.QResizeEvent) -> None:
         """Resizing of the window."""
-        super().resize_event(event)
+        super().resizeEvent(event)
         if self._init_complete:
             self.update_label_positions()
 
