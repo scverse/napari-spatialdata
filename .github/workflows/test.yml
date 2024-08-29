@@ -24,13 +24,13 @@ jobs:
       fail-fast: false
       matrix:
         platform: [ubuntu-latest, macos-latest] # [ubuntu-latest, windows-latest, macos-latest]
-        python-version: [3.9, "3.10"] # [3.8, 3.9, "3.10"]
+        python-version: ["3.9", "3.11"]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -62,11 +62,68 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
 
       - name: Coverage
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
 
       - name: Archive figures generated during testing
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: plotting-results
+          name: plotting-results-${{ matrix.python-version }}-${{ matrix.platform }}
           path: /home/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/*
+
+  test_benchmarks:
+    name: test benchmarks
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GIT_LFS_SKIP_SMUDGE: 1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+          cache-dependency-path: pyproject.toml
+
+      - uses: tlambert03/setup-qt-libs@v1
+
+      - uses: octokit/request-action@v2.x
+        # here we get hash of the latest release commit to compare with PR
+        id: latest_release
+        with:
+          route: GET /repos/{owner}/{repo}/releases/latest
+          owner: scverse
+          repo: napari-spatialdata
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install "asv[virtualenv]"
+        env:
+          PIP_CONSTRAINT: benchmarks/benchmark.txt
+
+      - name: asv machine
+        run: asv machine --yes
+
+      - name: Run benchmarks PR
+        uses: aganders3/headless-gui@v2
+        with:
+          run: |
+            asv run --show-stderr --quick  --attribute timeout=300 HEAD^!
+        env:
+          PR: 1 # prevents asv from running very compute-intensive benchmarks
+          PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt
+
+      - name: Run benchmarks latest release
+        # here we check if the benchmark on the latest release is not broken
+        uses: aganders3/headless-gui@v2
+        with:
+          run: |
+            asv run --show-stderr --quick  --attribute timeout=300  ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}^!
+        env:
+          PR: 1 # prevents asv from running very compute-intensive benchmarks
+          PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt

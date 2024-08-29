@@ -1,10 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any
 
 import napari
 import numpy as np
 import pandas as pd
+import xarray
 from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
@@ -305,12 +307,16 @@ class QtAdataViewWidget(QWidget):
 
         current_point = list(event.value)
         displayed = self._viewer.dims.displayed
-        for i, (lo_size, hi_size, cord) in enumerate(zip(layer.data[-1].shape, layer.data[0].shape, current_point)):
-            if i in displayed:
-                current_point[i] = slice(None)
-            else:
-                current_point[i] = int(cord * lo_size / hi_size)
-
+        if layer.multiscale:
+            for i, (lo_size, hi_size, cord) in enumerate(zip(layer.data[-1].shape, layer.data[0].shape, current_point)):
+                if i in displayed:
+                    current_point[i] = slice(None)
+                else:
+                    current_point[i] = int(cord * lo_size / hi_size)
+        else:
+            for i in range(len(current_point)):
+                if i in displayed:
+                    current_point[i] = slice(None)
         # TODO remove once contrast limits in napari are fixed
         if isinstance(layer.data, MultiScaleData):
             # just compute lowest resolution
@@ -321,6 +327,12 @@ class QtAdataViewWidget(QWidget):
             image = layer.data[tuple(current_point)].compute()
             min_value = image.min()
             max_value = image.max()
+
+        if isinstance(min_value, xarray.DataArray):
+            min_value = min_value.item()
+        if isinstance(max_value, xarray.DataArray):
+            max_value = max_value.item()
+
         if min_value == max_value:
             min_value = np.iinfo(image.data.dtype).min
             max_value = np.iinfo(image.data.dtype).max

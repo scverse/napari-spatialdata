@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 import platform
 from importlib.metadata import version
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterable, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 import shapely
