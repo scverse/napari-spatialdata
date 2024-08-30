@@ -31,7 +31,7 @@ icon_path = Path(__file__).parent / "resources/exclamation.png"
 # then it will crash with bus error if numpy is used in different thread
 # Issue reported https://github.com/numpy/numpy/issues/21799
 if (
-    parse_version(version("napar")) < parse_version("0.5.3")
+    parse_version(version("napari")) < parse_version("0.5.3")
     and parse_version(version("numpy")) < parse_version("2")
     and platform.system() == "Darwin"
     and platform.machine() == "arm64"
