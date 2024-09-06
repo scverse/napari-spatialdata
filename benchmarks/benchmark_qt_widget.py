@@ -17,3 +17,6 @@ class SdataWidgetSuite:
 
     def time_layer_added(self) -> None:
         self.viewer.add_layer(self.image)
+
+    def teardown(self) -> None:
+        self.viewer.close()
