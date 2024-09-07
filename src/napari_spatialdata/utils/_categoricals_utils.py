@@ -1,5 +1,7 @@
-import collections.abc as cabc
-from typing import Any, Dict, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -230,7 +232,7 @@ def _validate_palette(adata: AnnData, key: str) -> None:
     # and updates the color list in adata.uns[f'{key}_colors'] if needed.
     # Not only valid matplotlib colors are checked but also if the color name
     # is a valid R color name, in which case it will be translated to a valid name.
-    _palette: List[str] = []
+    _palette: list[str] = []
     color_key = f"{key}_colors"
 
     for color in adata.uns[color_key]:
@@ -255,9 +257,9 @@ def _validate_palette(adata: AnnData, key: str) -> None:
 
 def _set_colors_for_categorical_obs(
     adata: AnnData,
-    categories: Sequence[Union[str, int]],
+    categories: Sequence[str | int],
     value_to_plot: str,
-    palette: Union[str, Sequence[str], Cycler],
+    palette: str | Sequence[str] | Cycler,
 ) -> None:
     """
     Set the adata.uns[value_to_plot + '_colors'] according to the given palette.
@@ -283,12 +285,12 @@ def _set_colors_for_categorical_obs(
         # this creates a palette from a colormap. E.g. 'Accent, Dark2, tab20'
         cmap = pl.get_cmap(palette)
         colors_list = [to_hex(x) for x in cmap(np.linspace(0, 1, len(categories)))]
-    elif isinstance(palette, cabc.Mapping):
+    elif isinstance(palette, Mapping):
         colors_list = [to_hex(palette[k], keep_alpha=True) for k in categories]
     else:
         # check if palette is a list and convert it to a cycler, thus
         # it doesnt matter if the list is shorter than the categories length:
-        if isinstance(palette, cabc.Sequence):
+        if isinstance(palette, Sequence):
             if len(palette) < len(categories):
                 logger.warning(
                     "Length of palette colors is smaller than the number of "
@@ -325,7 +327,7 @@ def _set_colors_for_categorical_obs(
 
 
 def _set_default_colors_for_categorical_obs(
-    adata: AnnData, categories: Sequence[Union[str, int]], value_to_plot: str
+    adata: AnnData, categories: Sequence[str | int], value_to_plot: str
 ) -> None:
     """
     Set the adata.uns[value_to_plot + '_colors'] using default color palettes.
@@ -369,7 +371,7 @@ def _set_default_colors_for_categorical_obs(
 
 
 def add_colors_for_categorical_sample_annotation(
-    adata: AnnData, key: str, vec: pd.Series, palette: Optional[List[str]] = None, force_update_colors: bool = False
+    adata: AnnData, key: str, vec: pd.Series, palette: list[str] | None = None, force_update_colors: bool = False
 ) -> None:
     """Add colors for categorical annotation.
 
@@ -403,15 +405,15 @@ def add_colors_for_categorical_sample_annotation(
 def _add_categorical_legend(
     ax: Axes,
     color_source_vector: pd.Series,
-    palette: Dict[str, str],
+    palette: dict[str, str],
     legend_loc: str = "right margin",
     legend_fontweight: str = "bold",
-    legend_fontsize: Optional[float] = None,
-    legend_fontoutline: Optional[float] = None,
+    legend_fontsize: float | None = None,
+    legend_fontoutline: float | None = None,
     multi_panel: bool = False,
     na_color: str = "lightgray",
     na_in_legend: bool = True,
-    scatter_array: Optional[Any] = None,  # added defaults compared to scanpy
+    scatter_array: Any | None = None,  # added defaults compared to scanpy
 ) -> None:
     """Add a legend to the passed Axes."""
     if na_in_legend and pd.isnull(color_source_vector).any():

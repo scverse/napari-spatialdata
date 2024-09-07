@@ -10,6 +10,12 @@ and this project adheres to [Semantic Versioning][].
 
 ## [0.x.x] - 2024-xx-xx
 
+## [0.5.2] - 2024-08-16
+
+### Minor
+
+- Modernized release workflow
+
 ## [0.5.1] - 2024-08-07
 
 ### Changed
