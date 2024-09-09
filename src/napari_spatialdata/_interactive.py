@@ -100,3 +100,27 @@ class Interactive:
     def screenshot(self) -> NDArrayA | Any:
         """Take a screenshot of the viewer in its current state."""
         return self._viewer.screenshot(canvas_only=False)
+
+    def get_layer(self, layer_name: str) -> Union[Image, Labels, Points, Shapes, None]:
+        """Get a layer by name."""
+        for layer in self._viewer.layers:
+            if layer.name == layer_name:
+                return layer
+        return None
+    
+    def add_text_to_polygons(self, layer_name: str, text_annotations: List[str]) -> None:
+        """Add text annotations to a polygon layer."""
+        polygon_layer = self.get_layer(layer_name)
+        if polygon_layer:
+            if len(text_annotations) != len(polygon_layer.data):
+                raise ValueError(
+                    f"The number of text annotations must match the number of polygons. Polygons: {len(polygon_layer.data)}, Text: {len(text_annotations)}."
+                )
+            polygon_layer.text = {
+                "string": text_annotations,
+                "size": 10,
+                "color": "red",
+                "anchor": "center",
+            }
+        else:
+            raise ValueError(f"Polygon layer '{layer_name}' not found.")
