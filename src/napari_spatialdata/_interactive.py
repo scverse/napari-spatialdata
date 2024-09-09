@@ -107,7 +107,7 @@ class Interactive:
             if layer.name == layer_name:
                 return layer
         return None
-    
+
     def add_text_to_polygons(self, layer_name: str, text_annotations: List[str]) -> None:
         """Add text annotations to a polygon layer."""
         polygon_layer = self.get_layer(layer_name)
