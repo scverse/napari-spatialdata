@@ -253,9 +253,14 @@ class SpatialDataViewer(QObject):
             np.array([layer_to_save.data_to_world(xy) for xy in shape._data])
             for shape in layer_to_save._data_view.shapes
         ]
-        remove_z = coords[0].shape[1] == 3
-        first_index = 1 if remove_z else 0
-        polygons: list[Polygon] = [Polygon(p[::-1, first_index:]) for p in coords]
+
+        def _fix_coords(coords: np.ndarray) -> np.ndarray:
+            remove_z = coords.shape[1] == 3
+            first_index = 1 if remove_z else 0
+            coords = coords[:, first_index::]
+            return np.fliplr(coords)
+
+        polygons: list[Polygon] = [Polygon(_fix_coords(p)) for p in coords]
         # polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(coords, f=lambda x: x[::-1])]
         # polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(layer_to_save.data, f=lambda x: x[::-1])]
         gdf = GeoDataFrame({"geometry": polygons})
