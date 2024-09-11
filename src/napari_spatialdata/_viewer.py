@@ -161,13 +161,13 @@ class SpatialDataViewer(QObject):
         element: tuple[DaskDataFrame | GeoDataFrame | AnnData],
         overwrite: bool,
     ) -> None:
-        if sdata.is_backed:
-            self._delete_from_disk(sdata, element_name, overwrite)
-            sdata[element_name] = element
-            sdata.write_element(element_name)
-        else:
-            sdata[element_name] = element
-            logger.warning("Spatialdata object is not stored on disk, could only add element in memory.")
+        # if sdata.is_backed:
+        #     self._delete_from_disk(sdata, element_name, overwrite)
+        #     sdata[element_name] = element
+        #     sdata.write_element(element_name)
+        # else:
+        sdata[element_name] = element
+        logger.warning("Annotations only added in memory, please manually save to disk.")
 
     def _save_points_to_sdata(
         self, layer_to_save: Points, spatial_element_name: str | None, overwrite: bool
@@ -187,6 +187,8 @@ class SpatialDataViewer(QObject):
             swap_data = swap_data[:, :2]
         parsed = PointsModel.parse(swap_data, transformations=transformation)
 
+        # saving to disk of points temporarily disabled until the interface update that will unify the view widget,
+        # annotation widget and scatterplot widget
         self._write_element_to_disk(sdata, spatial_element_name, parsed, overwrite)
 
         return parsed, coordinate_system
@@ -247,7 +249,15 @@ class SpatialDataViewer(QObject):
         if len(layer_to_save.data) == 0:
             raise ValueError("Cannot export a shapes element with no shapes")
 
-        polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(layer_to_save.data, f=lambda x: x[::-1])]
+        coords = [
+            np.array([layer_to_save.data_to_world(xy) for xy in shape._data])
+            for shape in layer_to_save._data_view.shapes
+        ]
+        remove_z = coords[0].shape[1] == 3
+        first_index = 1 if remove_z else 0
+        polygons: list[Polygon] = [Polygon(p[::-1, first_index:]) for p in coords]
+        # polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(coords, f=lambda x: x[::-1])]
+        # polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(layer_to_save.data, f=lambda x: x[::-1])]
         gdf = GeoDataFrame({"geometry": polygons})
 
         force_2d(gdf)
@@ -573,6 +583,7 @@ class SpatialDataViewer(QObject):
             name=key,
             affine=affine,
             shape_type="polygon",
+            face_color="#00000000",
             metadata={
                 "sdata": sdata,
                 "adata": adata,
