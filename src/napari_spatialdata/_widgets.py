@@ -135,6 +135,7 @@ class AListWidget(ListWidget):
                         self.model.layer.text = None  # needed because of the text-feature order of updates
                         # self.model.layer.features = properties.get("features", None)
                         self.model.layer.face_color = properties["face_color"]
+                        # self.model.layer.edge_color = properties["face_color"]
                         self.model.layer.text = properties["text"]
                     elif isinstance(self.model.layer, Labels):
                         version = get_napari_version()
