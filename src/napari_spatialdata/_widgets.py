@@ -227,7 +227,7 @@ class AListWidget(ListWidget):
                         f"The {vec_color_name} column must have unique values for the each {vec.name} level. Found:\n"
                         f"{unique_colors}"
                     )
-                color_dict = unique_colors.to_dict()["genes_color"]
+                color_dict = unique_colors.to_dict()[f"{vec.name}_color"]
 
         if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
             merge_df = pd.merge(

@@ -17,6 +17,7 @@ from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
 from spatialdata import get_element_annotators, get_element_instances
 from spatialdata._core.query.relational_query import _left_join_spatialelement_table
+from spatialdata._types import ArrayLike
 from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
 from spatialdata.transformations import Affine, Identity
 from spatialdata.transformations._utils import scale_radii
@@ -254,15 +255,13 @@ class SpatialDataViewer(QObject):
             for shape in layer_to_save._data_view.shapes
         ]
 
-        def _fix_coords(coords: np.ndarray) -> np.ndarray:
+        def _fix_coords(coords: ArrayLike) -> ArrayLike:
             remove_z = coords.shape[1] == 3
             first_index = 1 if remove_z else 0
             coords = coords[:, first_index::]
             return np.fliplr(coords)
 
         polygons: list[Polygon] = [Polygon(_fix_coords(p)) for p in coords]
-        # polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(coords, f=lambda x: x[::-1])]
-        # polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(layer_to_save.data, f=lambda x: x[::-1])]
         gdf = GeoDataFrame({"geometry": polygons})
 
         force_2d(gdf)
