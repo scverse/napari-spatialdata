@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning][].
 
 ## [0.x.x] - 2024-xx-xx
 
+### Fixed
+
+- Bug table was not reset after an element without table was added #317
+
 ## [0.5.2] - 2024-08-16
 
 ### Minor
