@@ -419,7 +419,7 @@ def get_itemindex_by_text(
     return widget_item
 
 
-def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
+def _get_init_table_list(layer: Layer | None) -> Sequence[str | None] | None:
     """
     Get the table names annotating the SpatialElement upon creating the napari layer.
 
@@ -432,6 +432,8 @@ def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
     ------
     The list of table names annotating the SpatialElement if any.
     """
+    if layer is None:
+        return None
     table_names: Sequence[str | None] | None
     if table_names := layer.metadata.get("table_names"):
         return table_names  # type: ignore[no-any-return]

@@ -135,6 +135,7 @@ class AListWidget(ListWidget):
                         self.model.layer.text = None  # needed because of the text-feature order of updates
                         # self.model.layer.features = properties.get("features", None)
                         self.model.layer.face_color = properties["face_color"]
+                        # self.model.layer.edge_color = properties["face_color"]
                         self.model.layer.text = properties["text"]
                     elif isinstance(self.model.layer, Labels):
                         version = get_napari_version()
@@ -226,7 +227,7 @@ class AListWidget(ListWidget):
                         f"The {vec_color_name} column must have unique values for the each {vec.name} level. Found:\n"
                         f"{unique_colors}"
                     )
-                color_dict = unique_colors.to_dict()["genes_color"]
+                color_dict = unique_colors.to_dict()[f"{vec.name}_color"]
 
         if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
             merge_df = pd.merge(
