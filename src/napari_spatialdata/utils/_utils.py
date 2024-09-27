@@ -172,7 +172,8 @@ def _min_max_norm(vec: spmatrix | ArrayLike) -> ArrayLike:
     if vec.ndim != 1:
         raise ValueError(f"Expected `1` dimension, found `{vec.ndim}`.")
 
-    maxx, minn = np.nanmax(vec), np.nanmin(vec)
+    maxx: ArrayLike = np.nanmax(vec)
+    minn: ArrayLike = np.nanmin(vec)
 
     return np.ones_like(vec) if np.isclose(minn, maxx) else ((vec - minn) / (maxx - minn))
 

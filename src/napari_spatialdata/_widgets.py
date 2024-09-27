@@ -542,7 +542,10 @@ class RangeSliderWidget(QRangeSlider):
         if "data" not in layer.metadata:
             return None  # noqa: RET501
         v = layer.metadata["data"]
-        clipped = np.clip(v, *np.percentile(v, percentile))
+        # this code is currently not used since the slider is not enabled; so I silenced the mypy error; 2. there is a
+        # mismatch for this error with the mypy in the CI, so I silenced the unused-ignore from the local mypy.
+        # when this code is re-enabled, let's fix mypy
+        clipped = np.clip(v, *np.percentile(v, percentile))  # type: ignore[misc,unused-ignore]
 
         if isinstance(layer, Points):
             layer.metadata = {**layer.metadata, "perc": percentile}
