@@ -20,13 +20,14 @@ from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
 from scanpy.plotting._utils import _set_colors_for_categorical_obs
 from sklearn.preprocessing import MinMaxScaler
+from spatialdata._types import ArrayLike
 from superqt import QRangeSlider
 from vispy import scene
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
 
 from napari_spatialdata._model import DataModel
-from napari_spatialdata.utils._utils import NDArrayA, _min_max_norm, get_napari_version
+from napari_spatialdata.utils._utils import _min_max_norm, get_napari_version
 
 __all__ = [
     "AListWidget",
@@ -188,7 +189,7 @@ class AListWidget(ListWidget):
         self.viewer.layers.selection.select_only(self.viewer.layers[layer_name])
 
     @singledispatchmethod
-    def _get_points_properties(self, vec: NDArrayA | pd.Series, **kwargs: Any) -> dict[str, Any]:
+    def _get_points_properties(self, vec: ArrayLike | pd.Series, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError(type(vec))
 
     @_get_points_properties.register(pd.Series)
@@ -252,7 +253,7 @@ class AListWidget(ListWidget):
         }
 
     @_get_points_properties.register(np.ndarray)
-    def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
+    def _(self, vec: ArrayLike, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
 
         # Here kwargs['key'] is actually the column name.
@@ -271,9 +272,9 @@ class AListWidget(ListWidget):
             layer_meta = self.model.layer.metadata if self.model.layer is not None else None
             element_indices = pd.Series(layer_meta["indices"], name="element_indices")
             if isinstance(layer, Labels):
-                vec = vec.drop(index=0) if 0 in vec.index else vec  # type:ignore[attr-defined]
+                vec = vec.drop(index=0) if 0 in vec.index else vec
             # element_indices = element_indices[element_indices != 0]
-            diff_element_table = set(element_indices).difference(set(vec.index))  # type:ignore[attr-defined]
+            diff_element_table = set(element_indices).difference(set(vec.index))
             merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
                 "vec"
             ].fillna(0, axis=0)
@@ -541,7 +542,10 @@ class RangeSliderWidget(QRangeSlider):
         if "data" not in layer.metadata:
             return None  # noqa: RET501
         v = layer.metadata["data"]
-        clipped = np.clip(v, *np.percentile(v, percentile))
+        # this code is currently not used since the slider is not enabled; so I silenced the mypy error; 2. there is a
+        # mismatch for this error with the mypy in the CI, so I silenced the unused-ignore from the local mypy.
+        # when this code is re-enabled, let's fix mypy
+        clipped = np.clip(v, *np.percentile(v, percentile))  # type: ignore[misc,unused-ignore]
 
         if isinstance(layer, Points):
             layer.metadata = {**layer.metadata, "perc": percentile}
@@ -559,7 +563,7 @@ class RangeSliderWidget(QRangeSlider):
         self._colorbar.setClim((np.min(layer.properties["value"]), np.max(layer.properties["value"])))
         self._colorbar.update_color()
 
-    def _scale_vec(self, vec: NDArrayA) -> NDArrayA:
+    def _scale_vec(self, vec: ArrayLike) -> ArrayLike:
         ominn, omaxx = self._colorbar.getOclim()
         delta = omaxx - ominn + 1e-12
 
@@ -567,7 +571,7 @@ class RangeSliderWidget(QRangeSlider):
         minn = (minn - ominn) / delta
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
-        return scaler.fit_transform(vec.reshape(-1, 1))  # type: ignore[no-any-return]
+        return scaler.fit_transform(vec.reshape(-1, 1))
 
     @property
     def viewer(self) -> napari.Viewer:

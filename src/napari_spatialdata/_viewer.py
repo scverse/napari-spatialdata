@@ -20,7 +20,6 @@ from spatialdata._core.query.relational_query import _left_join_spatialelement_t
 from spatialdata._types import ArrayLike
 from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
 from spatialdata.transformations import Affine, Identity
-from spatialdata.transformations._utils import scale_radii
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.constants import config
@@ -741,8 +740,6 @@ class SpatialDataViewer(QObject):
             raise ValueError(f"Invalid affine shape: {affine.shape}")
         affine_transformation = Affine(affine, input_axes=axes, output_axes=axes)
 
-        new_radii = scale_radii(radii=radii, affine=affine_transformation, axes=axes)
-
         # the points size is the diameter, in "data pixels" of the current coordinate system, so we need to scale by
         # scale factor of the affine transformation. This scale factor is an approximation when the affine
         # transformation is anisotropic.
@@ -751,7 +748,7 @@ class SpatialDataViewer(QObject):
         modules = np.absolute(eigenvalues)
         scale_factor = np.mean(modules)
 
-        layer.size = 2 * new_radii / scale_factor
+        layer.size = 2 * radii * scale_factor
 
     def _affine_transform_layers(self, coordinate_system: str) -> None:
         for layer in self.viewer.layers:
