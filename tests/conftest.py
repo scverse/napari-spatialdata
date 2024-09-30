@@ -12,12 +12,13 @@ import pytest
 from anndata import AnnData
 from loguru import logger
 from matplotlib.testing.compare import compare_images
-from napari_spatialdata.utils._test_utils import save_image, take_screenshot
 from scipy import ndimage as ndi
 from skimage import data
 from spatialdata import SpatialData
 from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
+
+from napari_spatialdata.utils._test_utils import save_image, take_screenshot
 
 HERE: Path = Path(__file__).parent
 

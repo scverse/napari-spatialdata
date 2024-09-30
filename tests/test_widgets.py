@@ -7,11 +7,12 @@ from anndata import AnnData
 from anndata.tests.helpers import assert_equal
 from napari.layers import Image, Labels
 from napari.utils.events import EventedList
+from spatialdata import SpatialData
+from spatialdata._types import ArrayLike
+
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
-from spatialdata import SpatialData
-from spatialdata._types import ArrayLike
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
