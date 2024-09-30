@@ -10,8 +10,8 @@ from napari.utils.events import EventedList
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
-from napari_spatialdata.utils._utils import NDArrayA
 from spatialdata import SpatialData
+from spatialdata._types import ArrayLike
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
@@ -51,7 +51,7 @@ def test_creating_widget_with_no_adata(make_napari_viewer: Any, widget: Any) -> 
 def test_model(
     make_napari_viewer: Any,
     widget: Any,
-    labels: NDArrayA,
+    labels: ArrayLike,
     sdata_blobs: SpatialData,
 ) -> None:
     # make viewer and add an image layer using our fixture
@@ -121,7 +121,7 @@ def test_scatterlistwidget(
     make_napari_viewer: Any,
     widget: Any,
     adata_labels: AnnData,
-    image: NDArrayA,
+    image: ArrayLike,
     attr: str,
     item: str,
     text: Union[str, int, None],
@@ -162,7 +162,7 @@ def test_categorical_and_error(
     make_napari_viewer: Any,
     widget: Any,
     adata_labels: AnnData,
-    image: NDArrayA,
+    image: ArrayLike,
     attr: str,
     item: str,
 ) -> None:
@@ -200,7 +200,7 @@ def test_component_widget(
     make_napari_viewer: Any,
     widget: Any,
     adata_labels: AnnData,
-    image: NDArrayA,
+    image: ArrayLike,
 ) -> None:
     viewer = make_napari_viewer()
     layer_name = "labels"
@@ -243,7 +243,7 @@ def test_component_widget(
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget, QtAdataScatterWidget])
-def test_layer_selection(make_napari_viewer: Any, image: NDArrayA, widget: Any, sdata_blobs: SpatialData):
+def test_layer_selection(make_napari_viewer: Any, image: ArrayLike, widget: Any, sdata_blobs: SpatialData):
     viewer = make_napari_viewer()
     sdata_widget = SdataWidget(viewer, EventedList([sdata_blobs]))
     sdata_widget.viewer_model.add_sdata_labels(sdata_blobs, "blobs_labels", "global", False)

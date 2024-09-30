@@ -13,10 +13,10 @@ from anndata import AnnData
 from loguru import logger
 from matplotlib.testing.compare import compare_images
 from napari_spatialdata.utils._test_utils import save_image, take_screenshot
-from napari_spatialdata.utils._utils import NDArrayA
 from scipy import ndimage as ndi
 from skimage import data
 from spatialdata import SpatialData
+from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
 from spatialdata.models import TableModel
 
@@ -125,7 +125,7 @@ def labels():
     return blobs
 
 
-def _get_blobs_galaxy() -> tuple[NDArrayA, NDArrayA]:
+def _get_blobs_galaxy() -> tuple[ArrayLike, ArrayLike]:
     blobs = data.binary_blobs(rng=SEED)
     blobs = ndi.label(blobs)[0]
     return blobs, data.hubble_deep_field()[: blobs.shape[0], : blobs.shape[0]]

@@ -97,7 +97,7 @@ class QtAdataScatterWidget(QWidget):
             lambda: self.matplotlib_widget._onClick(
                 self.x_widget.widget.data,
                 self.y_widget.widget.data,
-                self.color_widget.widget.data,  # type:ignore[arg-type]
+                self.color_widget.widget.data,
                 self.x_widget.getFormattedLabel(),
                 self.y_widget.getFormattedLabel(),
                 self.color_widget.getFormattedLabel(),
