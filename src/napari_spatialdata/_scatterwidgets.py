@@ -152,11 +152,11 @@ class ScatterListWidget(AListWidget):
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
-            try:
-                vec, _ = self._getter(item, index=self.getIndex())
-            except Exception as e:  # noqa: BLE001
-                logger.error(e)
-                continue
+            # try:
+            vec, _, index = self._getter(item, index=self.getIndex())
+            # except Exception as e:  # noqa: BLE001
+            #     logger.error(e)
+            #     continue
             self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = vec

@@ -132,7 +132,7 @@ def test_scatterlistwidget(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "region_key": "cell_id"},
+        metadata={"adata": adata_labels},
     )
     model = DataModel()
     widget = widget(viewer, model)
@@ -173,7 +173,7 @@ def test_categorical_and_error(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "region_key": "cell_id"},
+        metadata={"adata": adata_labels},
     )
 
     # widget._select_layer()
@@ -208,7 +208,7 @@ def test_component_widget(
     viewer.add_labels(
         image,
         name=layer_name,
-        metadata={"adata": adata_labels, "region_key": "cell_id"},
+        metadata={"adata": adata_labels},
     )
     model = DataModel()
     widget = widget(viewer, model)

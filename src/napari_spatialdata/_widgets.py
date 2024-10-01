@@ -127,14 +127,22 @@ class AListWidget(ListWidget):
                 i = self.model.layer.metadata["adata"].var.index.get_loc(item)
                 self.viewer.dims.set_point(0, i)
             else:
-                vec, name = self._getter(item, index=self.getIndex())
+                vec, name, index = self._getter(item, index=self.getIndex())
 
                 if self.model.layer is not None:
+                    # update the features (properties for each instance displayed on mouse hover in the bottom bar)
+                    self.getIndex()
+                    features_name = f"{item}_{self.getIndex()}" if self._attr == "obsm" else item
+                    features = pd.DataFrame({features_name: vec})
+                    # we need this secret column "index", as explained here
+                    # https://forum.image.sc/t/napari-labels-layer-properties/57649/2
+                    features["index"] = index
+                    self.model.layer.features = features
+
                     properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
                     self.model.color_by = "" if self.model.system_name is None else item
                     if isinstance(self.model.layer, (Points, Shapes)):
                         self.model.layer.text = None  # needed because of the text-feature order of updates
-                        # self.model.layer.features = properties.get("features", None)
                         self.model.layer.face_color = properties["face_color"]
                         # self.model.layer.edge_color = properties["face_color"]
                         self.model.layer.text = properties["text"]
@@ -200,7 +208,7 @@ class AListWidget(ListWidget):
         if isinstance(layer, Labels):
             element_indices = element_indices[element_indices != 0]
         # When merging if the row is not present in the other table it will be nan so we can give it a default color
-        vec_color_name = vec.name + "_color"
+        vec_color_name = vec.name + "_colors"
         if self._attr != "columns_df":
             if vec_color_name not in self.model.adata.uns:
                 colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
@@ -228,7 +236,7 @@ class AListWidget(ListWidget):
                         f"The {vec_color_name} column must have unique values for the each {vec.name} level. Found:\n"
                         f"{unique_colors}"
                     )
-                color_dict = unique_colors.to_dict()[f"{vec.name}_color"]
+                color_dict = unique_colors.to_dict()[f"{vec.name}_colors"]
 
         if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
             merge_df = pd.merge(
@@ -240,7 +248,6 @@ class AListWidget(ListWidget):
         merge_df["color"] = merge_df[vec.name].map(color_dict)
         if layer is not None and isinstance(layer, Labels):
             index_color_mapping = dict(zip(merge_df["element_indices"], merge_df["color"]))
-            index_color_mapping[0] = "#000000ff"
             return {
                 "color": index_color_mapping,
                 "properties": {"value": vec},
@@ -262,6 +269,7 @@ class AListWidget(ListWidget):
             (adata := self.model.adata) is not None
             and kwargs["key"] not in adata.obs.columns
             and kwargs["key"] not in adata.var.index
+            and kwargs["key"] not in adata.obsm
         ) or adata is None:
             merge_vec = layer.metadata["_columns_df"][kwargs["key"]]
             element_indices = merge_vec.index
@@ -290,8 +298,6 @@ class AListWidget(ListWidget):
                     element_indices_list = element_indices.to_list()
                 change_index = element_indices_list.index(i)
                 color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
-            if isinstance(layer, Labels):
-                color_vec[0] = np.array([0.0, 0.0, 0.0, 1.0])
 
         if layer is not None and isinstance(layer, Labels):
             return {
@@ -441,7 +447,7 @@ class CBarWidget(QtWidgets.QWidget):
             clim=self.getClim(),
             border_width=1.0,
             border_color="black",
-            padding=(0.33, 0.167),
+            padding=(0.3, 0.167),
             axis_ratio=0.05,
         )
 

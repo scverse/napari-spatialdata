@@ -18,6 +18,7 @@ from skimage import data
 from spatialdata import SpatialData
 from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
+from spatialdata.models import TableModel
 
 HERE: Path = Path(__file__).parent
 
@@ -42,7 +43,8 @@ def adata_labels() -> AnnData:
         {
             "a": rng.normal(size=(n_obs_labels,)),
             "categorical": pd.Categorical(rng.integers(0, 2, size=(n_obs_labels,))),
-            "cell_id": pd.Categorical(seg),
+            "cell_id": seg,
+            "region": ["labels" for _ in range(n_obs_labels)],
         },
         index=np.arange(n_obs_labels),
     )
@@ -58,7 +60,12 @@ def adata_labels() -> AnnData:
         }
     }
     obsm_labels = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_labels, 2))}
-    return generate_adata(n_var, obs_labels, obsm_labels, uns_labels)
+    return TableModel.parse(
+        generate_adata(n_var, obs_labels, obsm_labels, uns_labels),
+        region="labels",
+        region_key="region",
+        instance_key="cell_id",
+    )
 
 
 @pytest.fixture

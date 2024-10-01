@@ -73,7 +73,7 @@ def test_sdatawidget_images(make_napari_viewer: Any, blobs_extra_cs: SpatialData
     del blobs_extra_cs.images["image"]
 
 
-def test_sdatawidget_labels(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
+def test_sdatawidget_labels(qtbot, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0

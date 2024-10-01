@@ -49,29 +49,29 @@ if TYPE_CHECKING:
 
 from spatialdata._types import ArrayLike
 
-Vector_name_t = tuple[Optional[Union[pd.Series, ArrayLike]], Optional[str]]
+Vector_name_index_t = tuple[Optional[Union[pd.Series, ArrayLike]], Optional[str], Optional[pd.Index]]
 
 
-def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vector_name_t]:
+def _ensure_dense_vector(fn: Callable[..., Vector_name_index_t]) -> Callable[..., Vector_name_index_t]:
     @wraps(fn)
-    def decorator(self: Any, *args: Any, **kwargs: Any) -> Vector_name_t:
+    def decorator(self: Any, *args: Any, **kwargs: Any) -> Vector_name_index_t:
         normalize = kwargs.pop("normalize", False)
-        res, fmt = fn(self, *args, **kwargs)
+        res, name, index = fn(self, *args, **kwargs)
         if res is None:
-            return None, None
+            return None, None, None
 
         if isinstance(res, pd.Series):
             if isinstance(res.dtype, pd.CategoricalDtype):
-                return res, fmt
+                return res, name, index
             if is_string_dtype(res) or is_object_dtype(res) or is_bool_dtype(res):
-                return res.astype("category"), fmt
+                return res.astype("category"), name, index
             if is_integer_dtype(res):
                 unique = res.unique()
                 n_uniq = len(unique)
                 if n_uniq <= 2 and (set(unique) & {0, 1}):
-                    return res.astype(bool).astype("category"), fmt
+                    return res.astype(bool).astype("category"), name, index
                 if len(unique) <= len(res) // 100:
-                    return res.astype("category"), fmt
+                    return res.astype("category"), name, index
             elif not is_numeric_dtype(res):
                 raise TypeError(f"Unable to process `pandas.Series` of type `{infer_dtype(res)}`.")
             res = res.to_numpy()
@@ -86,7 +86,7 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
         if res.ndim != 1:
             raise ValueError(f"Expected 1-dimensional array, found `{res.ndim}`.")
 
-        return (_min_max_norm(res) if normalize else res), fmt
+        return (_min_max_norm(res) if normalize else res), name, index
 
     return decorator
 
