@@ -59,6 +59,7 @@ class SpatialDataViewer(QObject):
 
         # Used to check old layer name. This because event emitted does not contain this information.
         self.layer_names: set[str | None] = set()
+        self.worker = None
 
     @property
     def model(self) -> DataModel:
@@ -425,7 +426,25 @@ class SpatialDataViewer(QObject):
         adata = _get_init_metadata_adata(sdata, table_name, element_name)
         return adata, table_name, table_names
 
+    def add_layer(self, layer: Layer) -> None:
+        """
+        Add a layer to the viewer.
+
+        Parameters
+        ----------
+        layer
+            The layer to add to the viewer.
+        """
+        self.viewer.add_layer(layer)
+
+    def clean_worker(self) -> None:
+        """Clean the worker."""
+        self.worker = None
+
     def add_sdata_image(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        self.add_layer(self.get_sdata_image(sdata, key, selected_cs, multi))
+
+    def get_sdata_image(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Image:
         """
         Add an image in a spatial data object to the viewer.
 
@@ -452,7 +471,7 @@ class SpatialDataViewer(QObject):
         adata = AnnData(shape=(0, len(channels)), var=pd.DataFrame(index=channels))
 
         # TODO: type check
-        self.viewer.add_image(
+        return Image(
             rgb_image,
             rgb=rgb,
             name=key,
@@ -467,6 +486,9 @@ class SpatialDataViewer(QObject):
         )
 
     def add_sdata_circles(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        self.add_layer(self.get_sdata_circles(sdata, key, selected_cs, multi))
+
+    def get_sdata_circles(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Points | Shapes:
         """
         Add a shapes layer to the viewer to visualize Point geometries.
 
@@ -515,7 +537,7 @@ class SpatialDataViewer(QObject):
             {"edge_width": 0.0} if version <= packaging.version.parse("0.4.20") else {"border_width": 0.0}
         )
         if CIRCLES_AS_POINTS:
-            layer = self.viewer.add_points(
+            layer = Points(
                 yx,
                 name=key,
                 affine=affine,
@@ -532,7 +554,7 @@ class SpatialDataViewer(QObject):
                 kwargs |= {"border_color": "white"}
             # useful code to have readily available to debug the correct radius of circles when represented as points
             ellipses = _get_ellipses_from_circles(yx=yx, radii=radii)
-            self.viewer.add_shapes(
+            layer = Shapes(
                 ellipses,
                 shape_type="ellipse",
                 name=key,
@@ -542,7 +564,12 @@ class SpatialDataViewer(QObject):
                 **kwargs,
             )
 
+        return layer
+
     def add_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        self.add_layer(self.get_sdata_shapes(sdata, key, selected_cs, multi))
+
+    def get_sdata_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Shapes:
         """
         Add shapes element in a spatial data object to the viewer.
 
@@ -581,7 +608,7 @@ class SpatialDataViewer(QObject):
 
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
-        self.viewer.add_shapes(
+        return Shapes(
             polygons,
             name=key,
             affine=affine,
@@ -605,6 +632,9 @@ class SpatialDataViewer(QObject):
         )
 
     def add_sdata_labels(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        self.add_layer(self.get_sdata_labels(sdata, key, selected_cs, multi))
+
+    def get_sdata_labels(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Labels:
         """
         Add a label element in a spatial data object to the viewer.
 
@@ -629,7 +659,7 @@ class SpatialDataViewer(QObject):
 
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
-        self.viewer.add_labels(
+        return Labels(
             rgb_labels,
             name=key,
             affine=affine,
@@ -647,6 +677,9 @@ class SpatialDataViewer(QObject):
         )
 
     def add_sdata_points(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+        self.add_layer(self.get_sdata_points(sdata, key, selected_cs, multi))
+
+    def get_sdata_points(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Points:
         """
         Add a points element in a spatial data object to the viewer.
 
@@ -692,7 +725,7 @@ class SpatialDataViewer(QObject):
         radii_size = 3
         version = get_napari_version()
         kwargs = {"edge_width": 0.0} if version <= packaging.version.parse("0.4.20") else {"border_width": 0.0}
-        layer = self.viewer.add_points(
+        layer = Points(
             xy,
             name=key,
             size=radii_size * 2,
@@ -718,6 +751,7 @@ class SpatialDataViewer(QObject):
         )
         assert affine is not None
         self._adjust_radii_of_points_layer(layer=layer, affine=affine)
+        return layer
 
     def _adjust_radii_of_points_layer(self, layer: Layer, affine: npt.ArrayLike) -> None:
         """When visualizing circles as points, we need to adjust the radii manually after an affine transformation."""
