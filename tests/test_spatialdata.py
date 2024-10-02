@@ -12,10 +12,6 @@ from datatree import DataTree
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
-from napari_spatialdata import QtAdataViewWidget
-from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
-from napari_spatialdata.constants import config
-from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 from numpy import int64
 from spatialdata import SpatialData, deepcopy
 from spatialdata._core.query.relational_query import get_element_instances
@@ -24,6 +20,11 @@ from spatialdata.models import PointsModel, TableModel
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
 from xarray import DataArray
+
+from napari_spatialdata import QtAdataViewWidget
+from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata.constants import config
+from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 
 RNG = np.random.default_rng(seed=0)
 
