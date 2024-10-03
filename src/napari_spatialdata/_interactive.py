@@ -4,10 +4,10 @@ from typing import TYPE_CHECKING, Any
 
 import napari
 from napari.utils.events import EventedList
+from spatialdata._types import ArrayLike
 
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata.utils._utils import (
-    NDArrayA,
     get_duplicate_element_names,
     get_elements_meta_mapping,
     get_itemindex_by_text,
@@ -97,7 +97,7 @@ class Interactive:
         """Run the napari application."""
         napari.run()
 
-    def screenshot(self) -> NDArrayA | Any:
+    def screenshot(self) -> ArrayLike | Any:
         """Take a screenshot of the viewer in its current state."""
         return self._viewer.screenshot(canvas_only=False)
 

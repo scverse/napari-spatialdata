@@ -12,12 +12,14 @@ import pytest
 from anndata import AnnData
 from loguru import logger
 from matplotlib.testing.compare import compare_images
-from napari_spatialdata.utils._test_utils import save_image, take_screenshot
-from napari_spatialdata.utils._utils import NDArrayA
 from scipy import ndimage as ndi
 from skimage import data
 from spatialdata import SpatialData
+from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
+from spatialdata.models import TableModel
+
+from napari_spatialdata.utils._test_utils import save_image, take_screenshot
 
 HERE: Path = Path(__file__).parent
 
@@ -42,7 +44,8 @@ def adata_labels() -> AnnData:
         {
             "a": rng.normal(size=(n_obs_labels,)),
             "categorical": pd.Categorical(rng.integers(0, 2, size=(n_obs_labels,))),
-            "cell_id": pd.Categorical(seg),
+            "cell_id": seg,
+            "region": ["labels" for _ in range(n_obs_labels)],
         },
         index=np.arange(n_obs_labels),
     )
@@ -58,7 +61,12 @@ def adata_labels() -> AnnData:
         }
     }
     obsm_labels = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_labels, 2))}
-    return generate_adata(n_var, obs_labels, obsm_labels, uns_labels)
+    return TableModel.parse(
+        generate_adata(n_var, obs_labels, obsm_labels, uns_labels),
+        region="labels",
+        region_key="region",
+        instance_key="cell_id",
+    )
 
 
 @pytest.fixture
@@ -118,7 +126,7 @@ def labels():
     return blobs
 
 
-def _get_blobs_galaxy() -> tuple[NDArrayA, NDArrayA]:
+def _get_blobs_galaxy() -> tuple[ArrayLike, ArrayLike]:
     blobs = data.binary_blobs(rng=SEED)
     blobs = ndi.label(blobs)[0]
     return blobs, data.hubble_deep_field()[: blobs.shape[0], : blobs.shape[0]]

@@ -3,11 +3,12 @@ from typing import Any
 import numpy as np
 import pytest
 from napari.utils.events import EventedList
+from spatialdata.datasets import blobs
+from spatialdata.transformations import Affine, set_transformation
+
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataViewWidget
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
-from spatialdata.datasets import blobs
-from spatialdata.transformations import Affine, set_transformation
 
 
 @pytest.mark.parametrize("widget", [QtAdataViewWidget])

@@ -1,7 +1,7 @@
-from napari_spatialdata._interactive import Interactive
 from spatialdata import SpatialData
 from spatialdata.models import Image2DModel
 
+from napari_spatialdata._interactive import Interactive
 from tests.conftest import PlotTester, PlotTesterMeta
 
 

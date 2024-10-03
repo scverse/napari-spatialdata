@@ -20,13 +20,14 @@ from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
 from scanpy.plotting._utils import _set_colors_for_categorical_obs
 from sklearn.preprocessing import MinMaxScaler
+from spatialdata._types import ArrayLike
 from superqt import QRangeSlider
 from vispy import scene
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
 
 from napari_spatialdata._model import DataModel
-from napari_spatialdata.utils._utils import NDArrayA, _min_max_norm, get_napari_version
+from napari_spatialdata.utils._utils import _min_max_norm, get_napari_version
 
 __all__ = [
     "AListWidget",
@@ -126,15 +127,24 @@ class AListWidget(ListWidget):
                 i = self.model.layer.metadata["adata"].var.index.get_loc(item)
                 self.viewer.dims.set_point(0, i)
             else:
-                vec, name = self._getter(item, index=self.getIndex())
+                vec, name, index = self._getter(item, index=self.getIndex())
 
                 if self.model.layer is not None:
+                    # update the features (properties for each instance displayed on mouse hover in the bottom bar)
+                    self.getIndex()
+                    features_name = f"{item}_{self.getIndex()}" if self._attr == "obsm" else item
+                    features = pd.DataFrame({features_name: vec})
+                    # we need this secret column "index", as explained here
+                    # https://forum.image.sc/t/napari-labels-layer-properties/57649/2
+                    features["index"] = index
+                    self.model.layer.features = features
+
                     properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
                     self.model.color_by = "" if self.model.system_name is None else item
                     if isinstance(self.model.layer, (Points, Shapes)):
                         self.model.layer.text = None  # needed because of the text-feature order of updates
-                        # self.model.layer.features = properties.get("features", None)
                         self.model.layer.face_color = properties["face_color"]
+                        # self.model.layer.edge_color = properties["face_color"]
                         self.model.layer.text = properties["text"]
                     elif isinstance(self.model.layer, Labels):
                         version = get_napari_version()
@@ -187,7 +197,7 @@ class AListWidget(ListWidget):
         self.viewer.layers.selection.select_only(self.viewer.layers[layer_name])
 
     @singledispatchmethod
-    def _get_points_properties(self, vec: NDArrayA | pd.Series, **kwargs: Any) -> dict[str, Any]:
+    def _get_points_properties(self, vec: ArrayLike | pd.Series, **kwargs: Any) -> dict[str, Any]:
         raise NotImplementedError(type(vec))
 
     @_get_points_properties.register(pd.Series)
@@ -198,7 +208,7 @@ class AListWidget(ListWidget):
         if isinstance(layer, Labels):
             element_indices = element_indices[element_indices != 0]
         # When merging if the row is not present in the other table it will be nan so we can give it a default color
-        vec_color_name = vec.name + "_color"
+        vec_color_name = vec.name + "_colors"
         if self._attr != "columns_df":
             if vec_color_name not in self.model.adata.uns:
                 colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
@@ -226,7 +236,7 @@ class AListWidget(ListWidget):
                         f"The {vec_color_name} column must have unique values for the each {vec.name} level. Found:\n"
                         f"{unique_colors}"
                     )
-                color_dict = unique_colors.to_dict()["genes_color"]
+                color_dict = unique_colors.to_dict()[f"{vec.name}_colors"]
 
         if self.model.instance_key is not None and self.model.instance_key == vec.index.name:
             merge_df = pd.merge(
@@ -238,7 +248,6 @@ class AListWidget(ListWidget):
         merge_df["color"] = merge_df[vec.name].map(color_dict)
         if layer is not None and isinstance(layer, Labels):
             index_color_mapping = dict(zip(merge_df["element_indices"], merge_df["color"]))
-            index_color_mapping[0] = "#000000ff"
             return {
                 "color": index_color_mapping,
                 "properties": {"value": vec},
@@ -251,7 +260,7 @@ class AListWidget(ListWidget):
         }
 
     @_get_points_properties.register(np.ndarray)
-    def _(self, vec: NDArrayA, **kwargs: Any) -> dict[str, Any]:
+    def _(self, vec: ArrayLike, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
 
         # Here kwargs['key'] is actually the column name.
@@ -260,6 +269,7 @@ class AListWidget(ListWidget):
             (adata := self.model.adata) is not None
             and kwargs["key"] not in adata.obs.columns
             and kwargs["key"] not in adata.var.index
+            and kwargs["key"] not in adata.obsm
         ) or adata is None:
             merge_vec = layer.metadata["_columns_df"][kwargs["key"]]
             element_indices = merge_vec.index
@@ -270,9 +280,9 @@ class AListWidget(ListWidget):
             layer_meta = self.model.layer.metadata if self.model.layer is not None else None
             element_indices = pd.Series(layer_meta["indices"], name="element_indices")
             if isinstance(layer, Labels):
-                vec = vec.drop(index=0) if 0 in vec.index else vec  # type:ignore[attr-defined]
+                vec = vec.drop(index=0) if 0 in vec.index else vec
             # element_indices = element_indices[element_indices != 0]
-            diff_element_table = set(element_indices).difference(set(vec.index))  # type:ignore[attr-defined]
+            diff_element_table = set(element_indices).difference(set(vec.index))
             merge_vec = pd.merge(element_indices, vec, left_on="element_indices", right_index=True, how="left")[
                 "vec"
             ].fillna(0, axis=0)
@@ -288,8 +298,6 @@ class AListWidget(ListWidget):
                     element_indices_list = element_indices.to_list()
                 change_index = element_indices_list.index(i)
                 color_vec[change_index] = np.array([0.5, 0.5, 0.5, 1.0])
-            if isinstance(layer, Labels):
-                color_vec[0] = np.array([0.0, 0.0, 0.0, 1.0])
 
         if layer is not None and isinstance(layer, Labels):
             return {
@@ -439,7 +447,7 @@ class CBarWidget(QtWidgets.QWidget):
             clim=self.getClim(),
             border_width=1.0,
             border_color="black",
-            padding=(0.33, 0.167),
+            padding=(0.3, 0.167),
             axis_ratio=0.05,
         )
 
@@ -540,7 +548,10 @@ class RangeSliderWidget(QRangeSlider):
         if "data" not in layer.metadata:
             return None  # noqa: RET501
         v = layer.metadata["data"]
-        clipped = np.clip(v, *np.percentile(v, percentile))
+        # this code is currently not used since the slider is not enabled; so I silenced the mypy error; 2. there is a
+        # mismatch for this error with the mypy in the CI, so I silenced the unused-ignore from the local mypy.
+        # when this code is re-enabled, let's fix mypy
+        clipped = np.clip(v, *np.percentile(v, percentile))  # type: ignore[misc,unused-ignore]
 
         if isinstance(layer, Points):
             layer.metadata = {**layer.metadata, "perc": percentile}
@@ -558,7 +569,7 @@ class RangeSliderWidget(QRangeSlider):
         self._colorbar.setClim((np.min(layer.properties["value"]), np.max(layer.properties["value"])))
         self._colorbar.update_color()
 
-    def _scale_vec(self, vec: NDArrayA) -> NDArrayA:
+    def _scale_vec(self, vec: ArrayLike) -> ArrayLike:
         ominn, omaxx = self._colorbar.getOclim()
         delta = omaxx - ominn + 1e-12
 
@@ -566,7 +577,7 @@ class RangeSliderWidget(QRangeSlider):
         minn = (minn - ominn) / delta
         maxx = (maxx - ominn) / delta
         scaler = MinMaxScaler(feature_range=(minn, maxx))
-        return scaler.fit_transform(vec.reshape(-1, 1))  # type: ignore[no-any-return]
+        return scaler.fit_transform(vec.reshape(-1, 1))
 
     @property
     def viewer(self) -> napari.Viewer:
