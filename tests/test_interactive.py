@@ -1,4 +1,3 @@
-import pytest
 from spatialdata import SpatialData
 from spatialdata.models import Image2DModel
 
@@ -62,16 +61,16 @@ class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
         assert layer is None, "Expected None for a non-existing layer, but got a layer"
         i._viewer.close()
 
-    def test_add_text_to_polygons(self, sdata_polygons: SpatialData):
-        i = Interactive(sdata=sdata_polygons, headless=True)
-        i.add_element(element="polygons", element_coordinate_system="global")
+    def test_add_text_to_polygons(self, sdata_blobs: SpatialData):
+        i = Interactive(sdata=sdata_blobs, headless=True)
+        i.add_element(element="blobs_polygons", element_coordinate_system="global")
 
         # Mock polygon layer with some polygon data
         text_annotations = ["Label 1", "Label 2", "Label 3"]
-        polygon_layer = i.get_layer("polygons")
+        polygon_layer = i.get_layer("blobs_polygons")
 
         # Verify that text is added correctly
-        i.add_text_to_polygons(layer_name="polygons", text_annotations=text_annotations)
+        i.add_text_to_polygons(layer_name="blobs_polygons", text_annotations=text_annotations)
         assert polygon_layer.text is not None, "Text annotations were not added to the polygon layer"
         assert polygon_layer.text["string"] == text_annotations, "Text annotations do not match"
         i._viewer.close()
