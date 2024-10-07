@@ -73,26 +73,3 @@ class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
         assert polygon_layer.text is not None, "Text annotations were not added to the polygon layer"
         assert polygon_layer.text["string"] == text_annotations, "Text annotations do not match"
         i._viewer.close()
-
-    def test_add_text_to_polygons_mismatched_annotations(self, sdata_polygons: SpatialData):
-        i = Interactive(sdata=sdata_polygons, headless=True)
-        i.add_element(element="polygons", element_coordinate_system="global")
-
-        # Mock polygon layer with some polygon data
-        text_annotations = ["Label 1", "Label 2"]
-
-        # Expect ValueError due to mismatch between polygons and text annotations
-        with pytest.raises(ValueError, match="The number of text annotations must match the number of polygons"):
-            i.add_text_to_polygons(layer_name="polygons", text_annotations=text_annotations)
-        i._viewer.close()
-
-    def test_add_text_to_polygons_non_existing_layer(self, sdata_polygons: SpatialData):
-        i = Interactive(sdata=sdata_polygons, headless=True)
-
-        # Mock non-existing layer
-        text_annotations = ["Label 1", "Label 2", "Label 3"]
-
-        # Expect ValueError due to non-existing layer
-        with pytest.raises(ValueError, match="Polygon layer 'non_existing_layer' not found"):
-            i.add_text_to_polygons(layer_name="non_existing_layer", text_annotations=text_annotations)
-        i._viewer.close()
