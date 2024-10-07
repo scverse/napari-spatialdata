@@ -1,9 +1,10 @@
+import pytest
 from spatialdata import SpatialData
 from spatialdata.models import Image2DModel
 
 from napari_spatialdata._interactive import Interactive
 from tests.conftest import PlotTester, PlotTesterMeta
-import pytest
+
 
 class TestImages(PlotTester, metaclass=PlotTesterMeta):
     def test_plot_can_add_element_image(self, sdata_blobs: SpatialData):
@@ -44,6 +45,7 @@ def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     assert i._sdata_widget.coordinate_system_widget._system == "global"
     assert i._viewer.layers[-1].visible
     i._viewer.close()
+
 
 class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
     def test_get_layer_existing(self, sdata_blobs: SpatialData):
