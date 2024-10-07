@@ -1,4 +1,3 @@
-import pytest
 from spatialdata import SpatialData
 from spatialdata.models import Image2DModel
 
