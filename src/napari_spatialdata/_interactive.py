@@ -125,5 +125,3 @@ class Interactive:
             "color": "red",
             "anchor": "center",
         }
-
-            
