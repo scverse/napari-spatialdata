@@ -104,25 +104,26 @@ class Interactive:
 
     def get_layer(self, layer_name: str) -> Image | Labels | Points | Shapes | None:
         """Get a layer by name."""
-        for layer in self._viewer.layers:
-            if layer.name == layer_name:
-                return layer
-        return None
+        try:
+            return self._viewer.layers[layer_name]
+        except KeyError:
+            return None
 
     def add_text_to_polygons(self, layer_name: str, text_annotations: list[str]) -> None:
         """Add text annotations to a polygon layer."""
         polygon_layer = self.get_layer(layer_name)
-        if polygon_layer:
-            if len(text_annotations) != len(polygon_layer.data):
-                raise ValueError(
-                    f"The number of text annotations must match the number of polygons. "
-                    f"Polygons: {len(polygon_layer.data)}, Text: {len(text_annotations)}."
-                )
-            polygon_layer.text = {
-                "string": text_annotations,
-                "size": 10,
-                "color": "red",
-                "anchor": "center",
-            }
-        else:
+        if not polygon_layer:
             raise ValueError(f"Polygon layer '{layer_name}' not found.")
+        if len(text_annotations) != len(polygon_layer.data):
+            raise ValueError(
+                f"The number of text annotations must match the number of polygons. "
+                f"Polygons: {len(polygon_layer.data)}, Text: {len(text_annotations)}."
+            )
+        polygon_layer.text = {
+            "string": text_annotations,
+            "size": 10,
+            "color": "red",
+            "anchor": "center",
+        }
+
+            
