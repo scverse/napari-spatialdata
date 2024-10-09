@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+## [0.5.5] - 2024-10-07
+
+### Added
+
+- New function to grab layer by name #315 @minhtien-trinh
+- New annotation function to add text to polygons #315 @minhtien-trinh
+
 ## [0.5.4] - 2024-xx-xx
 
 ### Fixed
