@@ -2,6 +2,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import MatplotlibWidget
 

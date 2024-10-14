@@ -9,10 +9,11 @@ import pandas as pd
 from anndata import AnnData
 from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
+from spatialdata._types import ArrayLike
 from spatialdata.models import get_table_keys
 
 from napari_spatialdata.constants._constants import Symbol
-from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
+from napari_spatialdata.utils._utils import _ensure_dense_vector
 
 __all__ = ["DataModel"]
 
@@ -71,7 +72,9 @@ class DataModel:
         return None
 
     @_ensure_dense_vector
-    def get_obs(self, name: str, **_: Any) -> tuple[pd.Series | NDArrayA | None, str]:  # TODO(giovp): fix docstring
+    def get_obs(
+        self, name: str, **_: Any
+    ) -> tuple[pd.Series | ArrayLike | None, str, pd.Index]:  # TODO(giovp): fix docstring
         """
         Return an observation.
 
@@ -82,7 +85,7 @@ class DataModel:
 
         Returns
         -------
-        The values and the formatted ``name``.
+        The values, the formatted ``name`` and the `instance_key` values.
         """
         if name not in self.adata.obs.columns:
             raise KeyError(f"Key `{name}` not found in `adata.obs`.")
@@ -92,10 +95,10 @@ class DataModel:
         else:
             obs_column = self.adata.obs[name].copy()
             obs_column.index = self.adata.obs[self.instance_key]
-        return obs_column, self._format_key(name)
+        return obs_column, self._format_key(name), obs_column.index
 
     @_ensure_dense_vector
-    def get_columns_df(self, name: str | int, **_: Any) -> tuple[NDArrayA | None, str]:
+    def get_columns_df(self, name: str | int, **_: Any) -> tuple[ArrayLike | None, str, pd.Index]:
         """
         Return a column of the dataframe of the SpatialElement.
 
@@ -106,14 +109,17 @@ class DataModel:
 
         Returns
         -------
-        The dataframe column of interest and the formatted name of the column.
+        The dataframe column of interest, the formatted name of the column and the `instance_key` valus.
         """
         if self.layer is None:
             raise ValueError("Layer must be present")
-        return self.layer.metadata["_columns_df"][name], self._format_key(name)
+        column = self.layer.metadata["_columns_df"][name]
+        return column, self._format_key(name), column.index
 
     @_ensure_dense_vector
-    def get_var(self, name: str | int, **_: Any) -> tuple[NDArrayA | None, str]:  # TODO(giovp): fix docstring
+    def get_var(
+        self, name: str | int, **_: Any
+    ) -> tuple[ArrayLike | None, str, pd.Index]:  # TODO(giovp): fix docstring
         """
         Return a column in anndata.var_names.
 
@@ -125,17 +131,19 @@ class DataModel:
 
         Returns
         -------
-        The values and the formatted ``name``.
+        The values, the formatted ``name`` and the `instance_key` values.
         """
         try:
             ix = self.adata._normalize_indices((slice(None), name))
         except KeyError:
             raise KeyError(f"Key `{name}` not found in `adata.var_names`.") from None
 
-        return self.adata._get_X(layer=self.adata_layer)[ix], self._format_key(name, adata_layer=True)
+        column = self.adata._get_X(layer=self.adata_layer)[ix]
+        index = self.adata.obs[[self.instance_key]].set_index(self.instance_key).index
+        return column, self._format_key(name, adata_layer=True), index
 
     @_ensure_dense_vector
-    def get_obsm(self, name: str, index: int | str = 0) -> tuple[NDArrayA | None, str]:
+    def get_obsm(self, name: str, index: int | str = 0) -> tuple[ArrayLike | None, str, pd.Index]:
         """
         Return a vector from :attr:`anndata.AnnData.obsm`.
 
@@ -148,19 +156,20 @@ class DataModel:
 
         Returns
         -------
-        The values and the formatted ``name``.
+        The values, the formatted ``name`` and the `instance_key` values.
         """
         if name not in self.adata.obsm:
             raise KeyError(f"Unable to find key `{name!r}` in `adata.obsm`.")
         res = self.adata.obsm[name]
         pretty_name = self._format_key(name, index=index)
 
+        adata_index = self.adata.obs[[self.instance_key]].set_index(self.instance_key).index
         if isinstance(res, pd.DataFrame):
             try:
                 if isinstance(index, str):
-                    return res[index], pretty_name
+                    return res[index], pretty_name, adata_index
                 if isinstance(index, int):
-                    return res.iloc[:, index], self._format_key(name, index=res.columns[index])
+                    return res.iloc[:, index], self._format_key(name, index=res.columns[index]), adata_index
             except KeyError:
                 raise KeyError(f"Key `{index}` not found in `adata.obsm[{name!r}].`") from None
 
@@ -172,8 +181,8 @@ class DataModel:
                     f"Unable to convert `{index}` to an integer when accessing `adata.obsm[{name!r}]`."
                 ) from None
         res = np.asarray(res)
-
-        return (res if res.ndim == 1 else res[:, index]), pretty_name
+        column = res if res.ndim == 1 else res[:, index]
+        return column, pretty_name, adata_index
 
     def _format_key(self, key: str | int, index: int | str | None = None, adata_layer: bool = False) -> str:
         if index is not None:

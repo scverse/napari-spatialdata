@@ -8,7 +8,26 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [0.x.x] - 2024-xx-xx
+## [0.5.5] - 2024-10-07
+
+### Added
+
+- New function to grab layer by name #315 @minhtien-trinh
+- New annotation function to add text to polygons #315 @minhtien-trinh
+
+## [0.5.4] - 2024-xx-xx
+
+### Fixed
+
+- Bug wrong radii transformed circles (e.g. with Visium lowres)
+
+## [0.5.3] - 2024-09-25
+
+### Fixed
+
+- Bug table was not reset after an element without table was added #317
+- Bug when changing channel for a multichannel image #301 #302
+- Bug when plotting catgorical annotations on points #304
 
 ## [0.5.2] - 2024-08-16
 

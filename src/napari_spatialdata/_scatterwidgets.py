@@ -19,12 +19,13 @@ from napari_matplotlib.base import NapariMPLWidget
 from pandas.api.types import CategoricalDtype
 from qtpy import QtWidgets
 from qtpy.QtCore import Signal
+from spatialdata._types import ArrayLike
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
 from napari_spatialdata.constants.config import POINT_SIZE_SCATTERPLOT_WIDGET
 from napari_spatialdata.utils._categoricals_utils import _add_categorical_legend
-from napari_spatialdata.utils._utils import NDArrayA, _get_categorical, _set_palette
+from napari_spatialdata.utils._utils import _get_categorical, _set_palette
 
 __all__ = [
     "MatplotlibWidget",
@@ -63,7 +64,7 @@ class SelectFromCollection:
         model: DataModel,
         ax: Axes,
         collection: Collection,
-        data: list[NDArrayA],
+        data: list[ArrayLike],
         alpha_other: float = 0.3,
         viewer: Viewer | None = None,
     ):
@@ -89,7 +90,7 @@ class SelectFromCollection:
 
         self.selector = LassoSelector(ax, onselect=self.onselect)
 
-        self.ind: NDArrayA | None = None
+        self.ind: ArrayLike | None = None
 
     def export(self, adata: AnnData) -> None:
         model_layer: Layer = self.model.layer
@@ -116,7 +117,7 @@ class SelectFromCollection:
         sdata[table_name].obs[obs_name] = self.exported_data
         show_info(f"Exported selected coordinates to obs in AnnData as: {obs_name}")
 
-    def onselect(self, verts: list[NDArrayA]) -> None:
+    def onselect(self, verts: list[ArrayLike]) -> None:
         self.path = Path(verts)
         self.ind = np.nonzero(self.path.contains_points(self.xys))[0]
 
@@ -140,7 +141,7 @@ class ScatterListWidget(AListWidget):
         AListWidget.__init__(self, None, model, attr, **kwargs)
         self.attrChanged.connect(self._onChange)
         self._color = color
-        self._data: NDArrayA | dict[str, Any] | None = None
+        self._data: ArrayLike | dict[str, Any] | None = None
         self.itemClicked.connect(lambda item: self._onOneClick((item.text(),)))
 
     def _onChange(self) -> None:
@@ -151,11 +152,11 @@ class ScatterListWidget(AListWidget):
 
     def _onAction(self, items: Iterable[str]) -> None:
         for item in sorted(set(items)):
-            try:
-                vec, _ = self._getter(item, index=self.getIndex())
-            except Exception as e:  # noqa: BLE001
-                logger.error(e)
-                continue
+            # try:
+            vec, _, index = self._getter(item, index=self.getIndex())
+            # except Exception as e:  # noqa: BLE001
+            #     logger.error(e)
+            #     continue
             self.chosen = item
             if isinstance(vec, np.ndarray):
                 self.data = vec
@@ -223,11 +224,11 @@ class ScatterListWidget(AListWidget):
         self._chosen = chosen if chosen is not None else None
 
     @property
-    def data(self) -> NDArrayA | dict[str, Any] | None:
+    def data(self) -> ArrayLike | dict[str, Any] | None:
         return self._data
 
     @data.setter
-    def data(self, data: NDArrayA | dict[str, Any]) -> None:
+    def data(self, data: ArrayLike | dict[str, Any]) -> None:
         self._data = data
 
 
@@ -251,9 +252,9 @@ class MatplotlibWidget(NapariMPLWidget):
 
     def _onClick(
         self,
-        x_data: NDArrayA | pd.Series,
-        y_data: NDArrayA | pd.Series,
-        color_data: NDArrayA | dict[str, NDArrayA | pd.Series | dict[str, str]],
+        x_data: ArrayLike | pd.Series,
+        y_data: ArrayLike | pd.Series,
+        color_data: ArrayLike | dict[str, ArrayLike | pd.Series | dict[str, str]],
         x_label: str | None,
         y_label: str | None,
         color_label: str | None,
