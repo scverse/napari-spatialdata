@@ -8,7 +8,6 @@ from anndata import AnnData
 from dask.array.random import randint
 from dask.dataframe import DataFrame as DaskDataFrame
 from dask.dataframe import from_dask_array
-from datatree import DataTree
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
@@ -19,7 +18,7 @@ from spatialdata.datasets import blobs
 from spatialdata.models import PointsModel, TableModel
 from spatialdata.transformations import Identity
 from spatialdata.transformations.operations import set_transformation
-from xarray import DataArray
+from xarray import DataArray, DataTree
 
 from napari_spatialdata import QtAdataViewWidget
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
