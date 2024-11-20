@@ -15,7 +15,6 @@ from dask.dataframe import DataFrame as DaskDataFrame
 from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
-from multiscale_spatial_image import skip_non_dimension_nodes
 from napari import __version__
 from napari.layers import Layer
 from numba import njit, prange
@@ -33,7 +32,7 @@ from scipy.spatial import KDTree
 from spatialdata import SpatialData, get_extent, join_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
-from xarray import DataArray, Dataset, DataTree
+from xarray import DataArray, DataTree
 
 from napari_spatialdata.constants._pkg_constants import Key
 from napari_spatialdata.utils._categoricals_utils import (
@@ -222,21 +221,6 @@ def _points_inside_triangles(points: ArrayLike, triangles: ArrayLike) -> ArrayLi
     return out
 
 
-@skip_non_dimension_nodes
-def transpose(ds: Dataset, *args: Any, **kwargs: Any) -> Dataset:
-    return ds.transpose(*args, **kwargs)
-
-
-@skip_non_dimension_nodes
-def reindex(ds: Dataset, *args: Any, **kwargs: Any) -> Dataset:
-
-    # A copy is required as a dataset view as used in map_over_datasets is not mutable
-    # TODO: Check whether setting item on wrapping datatree node would be better than copy or this can be dropped.
-    ds_copy = ds.copy()
-    ds_copy["image"] = ds_copy["image"].reindex(*args, **kwargs)
-    return ds_copy
-
-
 def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | list[DataArray], bool]:
     """Swap the axes to y, x, c and check if an image supports rgb(a) visualization.
 
@@ -274,8 +258,8 @@ def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | l
         if isinstance(element, DataArray):
             new_raster = element.transpose("y", "x", "c").reindex(c=["r", "g", "b", "a"][: len(c_coords)])
         else:
-            new_raster = element.map_over_datasets(transpose, "y", "x", "c")
-            new_raster = new_raster.map_over_datasets(reindex, {"c": ["r", "g", "b", "a"][: len(c_coords)]})
+            new_raster = element.msi.transpose("y", "x", "c")
+            new_raster = new_raster.msi.reindex_data_arrays({"c": ["r", "g", "b", "a"][: len(c_coords)]})
     else:
         rgb = False
         new_raster = element
