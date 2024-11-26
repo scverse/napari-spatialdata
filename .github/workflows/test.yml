@@ -85,7 +85,7 @@ jobs:
         with:
           python-version: 3.11
           cache-dependency-path: pyproject.toml
-      
+
       - name: Install dependencies with 'pre' extras (since the above doesn't check pre-releases)
         run: |
           python -m pip install --upgrade pip
