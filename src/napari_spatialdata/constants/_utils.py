@@ -1,7 +1,8 @@
 from abc import ABC, ABCMeta
+from collections.abc import Callable
 from enum import Enum, EnumMeta
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 
 def _pretty_raise_enum(cls: type["ModeEnum"], fun: Callable[..., Any]) -> Callable[..., Any]:

@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Generator, Iterable, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from functools import wraps
 from random import randint
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import packaging.version
 import pandas as pd
 from anndata import AnnData
 from dask.dataframe import DataFrame as DaskDataFrame
-from datatree import DataTree
 from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
@@ -33,7 +32,7 @@ from scipy.spatial import KDTree
 from spatialdata import SpatialData, get_extent, join_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
-from xarray import DataArray
+from xarray import DataArray, DataTree
 
 from napari_spatialdata.constants._pkg_constants import Key
 from napari_spatialdata.utils._categoricals_utils import (
@@ -49,7 +48,7 @@ if TYPE_CHECKING:
 
 from spatialdata._types import ArrayLike
 
-Vector_name_index_t = tuple[Optional[Union[pd.Series, ArrayLike]], Optional[str], Optional[pd.Index]]
+Vector_name_index_t = tuple[pd.Series | ArrayLike | None, str | None, pd.Index | None]
 
 
 def _ensure_dense_vector(fn: Callable[..., Vector_name_index_t]) -> Callable[..., Vector_name_index_t]:
@@ -79,7 +78,7 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_index_t]) -> Callable[...
             if TYPE_CHECKING:
                 assert isinstance(res, spmatrix)
             res = res.toarray()
-        elif not isinstance(res, (np.ndarray, Sequence)):
+        elif not isinstance(res, np.ndarray | Sequence):
             raise TypeError(f"Unable to process result of type `{type(res).__name__}`.")
 
         res = np.atleast_1d(np.squeeze(res))
@@ -100,7 +99,7 @@ def _get_palette(
     if key not in adata.obs:
         raise KeyError("Missing key!")  # TODO: Improve error message
 
-    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
+    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]], strict=True))
 
 
 def _set_palette(
@@ -121,7 +120,7 @@ def _set_palette(
     )
     vec = vec if vec is not None else adata.obs[key]
     #
-    return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
+    return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]], strict=True))
 
 
 def _get_categorical(
@@ -183,7 +182,7 @@ def _transform_coordinates(data: list[Any], f: Callable[..., Any]) -> list[Any]:
 
 
 def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | ArrayLike:
-    if not isinstance(element, (DataArray, DataTree, DaskDataFrame, GeoDataFrame)):
+    if not isinstance(element, DataArray | DataTree | DaskDataFrame | GeoDataFrame):
         raise RuntimeError("Cannot get transform for {type(element)}")
 
     transformations = get_transformation(element, get_all=True)
@@ -256,7 +255,11 @@ def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | l
 
     if len(c_coords) != 0 and set(c_coords) - {"r", "g", "b"} <= {"a"}:
         rgb = True
-        new_raster = element.transpose("y", "x", "c").reindex(c=["r", "g", "b", "a"][: len(c_coords)])
+        if isinstance(element, DataArray):
+            new_raster = element.transpose("y", "x", "c").reindex(c=["r", "g", "b", "a"][: len(c_coords)])
+        else:
+            new_raster = element.msi.transpose("y", "x", "c")
+            new_raster = new_raster.msi.reindex_data_arrays({"c": ["r", "g", "b", "a"][: len(c_coords)]})
     else:
         rgb = False
         new_raster = element

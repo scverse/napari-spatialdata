@@ -141,7 +141,7 @@ class AListWidget(ListWidget):
 
                     properties = self._get_points_properties(vec, key=item, layer=self.model.layer)
                     self.model.color_by = "" if self.model.system_name is None else item
-                    if isinstance(self.model.layer, (Points, Shapes)):
+                    if isinstance(self.model.layer, Points | Shapes):
                         self.model.layer.text = None  # needed because of the text-feature order of updates
                         self.model.layer.face_color = properties["face_color"]
                         # self.model.layer.edge_color = properties["face_color"]
@@ -214,7 +214,7 @@ class AListWidget(ListWidget):
                 colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
                 _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
                 colors = colorer.uns["vec_colors"]
-                color_dict = dict(zip(vec.cat.categories, colors))
+                color_dict = dict(zip(vec.cat.categories, colors, strict=False))
                 color_dict.update({np.nan: "#808080ff"})
             else:
                 color_dict = self.model.adata.uns[vec_color_name]
@@ -224,7 +224,7 @@ class AListWidget(ListWidget):
                 colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
                 _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
                 colors = colorer.uns["vec_colors"]
-                color_dict = dict(zip(vec.cat.categories, colors))
+                color_dict = dict(zip(vec.cat.categories, colors, strict=False))
                 color_dict.update({np.nan: "#808080ff"})
                 color_column = vec.apply(lambda x: color_dict[x])
                 df[vec_color_name] = color_column
@@ -247,7 +247,7 @@ class AListWidget(ListWidget):
 
         merge_df["color"] = merge_df[vec.name].map(color_dict)
         if layer is not None and isinstance(layer, Labels):
-            index_color_mapping = dict(zip(merge_df["element_indices"], merge_df["color"]))
+            index_color_mapping = dict(zip(merge_df["element_indices"], merge_df["color"], strict=False))
             return {
                 "color": index_color_mapping,
                 "properties": {"value": vec},
@@ -301,7 +301,7 @@ class AListWidget(ListWidget):
 
         if layer is not None and isinstance(layer, Labels):
             return {
-                "color": dict(zip(element_indices, color_vec)),
+                "color": dict(zip(element_indices, color_vec, strict=False)),
                 "properties": {"value": vec},
                 "text": None,
             }
@@ -561,7 +561,7 @@ class RangeSliderWidget(QRangeSlider):
         elif isinstance(layer, Labels):
             norm_vec = self._scale_vec(clipped)
             color_vec = self._cmap(norm_vec)
-            layer.color = dict(zip(layer.color.keys(), color_vec))
+            layer.color = dict(zip(layer.color.keys(), color_vec, strict=False))
             layer.properties = {"value": clipped}
             layer.refresh()
 
