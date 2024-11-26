@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from abc import ABC, ABCMeta
+from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import napari
 import numpy as np

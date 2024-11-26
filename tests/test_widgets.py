@@ -1,4 +1,4 @@
-from typing import Any, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -125,7 +125,7 @@ def test_scatterlistwidget(
     image: ArrayLike,
     attr: str,
     item: str,
-    text: Union[str, int, None],
+    text: str | int | None,
 ) -> None:
     viewer = make_napari_viewer()
     layer_name = "labels"
