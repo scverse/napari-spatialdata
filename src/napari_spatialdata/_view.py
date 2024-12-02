@@ -312,7 +312,9 @@ class QtAdataViewWidget(QWidget):
         current_point = list(event.value)
         displayed = self._viewer.dims.displayed
         if layer.multiscale:
-            for i, (lo_size, hi_size, cord) in enumerate(zip(layer.data[-1].shape, layer.data[0].shape, current_point)):
+            for i, (lo_size, hi_size, cord) in enumerate(
+                zip(layer.data[-1].shape, layer.data[0].shape, current_point, strict=False)
+            ):
                 if i in displayed:
                     current_point[i] = slice(None)
                 else:
@@ -385,7 +387,7 @@ class QtAdataViewWidget(QWidget):
                 self.var_widget.clear()
                 self.obsm_widget.clear()
                 self.color_by.clear()
-                if isinstance(layer, (Points, Shapes)) and (cols_df := layer.metadata.get("_columns_df")) is not None:
+                if isinstance(layer, Points | Shapes) and (cols_df := layer.metadata.get("_columns_df")) is not None:
                     self.dataframe_columns_widget.addItems(map(str, cols_df.columns))
                     self.model.system_name = layer.metadata.get("name", None)
             self.model.adata = None

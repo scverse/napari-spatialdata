@@ -322,7 +322,7 @@ class SpatialDataViewer(QObject):
             parsed, cs = self._save_shapes_to_sdata(selected, spatial_element_name, overwrite)
             if table_name:
                 self._save_table_to_sdata(selected, table_name, spatial_element_name, table_columns, overwrite)
-        elif isinstance(selected, (Image, Labels)):
+        elif isinstance(selected, Image | Labels):
             raise NotImplementedError
         else:
             raise ValueError(f"Layer of type {type(selected)} cannot be saved.")
@@ -400,17 +400,17 @@ class SpatialDataViewer(QObject):
         for layer in (
             layer
             for layer in layers
-            if layer != ref_layer and isinstance(layer, (Labels, Points, Shapes)) and "sdata" not in layer.metadata
+            if layer != ref_layer and isinstance(layer, Labels | Points | Shapes) and "sdata" not in layer.metadata
         ):
             layer.metadata["sdata"] = ref_layer.metadata["sdata"]
             layer.metadata["_current_cs"] = ref_layer.metadata["_current_cs"]
             layer.metadata["_active_in_cs"] = {ref_layer.metadata["_current_cs"]}
             layer.metadata["name"] = None
             layer.metadata["adata"] = None
-            if isinstance(layer, (Shapes, Labels)):
+            if isinstance(layer, Shapes | Labels):
                 layer.metadata["region_key"] = None
                 layer.metadata["instance_key"] = None
-            if isinstance(layer, (Shapes, Points)):
+            if isinstance(layer, Shapes | Points):
                 layer.metadata["_n_indices"] = None
                 layer.metadata["indices"] = None
             self.layer_linked.emit(layer)
