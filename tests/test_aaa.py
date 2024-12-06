@@ -1,4 +1,5 @@
 import pytest
+
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import PlotWidget
 
