@@ -34,6 +34,7 @@ exclude = [
     "__pycache__",
     "build",
     "docs/_build",
+    "docs/notebooks",
     "dist",
     "setup.py",
 ]

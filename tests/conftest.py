@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+import string
 from abc import ABC, ABCMeta
 from collections.abc import Callable
 from functools import wraps
@@ -30,6 +32,13 @@ EXPECTED = HERE / "plots/groundtruth"
 ACTUAL = HERE / "plots/generated"
 TOL = 70
 DPI = 40
+
+RNG = np.random.default_rng(seed=0)
+DATA_LEN = 100
+
+
+def pytest_configure(config):
+    config.DATA_LEN = 100
 
 
 @pytest.fixture
@@ -68,6 +77,13 @@ def adata_labels() -> AnnData:
         region_key="region",
         instance_key="cell_id",
     )
+
+
+@pytest.fixture
+def annotation_values(adata_labels):
+    """Generate random annotation values."""
+    rng = np.random.default_rng()
+    return rng.integers(0, 10, size=len(adata_labels.obs))
 
 
 @pytest.fixture
@@ -125,6 +141,43 @@ def image():
 def labels():
     blobs, _ = _get_blobs_galaxy()
     return blobs
+
+
+@pytest.fixture
+def prepare_continuous_test_data():
+    x_vec = RNG.random(DATA_LEN)
+    y_vec = RNG.random(DATA_LEN)
+    color_vec = RNG.random(DATA_LEN)
+
+    x_data = {"vec": x_vec}
+    y_data = {"vec": y_vec}
+    color_data = {"vec": color_vec}
+
+    x_label = generate_random_string(10)
+    y_label = generate_random_string(10)
+    color_label = generate_random_string(10)
+    return x_data, y_data, color_data, x_label, y_label, color_label
+
+
+@pytest.fixture
+def prepare_discrete_test_data():
+    x_vec = RNG.random(DATA_LEN)
+    y_vec = RNG.random(DATA_LEN)
+    color_vec = np.zeros(DATA_LEN).astype(int)
+
+    x_data = {"vec": x_vec}
+    y_data = {"vec": y_vec}
+    color_data = {"vec": color_vec, "labels": ["a"]}
+
+    x_label = generate_random_string(10)
+    y_label = generate_random_string(10)
+    color_label = generate_random_string(10)
+    return x_data, y_data, color_data, x_label, y_label, color_label
+
+
+def generate_random_string(length):
+    letters = string.ascii_letters  # Includes both lowercase and uppercase letters
+    return "".join(random.choice(letters) for i in range(length))
 
 
 def _get_blobs_galaxy() -> tuple[ArrayLike, ArrayLike]:

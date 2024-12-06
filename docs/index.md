@@ -23,4 +23,5 @@ cli.md
 notebooks/nanostring_analysis
 notebooks/mibitof_analysis
 notebooks/scatterwidget
+notebooks/scatterwidget_annotation
 ```
