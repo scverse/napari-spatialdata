@@ -55,7 +55,7 @@ class ScatterListWidget(AListWidget):
 
         for item in sorted(set(items)):
             try:
-                vec, _ = self._getter(item, index=self.getIndex())
+                vec, _, _ = self._getter(item, index=self.getIndex())
             except Exception as e:  # noqa: BLE001
                 logger.error(e)
                 logger.info(self)
