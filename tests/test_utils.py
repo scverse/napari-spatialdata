@@ -4,6 +4,8 @@ from typing import Any
 import numpy as np
 import pytest
 from anndata import AnnData
+from spatialdata.datasets import blobs
+
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _get_categorical,
@@ -13,7 +15,6 @@ from napari_spatialdata.utils._utils import (
     _position_cluster_labels,
     _set_palette,
 )
-from spatialdata.datasets import blobs
 
 
 def test_get_categorical(adata_labels: AnnData):

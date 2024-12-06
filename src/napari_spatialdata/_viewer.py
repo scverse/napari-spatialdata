@@ -17,9 +17,9 @@ from qtpy.QtCore import QObject, Signal
 from shapely import Polygon
 from spatialdata import get_element_annotators, get_element_instances
 from spatialdata._core.query.relational_query import _left_join_spatialelement_table
+from spatialdata._types import ArrayLike
 from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
 from spatialdata.transformations import Affine, Identity
-from spatialdata.transformations._utils import scale_radii
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.constants import config
@@ -161,13 +161,13 @@ class SpatialDataViewer(QObject):
         element: tuple[DaskDataFrame | GeoDataFrame | AnnData],
         overwrite: bool,
     ) -> None:
-        if sdata.is_backed:
-            self._delete_from_disk(sdata, element_name, overwrite)
-            sdata[element_name] = element
-            sdata.write_element(element_name)
-        else:
-            sdata[element_name] = element
-            logger.warning("Spatialdata object is not stored on disk, could only add element in memory.")
+        # if sdata.is_backed:
+        #     self._delete_from_disk(sdata, element_name, overwrite)
+        #     sdata[element_name] = element
+        #     sdata.write_element(element_name)
+        # else:
+        sdata[element_name] = element
+        logger.warning("Annotations only added in memory, please manually save to disk.")
 
     def _save_points_to_sdata(
         self, layer_to_save: Points, spatial_element_name: str | None, overwrite: bool
@@ -187,6 +187,8 @@ class SpatialDataViewer(QObject):
             swap_data = swap_data[:, :2]
         parsed = PointsModel.parse(swap_data, transformations=transformation)
 
+        # saving to disk of points temporarily disabled until the interface update that will unify the view widget,
+        # annotation widget and scatterplot widget
         self._write_element_to_disk(sdata, spatial_element_name, parsed, overwrite)
 
         return parsed, coordinate_system
@@ -247,7 +249,18 @@ class SpatialDataViewer(QObject):
         if len(layer_to_save.data) == 0:
             raise ValueError("Cannot export a shapes element with no shapes")
 
-        polygons: list[Polygon] = [Polygon(i) for i in _transform_coordinates(layer_to_save.data, f=lambda x: x[::-1])]
+        coords = [
+            np.array([layer_to_save.data_to_world(xy) for xy in shape._data])
+            for shape in layer_to_save._data_view.shapes
+        ]
+
+        def _fix_coords(coords: ArrayLike) -> ArrayLike:
+            remove_z = coords.shape[1] == 3
+            first_index = 1 if remove_z else 0
+            coords = coords[:, first_index::]
+            return np.fliplr(coords)
+
+        polygons: list[Polygon] = [Polygon(_fix_coords(p)) for p in coords]
         gdf = GeoDataFrame({"geometry": polygons})
 
         force_2d(gdf)
@@ -309,7 +322,7 @@ class SpatialDataViewer(QObject):
             parsed, cs = self._save_shapes_to_sdata(selected, spatial_element_name, overwrite)
             if table_name:
                 self._save_table_to_sdata(selected, table_name, spatial_element_name, table_columns, overwrite)
-        elif isinstance(selected, (Image, Labels)):
+        elif isinstance(selected, Image | Labels):
             raise NotImplementedError
         else:
             raise ValueError(f"Layer of type {type(selected)} cannot be saved.")
@@ -387,17 +400,17 @@ class SpatialDataViewer(QObject):
         for layer in (
             layer
             for layer in layers
-            if layer != ref_layer and isinstance(layer, (Labels, Points, Shapes)) and "sdata" not in layer.metadata
+            if layer != ref_layer and isinstance(layer, Labels | Points | Shapes) and "sdata" not in layer.metadata
         ):
             layer.metadata["sdata"] = ref_layer.metadata["sdata"]
             layer.metadata["_current_cs"] = ref_layer.metadata["_current_cs"]
             layer.metadata["_active_in_cs"] = {ref_layer.metadata["_current_cs"]}
             layer.metadata["name"] = None
             layer.metadata["adata"] = None
-            if isinstance(layer, (Shapes, Labels)):
+            if isinstance(layer, Shapes | Labels):
                 layer.metadata["region_key"] = None
                 layer.metadata["instance_key"] = None
-            if isinstance(layer, (Shapes, Points)):
+            if isinstance(layer, Shapes | Points):
                 layer.metadata["_n_indices"] = None
                 layer.metadata["indices"] = None
             self.layer_linked.emit(layer)
@@ -573,6 +586,7 @@ class SpatialDataViewer(QObject):
             name=key,
             affine=affine,
             shape_type="polygon",
+            face_color="#00000000",
             metadata={
                 "sdata": sdata,
                 "adata": adata,
@@ -726,8 +740,6 @@ class SpatialDataViewer(QObject):
             raise ValueError(f"Invalid affine shape: {affine.shape}")
         affine_transformation = Affine(affine, input_axes=axes, output_axes=axes)
 
-        new_radii = scale_radii(radii=radii, affine=affine_transformation, axes=axes)
-
         # the points size is the diameter, in "data pixels" of the current coordinate system, so we need to scale by
         # scale factor of the affine transformation. This scale factor is an approximation when the affine
         # transformation is anisotropic.
@@ -736,7 +748,7 @@ class SpatialDataViewer(QObject):
         modules = np.absolute(eigenvalues)
         scale_factor = np.mean(modules)
 
-        layer.size = 2 * new_radii / scale_factor
+        layer.size = 2 * radii * scale_factor
 
     def _affine_transform_layers(self, coordinate_system: str) -> None:
         for layer in self.viewer.layers:

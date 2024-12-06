@@ -9,6 +9,7 @@
 api.md
 cli.md
 contributing.md
+limitations.md
 references.md
 ```
 

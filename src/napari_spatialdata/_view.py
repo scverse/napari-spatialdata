@@ -349,9 +349,13 @@ class QtAdataScatterWidget(QWidget):
             )
             layer.metadata["adata"] = table
 
-        if layer is not None and "adata" in layer.metadata:
-            with self.model.events.adata.blocker():
-                self.model.adata = layer.metadata["adata"]
+        if layer is not None:
+            if "adata" in layer.metadata:
+                with self.model.events.adata.blocker():
+                    self.model.adata = layer.metadata["adata"]
+            else:
+                with self.model.events.adata.blocker():
+                    self.model.adata = None
 
         if self.model.adata.shape == (0, 0):
             return
@@ -398,8 +402,8 @@ class QtAdataScatterWidget(QWidget):
                 self.color_widget.clear()
             return
 
-        if layer is not None and "adata" in layer.metadata:
-            self.model.adata = layer.metadata["adata"]
+        if layer is not None:
+            self.model.adata = layer.metadata.get("adata", None)
 
     def screenshot(self) -> Any:
         return QImg2array(self.grab().toImage())
@@ -520,7 +524,9 @@ class QtAdataViewWidget(QWidget):
         current_point = list(event.value)
         displayed = self._viewer.dims.displayed
         if layer.multiscale:
-            for i, (lo_size, hi_size, cord) in enumerate(zip(layer.data[-1].shape, layer.data[0].shape, current_point)):
+            for i, (lo_size, hi_size, cord) in enumerate(
+                zip(layer.data[-1].shape, layer.data[0].shape, current_point, strict=False)
+            ):
                 if i in displayed:
                     current_point[i] = slice(None)
                 else:
@@ -593,13 +599,14 @@ class QtAdataViewWidget(QWidget):
                 self.var_widget.clear()
                 self.obsm_widget.clear()
                 self.color_by.clear()
-                if isinstance(layer, (Points, Shapes)) and (cols_df := layer.metadata.get("_columns_df")) is not None:
+                if isinstance(layer, Points | Shapes) and (cols_df := layer.metadata.get("_columns_df")) is not None:
                     self.dataframe_columns_widget.addItems(map(str, cols_df.columns))
                     self.model.system_name = layer.metadata.get("name", None)
+            self.model.adata = None
             return
 
-        if layer is not None and "adata" in layer.metadata:
-            self.model.adata = layer.metadata["adata"]
+        if layer is not None:
+            self.model.adata = layer.metadata.get("adata", None)
 
         if self.model.adata.shape == (0, 0):
             return
@@ -630,9 +637,13 @@ class QtAdataViewWidget(QWidget):
             )
             layer.metadata["adata"] = table
 
-        if layer is not None and "adata" in layer.metadata:
-            with self.model.events.adata.blocker():
-                self.model.adata = layer.metadata["adata"]
+        if layer is not None:
+            if "adata" in layer.metadata:
+                with self.model.events.adata.blocker():
+                    self.model.adata = layer.metadata["adata"]
+            else:
+                with self.model.events.adata.blocker():
+                    self.model.adata = None
 
         if self.model.adata.shape == (0, 0):
             return
@@ -652,10 +663,12 @@ class QtAdataViewWidget(QWidget):
             return
 
     def _get_adata_layer(self) -> Sequence[str | None]:
+        if self.model.adata is None:
+            return [None]
         adata_layers = list(self.model.adata.layers.keys())
-        if len(adata_layers):
-            return adata_layers
-        return [None]
+        if len(adata_layers) == 0:
+            return [None]
+        return adata_layers
 
     def _change_color_by(self) -> None:
         self.color_by.setText(f"Color by: {self.model.color_by}")

@@ -2,6 +2,7 @@ import numpy as np
 from napari import Viewer
 from napari.layers import Image
 from napari.utils.events import EventedList
+
 from napari_spatialdata._sdata_widgets import SdataWidget
 
 
@@ -17,3 +18,6 @@ class SdataWidgetSuite:
 
     def time_layer_added(self) -> None:
         self.viewer.add_layer(self.image)
+
+    def teardown(self) -> None:
+        self.viewer.close()

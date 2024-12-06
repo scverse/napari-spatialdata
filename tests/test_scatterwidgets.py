@@ -1,10 +1,11 @@
 import numpy as np
 import pyqtgraph as pg
 import pytest
-from napari_spatialdata._model import DataModel
-from napari_spatialdata._scatterwidgets import PlotWidget
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
 from shapely.geometry import Polygon
+
+from napari_spatialdata._model import DataModel
+from napari_spatialdata._scatterwidgets import PlotWidget
 
 DATA_LEN = 100
 
@@ -20,7 +21,7 @@ def coordinates_are_equal(coords1, coords2, tol=1e-6):
     if len(norm_coords1) != len(norm_coords2):
         return False
 
-    return all(np.allclose(c1, c2, atol=tol) for c1, c2 in zip(norm_coords1, norm_coords2))
+    return all(np.allclose(c1, c2, atol=tol) for c1, c2 in zip(norm_coords1, norm_coords2, strict=True))
 
 
 @pytest.fixture

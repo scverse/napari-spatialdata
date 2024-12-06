@@ -22,10 +22,10 @@ from qtpy.QtGui import QColor, QIcon
 from qtpy.QtWidgets import QPushButton
 from scipy.spatial import cKDTree
 from shapely.geometry import Point, Polygon
+from spatialdata._types import ArrayLike
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
-from napari_spatialdata.utils._utils import NDArrayA
 
 __all__ = [
     "PlotWidget",
@@ -54,7 +54,6 @@ class ScatterListWidget(AListWidget):
     def _onAction(self, items: Iterable[str]) -> None:
 
         for item in sorted(set(items)):
-
             try:
                 vec, _ = self._getter(item, index=self.getIndex())
             except Exception as e:  # noqa: BLE001
@@ -62,9 +61,10 @@ class ScatterListWidget(AListWidget):
                 logger.info(self)
                 continue
             self.chosen = item
+
             if isinstance(vec, np.ndarray):
                 self.data = {"vec": vec}
-            elif vec is not None and isinstance(vec.dtype, (CategoricalDtype, bool)):
+            elif vec is not None and isinstance(vec.dtype, (CategoricalDtype | bool)):
                 try:
                     sorted_set = sorted(set(vec), key=int)
                 except ValueError:
@@ -112,7 +112,7 @@ class ScatterListWidget(AListWidget):
             super().setAdataLayer(text)
         elif self.getAttribute() == "obsm":
             if TYPE_CHECKING:
-                assert isinstance(text, (int, str))
+                assert isinstance(text, int | str)
             self.text = text  # type: ignore[assignment]
             super().setIndex(text)
 
@@ -321,8 +321,8 @@ class PlotWidget(GraphicsLayoutWidget):
             self._viewer.close()
 
         self.scatter: HoverScatterPlotItem | None = None
-        self.x_data: NDArrayA | pd.Series | None = None
-        self.y_data: NDArrayA | pd.Series | None = None
+        self.x_data: ArrayLike | pd.Series | None = None
+        self.y_data: ArrayLike | pd.Series | None = None
         self.kd_tree: cKDTree | None = None
         self.dist_threshold = [None, None]
         self.color_data: dict[str, Any] | None = None
@@ -561,7 +561,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self._disable_rectangle_mode()
         self._disable_drawing_mode()
 
-    def get_selection(self) -> NDArrayA | None:
+    def get_selection(self) -> ArrayLike | None:
         """Get the selection from the scatter plot."""
 
         if self.scatter is None:
@@ -572,7 +572,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         polygon_list = self.rois_to_polygons()
 
-        for i, (x, y) in enumerate(zip(self.scatter.xData, self.scatter.yData)):
+        for i, (x, y) in enumerate(zip(self.scatter.xData, self.scatter.yData, strict=True)):
             point = Point(x, y)
             # Check if the point belongs to any ROI
             for polygon in polygon_list:
@@ -961,8 +961,8 @@ class PlotWidget(GraphicsLayoutWidget):
         elif self.rectangle and self.current_roi is not None and self.initial_pos is not None:
 
             plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
-            width = plot_pos.x() - self.initial_pos.x()
-            height = plot_pos.y() - self.initial_pos.y()
+            width = plot_pos.x() - self.initial_pos.x()  # type: ignore[attr-defined]
+            height = plot_pos.y() - self.initial_pos.y()  # type: ignore[attr-defined]
             self.current_roi.setSize([width, height])
 
             event.accept()
