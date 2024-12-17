@@ -249,3 +249,9 @@ def caplog(caplog):
     handler_id = logger.add(caplog.handler, format="{message}")
     yield caplog
     logger.remove(handler_id)
+
+
+@pytest.fixture(autouse=True)
+def always_sync(monkeypatch, request):
+    if request.node.get_closest_marker("use_thread_loader") is None:
+        monkeypatch.setattr("napari_spatialdata._sdata_widgets.PROBLEMATIC_NUMPY_MACOS", True)
