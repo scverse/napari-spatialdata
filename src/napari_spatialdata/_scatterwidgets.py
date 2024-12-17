@@ -489,6 +489,7 @@ class PlotWidget(GraphicsLayoutWidget):
     def use_auto_range(self) -> None:
         """Default display of the graph."""
         if self.lut is not None:
+            assert self.color_vec is not None
             color_min = self.color_vec.min()
             color_max = self.color_vec.max()
 
@@ -803,6 +804,7 @@ class PlotWidget(GraphicsLayoutWidget):
         st["ticksVisible"] = False
         lut.gradient.restoreState(st)
 
+        assert self.color_vec is not None
         y, x = np.histogram(self.color_vec, bins="auto")
         lut.plot.setData(
             np.concatenate([[np.min(self.color_vec)], (x[:-1] + x[1:]) / 2, [np.max(self.color_vec)]]),
@@ -867,6 +869,7 @@ class PlotWidget(GraphicsLayoutWidget):
         # for discrete data
         if self.discrete_color_widget is not None:
 
+            assert self.color_vec is not None
             return [pg.mkBrush(*x) for x in self.discrete_color_widget.palette.map(self.color_vec + 1) * 255]
 
         # for continuos data
@@ -874,6 +877,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
             level_min, level_max = self.lut.getLevels()
 
+            assert self.color_vec is not None
             data = np.clip(self.color_vec, level_min, level_max)
             data = (data - level_min) / (level_max - level_min)
 
