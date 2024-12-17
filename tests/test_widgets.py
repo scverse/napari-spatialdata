@@ -1,4 +1,5 @@
 from typing import Any
+from unittest.mock import MagicMock
 
 import numpy as np
 import pandas as pd
@@ -7,6 +8,7 @@ from anndata import AnnData
 from anndata.tests.helpers import assert_equal
 from napari.layers import Image, Labels
 from napari.utils.events import EventedList
+from qtpy import QtWidgets
 from spatialdata import SpatialData
 from spatialdata._types import ArrayLike
 
@@ -148,11 +150,17 @@ def test_scatterlistwidget(
 
     widget.x_widget.widget._onAction(items=[item])
     if attr == "obsm":
-        assert np.array_equal(widget.x_widget.widget.data, getattr(adata_labels, attr)[item][:, text])
+        expected = getattr(adata_labels, attr)[item][:, text]
+        actual = widget.x_widget.widget.data["vec"]
+        assert np.array_equal(actual, expected), f"Expected: {expected}, but got: {actual}"
     elif attr == "obs":
-        assert np.array_equal(widget.x_widget.widget.data, getattr(adata_labels, attr)[item])
+        expected = getattr(adata_labels, attr)[item]
+        actual = widget.x_widget.widget.data["vec"]
+        assert np.array_equal(actual, expected), f"Expected: {expected}, but got: {actual}"
     else:
-        assert np.array_equal(widget.x_widget.widget.data, adata_labels.X[:, item])
+        expected = adata_labels.X[:, item]
+        actual = widget.x_widget.widget.data["vec"]
+        assert np.array_equal(actual, expected), f"Expected: {expected}, but got: {actual}"
 
 
 # TODO fix adata_labels as this does not annotate element, tests fail
@@ -257,3 +265,56 @@ def test_layer_selection(make_napari_viewer: Any, image: ArrayLike, widget: Any,
 
     # table is annotating blobs labels so there should be no matching rows.
     assert widget.model.adata.n_obs == 0
+
+
+def test_export_no_rois(adata_labels):
+    """Test export for no rois situation."""
+
+    scatter_widget = QtAdataScatterWidget(adata=adata_labels)
+
+    scatter_widget.export()
+
+    assert scatter_widget.status_label.text() == "Status: No rois selected."
+
+
+def test_export_no_name(adata_labels, mocker):
+    """Test export - no column name provided."""
+
+    scatter_widget = QtAdataScatterWidget(adata=adata_labels)
+    scatter_widget.plot_widget.roi_list = [MagicMock()]
+    mocker.patch.object(scatter_widget, "open_annotation_dialog", return_value="")
+
+    scatter_widget.export()
+
+    assert scatter_widget.status_label.text() == "Status: No column name provided."
+    assert scatter_widget._model.adata.obs.equals(adata_labels.obs)
+
+
+def test_new_annotation(adata_labels, annotation_values, mocker):
+    """Test export - adding a new annotation."""
+
+    scatter_widget = QtAdataScatterWidget(adata=adata_labels)
+    scatter_widget.plot_widget.roi_list = [MagicMock()]
+    mocker.patch.object(scatter_widget, "open_annotation_dialog", return_value="test")
+    mocker.patch.object(scatter_widget.plot_widget, "get_selection", return_value=annotation_values)
+
+    scatter_widget.export()
+
+    assert scatter_widget.status_label.text() == "Status: Annotation added."
+    assert np.array_equal(scatter_widget._model.adata.obs.test, annotation_values)
+
+
+def test_old_annotation(adata_labels, annotation_values, mocker):
+    """Test updating existing annotation."""
+
+    scatter_widget = QtAdataScatterWidget(adata=adata_labels)
+    scatter_widget.plot_widget.roi_list = [MagicMock()]
+    col_name = scatter_widget.model.adata.obs.columns[0]
+    mocker.patch.object(scatter_widget, "open_annotation_dialog", return_value=col_name)
+    mocker.patch.object(scatter_widget.plot_widget, "get_selection", return_value=annotation_values)
+    mocker.patch("PyQt5.QtWidgets.QMessageBox.question", return_value=QtWidgets.QMessageBox.Yes)
+
+    scatter_widget.export()
+
+    assert np.array_equal(scatter_widget._model.adata.obs[col_name], annotation_values)
+    assert scatter_widget.status_label.text() == "Status: Annotation updated."
