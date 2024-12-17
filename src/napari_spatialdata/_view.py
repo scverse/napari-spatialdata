@@ -204,7 +204,7 @@ class QtAdataScatterWidget(QWidget):
     @property
     def model(self) -> DataModel:
         """:mod:`napari` viewer."""
-        return self._model  # type: ignore[no-any-return]
+        return self._model
 
 
 class QtAdataViewWidget(QWidget):
@@ -469,7 +469,7 @@ class QtAdataViewWidget(QWidget):
     @property
     def model(self) -> DataModel:
         """:mod:`napari` viewer."""
-        return self._model  # type: ignore[no-any-return]
+        return self._model
 
     @property
     def layernames(self) -> frozenset[str]:

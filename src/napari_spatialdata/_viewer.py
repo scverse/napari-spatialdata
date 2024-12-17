@@ -419,8 +419,8 @@ class SpatialDataViewer(QObject):
 
     def _get_table_data(
         self, sdata: SpatialData, element_name: str
-    ) -> tuple[AnnData | None, str | None, list[str | None]]:
-        table_names = list(get_element_annotators(sdata, element_name))
+    ) -> tuple[AnnData | None, str | None, list[str] | None]:
+        table_names: list[str] = list(get_element_annotators(sdata, element_name))
         table_name = table_names[0] if len(table_names) > 0 else None
         adata = _get_init_metadata_adata(sdata, table_name, element_name)
         return adata, table_name, table_names
