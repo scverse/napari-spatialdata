@@ -2,8 +2,9 @@ from pathlib import Path
 
 from click.testing import CliRunner
 from napari.viewer import Viewer
-from napari_spatialdata.__main__ import cli
 from spatialdata.datasets import blobs
+
+from napari_spatialdata.__main__ import cli
 
 
 def test_view_exists():

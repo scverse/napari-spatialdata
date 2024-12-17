@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import random
+import string
 from abc import ABC, ABCMeta
+from collections.abc import Callable
 from functools import wraps
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import napari
 import numpy as np
@@ -12,12 +15,14 @@ import pytest
 from anndata import AnnData
 from loguru import logger
 from matplotlib.testing.compare import compare_images
-from napari_spatialdata.utils._test_utils import save_image, take_screenshot
-from napari_spatialdata.utils._utils import NDArrayA
 from scipy import ndimage as ndi
 from skimage import data
 from spatialdata import SpatialData
+from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
+from spatialdata.models import TableModel
+
+from napari_spatialdata.utils._test_utils import save_image, take_screenshot
 
 HERE: Path = Path(__file__).parent
 
@@ -27,6 +32,13 @@ EXPECTED = HERE / "plots/groundtruth"
 ACTUAL = HERE / "plots/generated"
 TOL = 70
 DPI = 40
+
+RNG = np.random.default_rng(seed=0)
+DATA_LEN = 100
+
+
+def pytest_configure(config):
+    config.DATA_LEN = 100
 
 
 @pytest.fixture
@@ -42,7 +54,8 @@ def adata_labels() -> AnnData:
         {
             "a": rng.normal(size=(n_obs_labels,)),
             "categorical": pd.Categorical(rng.integers(0, 2, size=(n_obs_labels,))),
-            "cell_id": pd.Categorical(seg),
+            "cell_id": seg,
+            "region": ["labels" for _ in range(n_obs_labels)],
         },
         index=np.arange(n_obs_labels),
     )
@@ -58,7 +71,19 @@ def adata_labels() -> AnnData:
         }
     }
     obsm_labels = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_labels, 2))}
-    return generate_adata(n_var, obs_labels, obsm_labels, uns_labels)
+    return TableModel.parse(
+        generate_adata(n_var, obs_labels, obsm_labels, uns_labels),
+        region="labels",
+        region_key="region",
+        instance_key="cell_id",
+    )
+
+
+@pytest.fixture
+def annotation_values(adata_labels):
+    """Generate random annotation values."""
+    rng = np.random.default_rng()
+    return rng.integers(0, 10, size=len(adata_labels.obs))
 
 
 @pytest.fixture
@@ -118,7 +143,44 @@ def labels():
     return blobs
 
 
-def _get_blobs_galaxy() -> tuple[NDArrayA, NDArrayA]:
+@pytest.fixture
+def prepare_continuous_test_data():
+    x_vec = RNG.random(DATA_LEN)
+    y_vec = RNG.random(DATA_LEN)
+    color_vec = RNG.random(DATA_LEN)
+
+    x_data = {"vec": x_vec}
+    y_data = {"vec": y_vec}
+    color_data = {"vec": color_vec}
+
+    x_label = generate_random_string(10)
+    y_label = generate_random_string(10)
+    color_label = generate_random_string(10)
+    return x_data, y_data, color_data, x_label, y_label, color_label
+
+
+@pytest.fixture
+def prepare_discrete_test_data():
+    x_vec = RNG.random(DATA_LEN)
+    y_vec = RNG.random(DATA_LEN)
+    color_vec = np.zeros(DATA_LEN).astype(int)
+
+    x_data = {"vec": x_vec}
+    y_data = {"vec": y_vec}
+    color_data = {"vec": color_vec, "labels": ["a"]}
+
+    x_label = generate_random_string(10)
+    y_label = generate_random_string(10)
+    color_label = generate_random_string(10)
+    return x_data, y_data, color_data, x_label, y_label, color_label
+
+
+def generate_random_string(length):
+    letters = string.ascii_letters  # Includes both lowercase and uppercase letters
+    return "".join(random.choice(letters) for i in range(length))
+
+
+def _get_blobs_galaxy() -> tuple[ArrayLike, ArrayLike]:
     blobs = data.binary_blobs(rng=SEED)
     blobs = ndi.label(blobs)[0]
     return blobs, data.hubble_deep_field()[: blobs.shape[0], : blobs.shape[0]]
@@ -187,3 +249,9 @@ def caplog(caplog):
     handler_id = logger.add(caplog.handler, format="{message}")
     yield caplog
     logger.remove(handler_id)
+
+
+@pytest.fixture(autouse=True)
+def always_sync(monkeypatch, request):
+    if request.node.get_closest_marker("use_thread_loader") is None:
+        monkeypatch.setattr("napari_spatialdata._sdata_widgets.PROBLEMATIC_NUMPY_MACOS", True)

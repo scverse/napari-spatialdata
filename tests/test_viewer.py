@@ -4,14 +4,15 @@ from pathlib import Path
 import numpy as np
 import pytest
 from napari.utils.events import EventedList
-from napari_spatialdata import QtAdataViewWidget
-from napari_spatialdata._sdata_widgets import SdataWidget
-from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
-from napari_spatialdata.utils._utils import _get_transform
 from qtpy.QtCore import Qt
 from spatialdata.datasets import blobs
 from spatialdata.models import Image2DModel
 from spatialdata.transformations import Scale, Translation, set_transformation
+
+from napari_spatialdata import QtAdataViewWidget
+from napari_spatialdata._sdata_widgets import SdataWidget
+from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
+from napari_spatialdata.utils._utils import _get_transform
 
 sdata = blobs(extra_coord_system="space")
 

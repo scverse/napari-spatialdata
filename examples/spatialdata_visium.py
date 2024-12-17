@@ -3,8 +3,9 @@
 
 # The dataset can be downloaded from https://spatialdata.scverse.org/en/latest/tutorials/notebooks/datasets/README.html
 
-from napari_spatialdata import Interactive
 from spatialdata import SpatialData
+
+from napari_spatialdata import Interactive
 
 if __name__ == "__main__":
     sdata = SpatialData.read("../data/visium/data.zarr")  # Change this path!

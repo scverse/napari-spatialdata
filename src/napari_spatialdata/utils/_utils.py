@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Generator, Iterable, Sequence
+from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from functools import wraps
 from random import randint
-from typing import TYPE_CHECKING, Any, Callable, Optional, Union
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import packaging.version
 import pandas as pd
 from anndata import AnnData
 from dask.dataframe import DataFrame as DaskDataFrame
-from datatree import DataTree
 from geopandas import GeoDataFrame
 from loguru import logger
 from matplotlib.colors import is_color_like, to_rgb
@@ -33,7 +32,7 @@ from scipy.spatial import KDTree
 from spatialdata import SpatialData, get_extent, join_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
-from xarray import DataArray
+from xarray import DataArray, DataTree
 
 from napari_spatialdata.constants._pkg_constants import Key
 from napari_spatialdata.utils._categoricals_utils import (
@@ -47,38 +46,31 @@ if TYPE_CHECKING:
 
     from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget
 
-try:
-    from numpy.typing import NDArray
+from spatialdata._types import ArrayLike
 
-    NDArrayA = NDArray[Any]
-except (ImportError, TypeError):
-    NDArray = np.ndarray  # type: ignore[misc]
-    NDArrayA = np.ndarray  # type: ignore[misc]
+Vector_name_index_t = tuple[pd.Series | ArrayLike | None, str | None, pd.Index | None]
 
 
-Vector_name_t = tuple[Optional[Union[pd.Series, NDArrayA]], Optional[str]]
-
-
-def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vector_name_t]:
+def _ensure_dense_vector(fn: Callable[..., Vector_name_index_t]) -> Callable[..., Vector_name_index_t]:
     @wraps(fn)
-    def decorator(self: Any, *args: Any, **kwargs: Any) -> Vector_name_t:
+    def decorator(self: Any, *args: Any, **kwargs: Any) -> Vector_name_index_t:
         normalize = kwargs.pop("normalize", False)
-        res, fmt = fn(self, *args, **kwargs)
+        res, name, index = fn(self, *args, **kwargs)
         if res is None:
-            return None, None
+            return None, None, None
 
         if isinstance(res, pd.Series):
             if isinstance(res.dtype, pd.CategoricalDtype):
-                return res, fmt
+                return res, name, index
             if is_string_dtype(res) or is_object_dtype(res) or is_bool_dtype(res):
-                return res.astype("category"), fmt
+                return res.astype("category"), name, index
             if is_integer_dtype(res):
                 unique = res.unique()
                 n_uniq = len(unique)
                 if n_uniq <= 2 and (set(unique) & {0, 1}):
-                    return res.astype(bool).astype("category"), fmt
+                    return res.astype(bool).astype("category"), name, index
                 if len(unique) <= len(res) // 100:
-                    return res.astype("category"), fmt
+                    return res.astype("category"), name, index
             elif not is_numeric_dtype(res):
                 raise TypeError(f"Unable to process `pandas.Series` of type `{infer_dtype(res)}`.")
             res = res.to_numpy()
@@ -86,14 +78,14 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_t]) -> Callable[..., Vect
             if TYPE_CHECKING:
                 assert isinstance(res, spmatrix)
             res = res.toarray()
-        elif not isinstance(res, (np.ndarray, Sequence)):
+        elif not isinstance(res, np.ndarray | Sequence):
             raise TypeError(f"Unable to process result of type `{type(res).__name__}`.")
 
         res = np.atleast_1d(np.squeeze(res))
         if res.ndim != 1:
             raise ValueError(f"Expected 1-dimensional array, found `{res.ndim}`.")
 
-        return (_min_max_norm(res) if normalize else res), fmt
+        return (_min_max_norm(res) if normalize else res), name, index
 
     return decorator
 
@@ -107,7 +99,7 @@ def _get_palette(
     if key not in adata.obs:
         raise KeyError("Missing key!")  # TODO: Improve error message
 
-    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
+    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]], strict=True))
 
 
 def _set_palette(
@@ -128,7 +120,7 @@ def _set_palette(
     )
     vec = vec if vec is not None else adata.obs[key]
     #
-    return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]]))
+    return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]], strict=True))
 
 
 def _get_categorical(
@@ -137,7 +129,7 @@ def _get_categorical(
     vec: pd.Series | None = None,
     palette: str | None = None,
     colordict: pd.Series | dict[Any, Any] | None = None,
-) -> NDArrayA:
+) -> ArrayLike:
     categorical = vec if vec is not None else adata.obs[key]
     if not isinstance(colordict, dict):
         col_dict = _set_palette(adata, key, palette, colordict)
@@ -155,7 +147,7 @@ def _get_categorical(
     return np.array([col_dict[v] for v in categorical])
 
 
-def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str, NDArrayA]:
+def _position_cluster_labels(coords: ArrayLike, clusters: pd.Series) -> dict[str, ArrayLike]:
     if clusters is not None and not isinstance(clusters.dtype, pd.CategoricalDtype):
         raise TypeError(f"Expected `clusters` to be `categorical`, found `{infer_dtype(clusters)}`.")
     coords = coords[:, 1:]
@@ -170,7 +162,7 @@ def _position_cluster_labels(coords: NDArrayA, clusters: pd.Series) -> dict[str,
     return {"clusters": clusters}
 
 
-def _min_max_norm(vec: spmatrix | NDArrayA) -> NDArrayA:
+def _min_max_norm(vec: spmatrix | ArrayLike) -> ArrayLike:
     if issparse(vec):
         if TYPE_CHECKING:
             assert isinstance(vec, spmatrix)
@@ -179,31 +171,30 @@ def _min_max_norm(vec: spmatrix | NDArrayA) -> NDArrayA:
     if vec.ndim != 1:
         raise ValueError(f"Expected `1` dimension, found `{vec.ndim}`.")
 
-    maxx, minn = np.nanmax(vec), np.nanmin(vec)
+    maxx: ArrayLike = np.nanmax(vec)
+    minn: ArrayLike = np.nanmin(vec)
 
-    return (  # type: ignore[no-any-return]
-        np.ones_like(vec) if np.isclose(minn, maxx) else ((vec - minn) / (maxx - minn))
-    )
+    return np.ones_like(vec) if np.isclose(minn, maxx) else ((vec - minn) / (maxx - minn))
 
 
 def _transform_coordinates(data: list[Any], f: Callable[..., Any]) -> list[Any]:
     return [[f(xy) for xy in sublist] for sublist in data]
 
 
-def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | NDArrayA:
-    if not isinstance(element, (DataArray, DataTree, DaskDataFrame, GeoDataFrame)):
+def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | ArrayLike:
+    if not isinstance(element, DataArray | DataTree | DaskDataFrame | GeoDataFrame):
         raise RuntimeError("Cannot get transform for {type(element)}")
 
     transformations = get_transformation(element, get_all=True)
     cs = transformations.keys().__iter__().__next__() if coordinate_system_name is None else coordinate_system_name
     ct = transformations.get(cs)
     if ct:
-        return ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))  # type: ignore
+        return ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
     return None
 
 
 @njit(cache=True, fastmath=True)
-def _point_inside_triangles(triangles: NDArrayA) -> np.bool_:
+def _point_inside_triangles(triangles: ArrayLike) -> np.bool_:
     # modified from napari
     AB = triangles[:, 1, :] - triangles[:, 0, :]
     AC = triangles[:, 2, :] - triangles[:, 0, :]
@@ -217,7 +208,7 @@ def _point_inside_triangles(triangles: NDArrayA) -> np.bool_:
 
 
 @njit(parallel=True)
-def _points_inside_triangles(points: NDArrayA, triangles: NDArrayA) -> NDArrayA:
+def _points_inside_triangles(points: ArrayLike, triangles: ArrayLike) -> ArrayLike:
     out = np.empty(
         len(
             points,
@@ -264,7 +255,11 @@ def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | l
 
     if len(c_coords) != 0 and set(c_coords) - {"r", "g", "b"} <= {"a"}:
         rgb = True
-        new_raster = element.transpose("y", "x", "c").reindex(c=["r", "g", "b", "a"][: len(c_coords)])
+        if isinstance(element, DataArray):
+            new_raster = element.transpose("y", "x", "c").reindex(c=["r", "g", "b", "a"][: len(c_coords)])
+        else:
+            new_raster = element.msi.transpose("y", "x", "c")
+            new_raster = new_raster.msi.reindex_data_arrays({"c": ["r", "g", "b", "a"][: len(c_coords)]})
     else:
         rgb = False
         new_raster = element
@@ -374,7 +369,7 @@ def get_elements_meta_mapping(
     return elements, name_to_add
 
 
-def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: str) -> None | AnnData:
+def _get_init_metadata_adata(sdata: SpatialData, table_name: str | None, element_name: str) -> None | AnnData:
     """
     Retrieve AnnData to be used in layer metadata.
 
@@ -419,7 +414,7 @@ def get_itemindex_by_text(
     return widget_item
 
 
-def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
+def _get_init_table_list(layer: Layer | None) -> Sequence[str | None] | None:
     """
     Get the table names annotating the SpatialElement upon creating the napari layer.
 
@@ -432,6 +427,8 @@ def _get_init_table_list(layer: Layer) -> Sequence[str | None] | None:
     ------
     The list of table names annotating the SpatialElement if any.
     """
+    if layer is None:
+        return None
     table_names: Sequence[str | None] | None
     if table_names := layer.metadata.get("table_names"):
         return table_names  # type: ignore[no-any-return]
@@ -457,7 +454,7 @@ def generate_random_color_hex() -> str:
     return f"#{randint(0, 255):02x}{randint(0, 255):02x}{randint(0, 255):02x}ff"
 
 
-def _get_ellipses_from_circles(yx: NDArrayA, radii: NDArrayA) -> NDArrayA:
+def _get_ellipses_from_circles(yx: ArrayLike, radii: ArrayLike) -> ArrayLike:
     """Convert circles to ellipses.
 
     Parameters
@@ -469,7 +466,7 @@ def _get_ellipses_from_circles(yx: NDArrayA, radii: NDArrayA) -> NDArrayA:
 
     Returns
     -------
-    NDArrayA
+    ArrayLike
         Ellipses.
     """
     ndim = yx.shape[1]

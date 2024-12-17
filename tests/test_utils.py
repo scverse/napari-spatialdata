@@ -4,6 +4,8 @@ from typing import Any
 import numpy as np
 import pytest
 from anndata import AnnData
+from spatialdata.datasets import blobs
+
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _get_categorical,
@@ -13,7 +15,6 @@ from napari_spatialdata.utils._utils import (
     _position_cluster_labels,
     _set_palette,
 )
-from spatialdata.datasets import blobs
 
 
 def test_get_categorical(adata_labels: AnnData):
@@ -83,15 +84,15 @@ def test_min_max_norm(vec: np.ndarray) -> None:
     assert (out.min(), out.max()) == (0, 1)
 
 
-def test_logger(caplog, adata_labels: AnnData, make_napari_viewer: Any):
+def test_logger(caplog, prepare_continuous_test_data, adata_labels: AnnData, make_napari_viewer: Any):
     from napari_spatialdata._model import DataModel
-    from napari_spatialdata._scatterwidgets import MatplotlibWidget
+    from napari_spatialdata._scatterwidgets import PlotWidget
 
     viewer = make_napari_viewer()
     model = DataModel()
 
-    m = MatplotlibWidget(viewer, model)
-    m._onClick(np.ones(10), np.ones(10), np.ones(10), "X", "Y", "Color")
+    m = PlotWidget(viewer, model)
+    m._onClick(*prepare_continuous_test_data)
 
     with caplog.at_level(logging.INFO):
         assert "Plotting" in caplog.records[0].message

@@ -8,7 +8,50 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
-## [0.x.x] - 2024-xx-xx
+## [0.5.4] - 2024-11-26
+
+### Changed
+
+- Support for `xarray.DataTree` (which moved from `datatree.DataTree`)
+
+### Added
+
+- CLI interface from spatialdata branch
+- New function to get layer by name #315 @minhtien-trinh
+- New annotation function to display text near polygons #315 @minhtien-trinh
+
+### Fixed
+
+- Bug wrong radii transformed circles (e.g. with Visium lowres) #318
+- Bugs: instance id shifted by 1; obsm visualization; background color for labels #320
+- Bug adjusting contrast limit for RGB data #276
+
+## [0.5.3] - 2024-09-25
+
+### Fixed
+
+- Bug table was not reset after an element without table was added #317
+- Bug when changing channel for a multichannel image #301 #302
+- Bug when plotting catgorical annotations on points #304
+
+## [0.5.3] - 2024-08-
+
+### Added
+
+- New Scatter Widget based on PyQtGraph, replacing the previous Matplotlib-based widget.
+  - New Features:
+    - Separate color controls for continuous and discrete data:
+      - Continuous: Histogram of values, LUT adjustment, contrast control.
+      - Discrete: Scrollable legend, class color modification.
+    - Pseudohistogram plot for single-axis data.
+    - Highlight nearby data points under the cursor with dynamic status display.
+    - Expanded ROI annotations (lasso and rectangle tools)
+    - Multiple disjointed ROIs with modifiable options.
+    - Annotation name dialog for saving annotations.
+
+### Updated
+
+Documentation: Notebooks updated with the new Scatter Widget information and screenshots.
 
 ## [0.5.2] - 2024-08-16
 
