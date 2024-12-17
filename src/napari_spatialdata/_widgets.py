@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from collections import defaultdict
-from collections.abc import Iterable, Sequence
+from collections.abc import Callable, Iterable, Sequence
 from functools import singledispatchmethod
 from typing import TYPE_CHECKING, Any
 
@@ -29,12 +29,7 @@ from vispy.scene.widgets import ColorBarWidget
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import _min_max_norm, get_napari_version
 
-__all__ = [
-    "AListWidget",
-    "CBarWidget",
-    "RangeSliderWidget",
-    "ComponentWidget",
-]
+__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ComponentWidget"]
 
 # label string: attribute name
 # TODO(giovp): remove since layer controls private?
@@ -103,7 +98,7 @@ class AListWidget(ListWidget):
     layerChanged = Signal()
 
     def __init__(self, viewer: Viewer | None, model: DataModel, attr: str, **kwargs: Any):
-        if attr not in DataModel.VALID_ATTRIBUTES:
+        if attr != "None" and attr not in DataModel.VALID_ATTRIBUTES:
             raise ValueError(f"Invalid attribute `{attr}`. Valid options are `{sorted(DataModel.VALID_ATTRIBUTES)}`.")
         super().__init__(viewer, **kwargs)
 
@@ -112,7 +107,11 @@ class AListWidget(ListWidget):
 
         self._attr = attr
 
-        self._getter = getattr(self.model, f"get_{attr}")
+        if attr == "None":
+            self._getter: Callable[..., Any] = lambda: None
+        else:
+            self._getter = getattr(self.model, f"get_{attr}")
+
         self.layerChanged.connect(self._onChange)
         self._onChange()
 
@@ -329,7 +328,7 @@ class AListWidget(ListWidget):
 
 
 class ComponentWidget(QtWidgets.QComboBox):
-    def __init__(self, model: DataModel, attr: str, max_visible: int = 4, **kwargs: Any):
+    def __init__(self, model: DataModel, attr: str | None, max_visible: int = 4, **kwargs: Any):
         super().__init__(**kwargs)
 
         self._model = model
@@ -368,6 +367,8 @@ class ComponentWidget(QtWidgets.QComboBox):
     def setAttribute(self, field: str | None) -> None:
         if field == self.attr:
             return
+        if field == "None":
+            field = None
         self.attr = field
         self._onChange()
 
@@ -667,3 +668,56 @@ class SaveDialog(QtWidgets.QDialog):
 
     def get_save_shape_name(self) -> str | None:
         return getattr(self, "shape_name", None)
+
+
+class ScatterAnnotationDialog(QtWidgets.QDialog):
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Name Obs")
+
+        self.layout = QtWidgets.QVBoxLayout()
+
+        self.label = QtWidgets.QLabel("Annotation Name:")
+        self.layout.addWidget(self.label)
+
+        self.textbox = QtWidgets.QLineEdit(self)
+        self.layout.addWidget(self.textbox)
+
+        self.buttonBox = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+        self.layout.addWidget(self.buttonBox)
+
+        self.setLayout(self.layout)
+
+    def get_annotation_name(self) -> str:
+        return str(self.textbox.text())
+
+
+class AnnDataSaveDialog(QtWidgets.QDialog):
+    def __init__(self, parent: QtWidgets.QWidget | None = None):
+        super().__init__(parent)
+
+    def show_dialog(self) -> str | None:
+
+        # Define file filters
+        file_filters = "All Files (*);;H5AD Files (*.h5ad);;Zarr Files (*.zarr);; Csv Files (*.csv)"
+
+        # Open the file dialog with the specified options and filters
+        filePath: str
+        selected_filter: str
+        filePath, selected_filter = QtWidgets.QFileDialog.getSaveFileName(self, "Save AnnData", "", file_filters)
+
+        if filePath:
+            # Add the correct extension if not provided
+            if selected_filter == "H5AD Files (*.h5ad)" and not filePath.endswith(".h5ad"):
+                filePath += ".h5ad"
+            elif selected_filter == "Zarr Files (*.zarr)" and not filePath.endswith(".zarr"):
+                filePath += ".zarr"
+            elif selected_filter == "Text Files (*.csv)" and not filePath.endswith(".csv"):
+                filePath += ".csv"
+
+            return filePath
+
+        return None
