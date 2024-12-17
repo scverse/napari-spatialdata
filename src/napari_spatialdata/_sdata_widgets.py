@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import platform
+from collections.abc import Iterable
+from importlib.metadata import version
 from operator import itemgetter
 from pathlib import Path
-from typing import TYPE_CHECKING, Iterable
+from typing import TYPE_CHECKING, cast
 
+import numpy as np
 import shapely
+from napari.layers import Points, Shapes
 from napari.utils.events import EventedList
+from napari.utils.notifications import show_info
+from packaging.version import parse as parse_version
+from qtpy.QtCore import QThread, Signal
 from qtpy.QtGui import QIcon
-from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
+from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QProgressBar, QVBoxLayout, QWidget
 from spatialdata import SpatialData
 from spatialdata.models._utils import DEFAULT_COORDINATE_SYSTEM
 
@@ -20,6 +28,22 @@ if TYPE_CHECKING:
     from napari.utils.events.event import Event
 
 icon_path = Path(__file__).parent / "resources/exclamation.png"
+
+# if run with numpy<2 on macOS arm64 architecture compiled from pypi wheels,
+# then it will crash with bus error if numpy is used in different thread
+# Issue reported https://github.com/numpy/numpy/issues/21799
+if (
+    parse_version(version("napari")) < parse_version("0.5.3")
+    and parse_version(version("numpy")) < parse_version("2")
+    and platform.system() == "Darwin"
+    and platform.machine() == "arm64"
+):  # pragma: no cover
+    try:
+        PROBLEMATIC_NUMPY_MACOS = "cibw-run" in np.show_config("dicts")["Python Information"]["path"]  # type: ignore[call-arg,func-returns-value,unused-ignore]
+    except (KeyError, TypeError):
+        PROBLEMATIC_NUMPY_MACOS = False
+else:
+    PROBLEMATIC_NUMPY_MACOS = False
 
 
 class ElementWidget(QListWidget):
@@ -84,22 +108,78 @@ class CoordinateSystemWidget(QListWidget):
         self._system = str(selected_coordinate_system)
 
 
+class DataLoadThread(QThread):
+    returned = Signal(object)
+
+    def __init__(self, parent: SdataWidget):
+        super().__init__(parent=parent)
+        self.sdata_widget = parent
+        self._data_type = ""
+        self._text = ""
+        self._sdata = None
+        self._selected_cs: str = ""
+        self._multi: bool = False
+
+    def load_data(self, data_type: str, text: str, sdata: SpatialData, selected_cs: str, multi: bool) -> None:
+        if self.isRunning():
+            raise RuntimeError("Thread is already running.")
+        self._data_type = data_type
+        self._text = text
+        self._sdata = sdata
+        self._selected_cs = selected_cs
+        self._multi = multi
+
+        if PROBLEMATIC_NUMPY_MACOS:
+            self.run()
+        else:
+            self.start()
+
+    def run(self) -> None:
+        if not self._data_type:
+            return
+        if self._data_type == "labels":
+            layer = self.sdata_widget.viewer_model.get_sdata_labels(
+                self._sdata, self._text, self._selected_cs, self._multi
+            )
+        elif self._data_type == "images":
+            layer = self.sdata_widget.viewer_model.get_sdata_image(
+                self._sdata, self._text, self._selected_cs, self._multi
+            )
+        elif self._data_type == "points":
+            layer = self.sdata_widget.viewer_model.get_sdata_points(
+                self._sdata, self._text, self._selected_cs, self._multi
+            )
+        elif self._data_type == "shapes":
+            layer = self.sdata_widget._get_shapes(self._sdata, self._text, self._selected_cs, self._multi)
+        else:
+            raise ValueError(f"Data type {self._data_type} not recognized.")
+
+        self.returned.emit(layer)
+
+
 class SdataWidget(QWidget):
     def __init__(self, viewer: Viewer, sdata: EventedList):
         super().__init__()
         self._sdata = sdata
         self.viewer_model = SpatialDataViewer(viewer, self._sdata)
+        self.worker_thread = DataLoadThread(parent=self)
+        self.worker_thread.returned.connect(self.viewer_model.viewer.add_layer)
+        self.worker_thread.finished.connect(self._hide_slider)
 
         self.setLayout(QVBoxLayout())
 
         self.coordinate_system_widget = CoordinateSystemWidget(self._sdata)
         self.elements_widget = ElementWidget(self._sdata)
+        self.slider = QProgressBar(self)
+        self.slider.setRange(0, 0)
+        self.slider.setVisible(False)
 
+        self.layout().addWidget(self.slider)
         self.layout().addWidget(QLabel("Coordinate System:"))
         self.layout().addWidget(self.coordinate_system_widget)
         self.layout().addWidget(QLabel("Elements:"))
         self.layout().addWidget(self.elements_widget)
-        self.elements_widget.itemDoubleClicked.connect(lambda item: self._onClick(item.text()))
+        self.elements_widget.itemDoubleClicked.connect(self._on_click_item)
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.elements_widget._onItemChange(item.text())
         )
@@ -117,19 +197,33 @@ class SdataWidget(QWidget):
         layer = event.value
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
+    def _on_click_item(self, item: QListWidgetItem) -> None:
+        self._onClick(item.text())
+
+    def _hide_slider(self) -> None:
+        self.slider.setVisible(False)
+
     def _onClick(self, text: str) -> None:
         selected_cs = self.coordinate_system_widget._system
+        if self.worker_thread.isRunning():
+            show_info("Please wait for the current operation to finish.")
+            return
 
         if selected_cs and self.elements_widget._elements:
             sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, text)
-            if self.elements_widget._elements[text]["element_type"] == "labels":
-                self.viewer_model.add_sdata_labels(sdata, text, selected_cs, multi)
-            elif self.elements_widget._elements[text]["element_type"] == "images":
-                self.viewer_model.add_sdata_image(sdata, text, selected_cs, multi)
-            elif self.elements_widget._elements[text]["element_type"] == "points":
-                self.viewer_model.add_sdata_points(sdata, text, selected_cs, multi)
-            elif self.elements_widget._elements[text]["element_type"] == "shapes":
-                self._add_shapes(sdata, text, selected_cs, multi)
+            if (type_ := self.elements_widget._elements[text]["element_type"]) not in {
+                "labels",
+                "images",
+                "shapes",
+                "points",
+            }:
+                return
+
+            type_ = cast(str, type_)
+
+            self.worker_thread.load_data(type_, text, sdata, selected_cs, multi)
+            if not PROBLEMATIC_NUMPY_MACOS:
+                self.slider.setVisible(True)
 
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
         """Toggle active in the coordinate system metadata when changing visibility of layer."""
@@ -164,16 +258,14 @@ class SdataWidget(QWidget):
                         layer.metadata["_active_in_cs"].add(coordinate_system)
                         layer.metadata["_current_cs"] = coordinate_system
 
-    def _add_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
+    def _get_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Shapes | Points:
         original_name = key[: key.rfind("_")] if multi else key
 
         if type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.point.Point:
-            self.viewer_model.add_sdata_circles(sdata, key, selected_cs, multi)
-        elif (type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.polygon.Polygon) or (
+            return self.viewer_model.get_sdata_circles(sdata, key, selected_cs, multi)
+        if (type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.polygon.Polygon) or (
             type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.multipolygon.MultiPolygon
         ):
-            self.viewer_model.add_sdata_shapes(sdata, key, selected_cs, multi)
-        else:
-            raise TypeError(
-                "Incorrect data type passed for shapes (should be Shapely Point or Polygon or MultiPolygon)."
-            )
+            return self.viewer_model.get_sdata_shapes(sdata, key, selected_cs, multi)
+
+        raise TypeError("Incorrect data type passed for shapes (should be Shapely Point or Polygon or MultiPolygon).")

@@ -1,10 +1,11 @@
 from abc import ABC, ABCMeta
+from collections.abc import Callable
 from enum import Enum, EnumMeta
 from functools import wraps
-from typing import Any, Callable, Dict, Tuple, Type
+from typing import Any
 
 
-def _pretty_raise_enum(cls: Type["ModeEnum"], fun: Callable[..., Any]) -> Callable[..., Any]:
+def _pretty_raise_enum(cls: type["ModeEnum"], fun: Callable[..., Any]) -> Callable[..., Any]:
     @wraps(fun)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
         try:
@@ -53,7 +54,7 @@ class ABCEnumMeta(EnumMeta, ABCMeta):
             raise TypeError(f"Can't instantiate class `{cls.__name__}` without `__error_format__` class attribute.")
         return super().__call__(*args, **kw)  # type: ignore[no-any-return]
 
-    def __new__(cls, clsname: str, bases: Tuple[EnumMeta, ...], namespace: Dict[str, Any]) -> "ABCEnumMeta":
+    def __new__(cls, clsname: str, bases: tuple[EnumMeta, ...], namespace: dict[str, Any]) -> "ABCEnumMeta":
         res: ABCEnumMeta = super().__new__(cls, clsname, bases, namespace)  # type: ignore[arg-type]
         res.__new__ = _pretty_raise_enum(res, res.__new__)  # type: ignore[method-assign,arg-type]
         return res

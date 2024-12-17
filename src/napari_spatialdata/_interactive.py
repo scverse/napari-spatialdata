@@ -3,11 +3,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import napari
+from napari.layers import Image, Labels, Points, Shapes
 from napari.utils.events import EventedList
+from spatialdata._types import ArrayLike
 
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata.utils._utils import (
-    NDArrayA,
     get_duplicate_element_names,
     get_elements_meta_mapping,
     get_itemindex_by_text,
@@ -66,7 +67,7 @@ class Interactive:
                 self._sdata_widget._onClick(name_to_add)
                 self._sdata_widget.elements_widget._elements = cache_elements
                 self._sdata_widget.coordinate_system_widget._system = cache_coordinate_system
-                self._viewer.layers[-1].visible = True
+                # self._viewer.layers[-1].visible = True
         else:
             raise ValueError(f"Element {element} not found in coordinate system {element_coordinate_system}.")
 
@@ -97,6 +98,30 @@ class Interactive:
         """Run the napari application."""
         napari.run()
 
-    def screenshot(self) -> NDArrayA | Any:
+    def screenshot(self) -> ArrayLike | Any:
         """Take a screenshot of the viewer in its current state."""
         return self._viewer.screenshot(canvas_only=False)
+
+    def get_layer(self, layer_name: str) -> Image | Labels | Points | Shapes | None:
+        """Get a layer by name."""
+        try:
+            return self._viewer.layers[layer_name]
+        except KeyError:
+            return None
+
+    def add_text_to_polygons(self, layer_name: str, text_annotations: list[str]) -> None:
+        """Add text annotations to a polygon layer."""
+        polygon_layer = self.get_layer(layer_name)
+        if not polygon_layer:
+            raise ValueError(f"Polygon layer '{layer_name}' not found.")
+        if len(text_annotations) != len(polygon_layer.data):
+            raise ValueError(
+                f"The number of text annotations must match the number of polygons. "
+                f"Polygons: {len(polygon_layer.data)}, Text: {len(text_annotations)}."
+            )
+        polygon_layer.text = {
+            "string": text_annotations,
+            "size": 10,
+            "color": "red",
+            "anchor": "center",
+        }

@@ -9,6 +9,7 @@
 api.md
 cli.md
 contributing.md
+limitations.md
 references.md
 ```
 
@@ -22,4 +23,5 @@ cli.md
 notebooks/nanostring_analysis
 notebooks/mibitof_analysis
 notebooks/scatterwidget
+notebooks/scatterwidget_annotation
 ```

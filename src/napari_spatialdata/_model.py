@@ -1,15 +1,19 @@
+from __future__ import annotations
+
+from collections.abc import Sequence
 from dataclasses import dataclass, field
-from typing import Any, Optional, Sequence, Tuple, Union
+from typing import Any
 
 import numpy as np
 import pandas as pd
 from anndata import AnnData
 from napari.layers import Layer
 from napari.utils.events import EmitterGroup, Event
+from spatialdata._types import ArrayLike
 from spatialdata.models import get_table_keys
 
 from napari_spatialdata.constants._constants import Symbol
-from napari_spatialdata.utils._utils import NDArrayA, _ensure_dense_vector
+from napari_spatialdata.utils._utils import _ensure_dense_vector
 
 __all__ = ["DataModel"]
 
@@ -19,19 +23,19 @@ class DataModel:
     """Model which holds the data for interactive visualization."""
 
     events: EmitterGroup = field(init=False, default=None, repr=True)
-    _table_names: Sequence[Optional[str]] = field(default_factory=list, init=False)
-    _active_table_name: Optional[str] = field(default=None, init=False, repr=True)
+    _table_names: Sequence[str | None] = field(default_factory=list, init=False)
+    _active_table_name: str | None = field(default=None, init=False, repr=True)
     _layer: Layer = field(init=False, default=None, repr=True)
-    _adata: Optional[AnnData] = field(init=False, default=None, repr=True)
-    _adata_layer: Optional[str] = field(init=False, default=None, repr=False)
-    _region_key: Optional[str] = field(default=None, repr=True)
-    _instance_key: Optional[str] = field(default=None, repr=True)
+    _adata: AnnData | None = field(init=False, default=None, repr=True)
+    _adata_layer: str | None = field(init=False, default=None, repr=False)
+    _region_key: str | None = field(default=None, repr=True)
+    _instance_key: str | None = field(default=None, repr=True)
     _color_by: str = field(default="", repr=True, init=False)
-    _system_name: Optional[str] = field(default=None, repr=True)
+    _system_name: str | None = field(default=None, repr=True)
 
-    _scale_key: Optional[str] = field(init=False, default="tissue_hires_scalef")  # TODO(giovp): use constants for these
+    _scale_key: str | None = field(init=False, default="tissue_hires_scalef")  # TODO(giovp): use constants for these
 
-    _palette: Optional[str] = field(init=False, default=None, repr=False)
+    _palette: str | None = field(init=False, default=None, repr=False)
     _cmap: str = field(init=False, default="viridis", repr=False)
     _symbol: str = field(init=False, default=Symbol.DISC, repr=False)
 
@@ -45,7 +49,7 @@ class DataModel:
             color_by=Event,
         )
 
-    def get_items(self, attr: str) -> Optional[Tuple[str, ...]]:
+    def get_items(self, attr: str) -> tuple[str, ...] | None:
         """
         Return valid keys for an attribute.
 
@@ -70,7 +74,7 @@ class DataModel:
     @_ensure_dense_vector
     def get_obs(
         self, name: str, **_: Any
-    ) -> Tuple[Optional[Union[pd.Series, NDArrayA]], str]:  # TODO(giovp): fix docstring
+    ) -> tuple[pd.Series | ArrayLike | None, str, pd.Index]:  # TODO(giovp): fix docstring
         """
         Return an observation.
 
@@ -81,7 +85,7 @@ class DataModel:
 
         Returns
         -------
-        The values and the formatted ``name``.
+        The values, the formatted ``name`` and the `instance_key` values.
         """
         if name not in self.adata.obs.columns:
             raise KeyError(f"Key `{name}` not found in `adata.obs`.")
@@ -91,10 +95,10 @@ class DataModel:
         else:
             obs_column = self.adata.obs[name].copy()
             obs_column.index = self.adata.obs[self.instance_key]
-        return obs_column, self._format_key(name)
+        return obs_column, self._format_key(name), obs_column.index
 
     @_ensure_dense_vector
-    def get_columns_df(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:
+    def get_columns_df(self, name: str | int, **_: Any) -> tuple[ArrayLike | None, str, pd.Index]:
         """
         Return a column of the dataframe of the SpatialElement.
 
@@ -105,14 +109,17 @@ class DataModel:
 
         Returns
         -------
-        The dataframe column of interest and the formatted name of the column.
+        The dataframe column of interest, the formatted name of the column and the `instance_key` valus.
         """
         if self.layer is None:
             raise ValueError("Layer must be present")
-        return self.layer.metadata["_columns_df"][name], self._format_key(name)
+        column = self.layer.metadata["_columns_df"][name]
+        return column, self._format_key(name), column.index
 
     @_ensure_dense_vector
-    def get_var(self, name: Union[str, int], **_: Any) -> Tuple[Optional[NDArrayA], str]:  # TODO(giovp): fix docstring
+    def get_var(
+        self, name: str | int, **_: Any
+    ) -> tuple[ArrayLike | None, str, pd.Index]:  # TODO(giovp): fix docstring
         """
         Return a column in anndata.var_names.
 
@@ -124,17 +131,19 @@ class DataModel:
 
         Returns
         -------
-        The values and the formatted ``name``.
+        The values, the formatted ``name`` and the `instance_key` values.
         """
         try:
             ix = self.adata._normalize_indices((slice(None), name))
         except KeyError:
             raise KeyError(f"Key `{name}` not found in `adata.var_names`.") from None
 
-        return self.adata._get_X(layer=self.adata_layer)[ix], self._format_key(name, adata_layer=True)
+        column = self.adata._get_X(layer=self.adata_layer)[ix]
+        index = self.adata.obs[[self.instance_key]].set_index(self.instance_key).index
+        return column, self._format_key(name, adata_layer=True), index
 
     @_ensure_dense_vector
-    def get_obsm(self, name: str, index: Union[int, str] = 0) -> Tuple[Optional[NDArrayA], str]:
+    def get_obsm(self, name: str, index: int | str = 0) -> tuple[ArrayLike | None, str, pd.Index]:
         """
         Return a vector from :attr:`anndata.AnnData.obsm`.
 
@@ -147,19 +156,20 @@ class DataModel:
 
         Returns
         -------
-        The values and the formatted ``name``.
+        The values, the formatted ``name`` and the `instance_key` values.
         """
         if name not in self.adata.obsm:
             raise KeyError(f"Unable to find key `{name!r}` in `adata.obsm`.")
         res = self.adata.obsm[name]
         pretty_name = self._format_key(name, index=index)
 
+        adata_index = self.adata.obs[[self.instance_key]].set_index(self.instance_key).index
         if isinstance(res, pd.DataFrame):
             try:
                 if isinstance(index, str):
-                    return res[index], pretty_name
+                    return res[index], pretty_name, adata_index
                 if isinstance(index, int):
-                    return res.iloc[:, index], self._format_key(name, index=res.columns[index])
+                    return res.iloc[:, index], self._format_key(name, index=res.columns[index]), adata_index
             except KeyError:
                 raise KeyError(f"Key `{index}` not found in `adata.obsm[{name!r}].`") from None
 
@@ -171,12 +181,10 @@ class DataModel:
                     f"Unable to convert `{index}` to an integer when accessing `adata.obsm[{name!r}]`."
                 ) from None
         res = np.asarray(res)
+        column = res if res.ndim == 1 else res[:, index]
+        return column, pretty_name, adata_index
 
-        return (res if res.ndim == 1 else res[:, index]), pretty_name
-
-    def _format_key(
-        self, key: Union[str, int], index: Optional[Union[int, str]] = None, adata_layer: bool = False
-    ) -> str:
+    def _format_key(self, key: str | int, index: int | str | None = None, adata_layer: bool = False) -> str:
         if index is not None:
             return str(key) + f":{index}:{self.layer}"
         if adata_layer:
@@ -195,31 +203,31 @@ class DataModel:
         self.events.color_by()
 
     @property
-    def table_names(self) -> Sequence[Optional[str]]:
+    def table_names(self) -> Sequence[str | None]:
         """The table names annotating the current active napari layer, if any."""
         return self._table_names
 
     @table_names.setter
-    def table_names(self, table_names: Sequence[Optional[str]]) -> None:
+    def table_names(self, table_names: Sequence[str | None]) -> None:
         self._table_names = table_names
 
     @property
-    def layer(self) -> Optional[Layer]:  # noqa: D102
+    def layer(self) -> Layer | None:  # noqa: D102
         """The current active napari layer."""
         return self._layer
 
     @layer.setter
-    def layer(self, layer: Optional[Layer]) -> None:
+    def layer(self, layer: Layer | None) -> None:
         self._layer = layer
         self.events.layer()
 
     @property
-    def active_table_name(self) -> Optional[str]:
+    def active_table_name(self) -> str | None:
         """The table name currently active in the widget."""
         return self._active_table_name
 
     @active_table_name.setter
-    def active_table_name(self, active_table_name: Optional[str]) -> None:
+    def active_table_name(self, active_table_name: str | None) -> None:
         self._active_table_name = active_table_name
 
     @property
@@ -233,7 +241,7 @@ class DataModel:
         self.events.adata()
 
     @property
-    def adata_layer(self) -> Optional[str]:  # noqa: D102
+    def adata_layer(self) -> str | None:  # noqa: D102
         """The current anndata layer."""
         return self._adata_layer
 
@@ -242,7 +250,7 @@ class DataModel:
         self._adata_layer = adata_layer
 
     @property
-    def region_key(self) -> Optional[str]:  # noqa: D102
+    def region_key(self) -> str | None:  # noqa: D102
         """The region key of the currently active table in the widget."""
         if self.adata is not None:
             _, region_key, _ = get_table_keys(self.adata)
@@ -251,7 +259,7 @@ class DataModel:
         return None
 
     @property
-    def instance_key(self) -> Optional[str]:  # noqa: D102
+    def instance_key(self) -> str | None:  # noqa: D102
         """The instance key of the currently active table in the widget."""
         if self.adata is not None:
             _, _, instance_key = get_table_keys(self.adata)
@@ -260,7 +268,7 @@ class DataModel:
         return None
 
     @property
-    def palette(self) -> Optional[str]:  # noqa: D102
+    def palette(self) -> str | None:  # noqa: D102
         """The palette from which to draw the colors."""
         return self._palette
 
@@ -286,7 +294,7 @@ class DataModel:
         self._symbol = symbol
 
     @property
-    def scale_key(self) -> Optional[str]:  # noqa: D102
+    def scale_key(self) -> str | None:  # noqa: D102
         return self._scale_key
 
     @scale_key.setter
@@ -294,7 +302,7 @@ class DataModel:
         self._scale_key = scale_key
 
     @property
-    def system_name(self) -> Optional[str]:  # noqa: D102
+    def system_name(self) -> str | None:  # noqa: D102
         """The layer name."""
         return self._system_name
 
