@@ -534,7 +534,9 @@ class SpatialDataViewer(QObject):
         CIRCLES_AS_POINTS = True
         version = get_napari_version()
         kwargs: dict[str, Any] = (
-            {"edge_width": 0.0} if version <= packaging.version.parse("0.4.20") else {"border_width": 0.0}
+            {"edge_width": 0.0}
+            if version <= packaging.version.parse("0.4.20") or not CIRCLES_AS_POINTS
+            else {"border_width": 0.0}
         )
         if CIRCLES_AS_POINTS:
             layer = Points(
@@ -548,7 +550,7 @@ class SpatialDataViewer(QObject):
             assert affine is not None
             self._adjust_radii_of_points_layer(layer=layer, affine=affine)
         else:
-            if version <= packaging.version.parse("0.4.20"):
+            if version <= packaging.version.parse("0.4.20") or not CIRCLES_AS_POINTS:
                 kwargs |= {"edge_color": "white"}
             else:
                 kwargs |= {"border_color": "white"}

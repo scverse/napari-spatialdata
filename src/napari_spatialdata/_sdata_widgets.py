@@ -37,7 +37,7 @@ if (
     and platform.machine() == "arm64"
 ):  # pragma: no cover
     try:
-        PROBLEMATIC_NUMPY_MACOS = "cibw-run" in np.show_config("dicts")["Python Information"]["path"]  # type: ignore[call-arg,func-returns-value]
+        PROBLEMATIC_NUMPY_MACOS = "cibw-run" in np.show_config("dicts")["Python Information"]["path"]  # type: ignore[call-arg,func-returns-value,unused-ignore]
     except (KeyError, TypeError):
         PROBLEMATIC_NUMPY_MACOS = False
 else:
