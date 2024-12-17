@@ -202,8 +202,10 @@ class AListWidget(ListWidget):
     @_get_points_properties.register(pd.Series)
     def _(self, vec: pd.Series, **kwargs: Any) -> dict[str, Any]:
         layer = kwargs.pop("layer", None)
-        layer_meta = self.model.layer.metadata if self.model.layer is not None else None
-        element_indices = pd.Series(layer_meta["indices"], name="element_indices")
+        layer_metadata = self.model.layer.metadata if self.model.layer is not None else None
+        if layer_metadata is None:
+            raise ValueError("Layer metadata is not available.")
+        element_indices = pd.Series(layer_metadata["indices"], name="element_indices")
         if isinstance(layer, Labels):
             element_indices = element_indices[element_indices != 0]
         # When merging if the row is not present in the other table it will be nan so we can give it a default color
@@ -276,8 +278,10 @@ class AListWidget(ListWidget):
         else:
             instance_key_col = self.model.adata.obs[self.model.instance_key]
             vec = pd.Series(vec, name="vec", index=instance_key_col)
-            layer_meta = self.model.layer.metadata if self.model.layer is not None else None
-            element_indices = pd.Series(layer_meta["indices"], name="element_indices")
+            layer_metadata = self.model.layer.metadata if self.model.layer is not None else None
+            if layer_metadata is None:
+                raise ValueError("Layer metadata is not available.")
+            element_indices = pd.Series(layer_metadata["indices"], name="element_indices")
             if isinstance(layer, Labels):
                 vec = vec.drop(index=0) if 0 in vec.index else vec
             # element_indices = element_indices[element_indices != 0]
