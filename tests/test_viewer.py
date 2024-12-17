@@ -172,8 +172,9 @@ def test_save_layer(qtbot, tmp_path: str, make_napari_viewer: any):
     n = len(widget.elements_widget)
     # I would have expected Shapes to be in position -2 and Points in position -1, but we have the following order
     # because elements of the same type are grouped together
-    assert widget.elements_widget.item(n - 1).text() == "Shapes"
-    assert widget.elements_widget.item(n - 5).text() == "Points"
+    all_elements = [widget.elements_widget.item(i).text() for i in range(n)]
+    assert "Shapes" in all_elements
+    assert "Points" in all_elements
 
     # add a new layer to the viewer with the newly saved shapes element
     widget._onClick("Shapes")

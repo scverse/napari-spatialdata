@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning][].
 [keep a changelog]: https://keepachangelog.com/en/1.0.0/
 [semantic versioning]: https://semver.org/spec/v2.0.0.html
 
+## incoming release
+
+- Global setting variables for showing circles as points and point size for scatter widget #309 #334
+- Sorting the element names and coordinate system names alphabetically #285
+
 ## [0.5.4] - 2024-11-26
 
 ### Changed
