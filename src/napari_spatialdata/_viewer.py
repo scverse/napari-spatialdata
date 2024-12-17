@@ -23,6 +23,7 @@ from spatialdata.transformations import Affine, Identity
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.constants import config
+from napari_spatialdata.constants.config import CIRCLES_AS_POINTS
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _get_ellipses_from_circles,
@@ -531,7 +532,6 @@ class SpatialDataViewer(QObject):
             ),
         }
 
-        CIRCLES_AS_POINTS = True
         version = get_napari_version()
         kwargs: dict[str, Any] = (
             {"edge_width": 0.0}

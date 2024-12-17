@@ -26,6 +26,7 @@ from spatialdata._types import ArrayLike
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
+from napari_spatialdata.constants.config import POINT_SIZE_SCATTERPLOT_WIDGET
 
 __all__ = [
     "PlotWidget",
@@ -343,7 +344,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # Create a separate ScatterPlotItem for the highlighted point
         self.hovered_point = pg.ScatterPlotItem(
-            pen=pg.mkPen("r", width=2), symbol="o", size=6, brush=pg.mkBrush(255, 0, 0)
+            pen=pg.mkPen("r", width=2), symbol="o", size=POINT_SIZE_SCATTERPLOT_WIDGET, brush=pg.mkBrush(255, 0, 0)
         )
         self.scatter_plot.addItem(self.hovered_point)
 
