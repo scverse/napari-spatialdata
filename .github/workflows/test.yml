@@ -61,7 +61,7 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
 
       - name: Coverage
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
 
       - name: Archive figures generated during testing
         if: always()
