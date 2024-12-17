@@ -1,6 +1,7 @@
 """Internal constants not exposed to the user."""
 
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from typing import Any
 
 from anndata import AnnData
 
@@ -71,7 +72,7 @@ class Key:
             return "spot_diameter_fullres"
 
         @classmethod
-        def spatial_neighs(cls, value: Optional[str] = None) -> str:
+        def spatial_neighs(cls, value: str | None = None) -> str:
             return f"{Key.obsm.spatial}_neighbors" if value is None else f"{value}_neighbors"
 
         @classmethod
@@ -79,7 +80,7 @@ class Key:
             return f"{cluster}_colors"
 
         @classmethod
-        def spot_diameter(cls, adata: AnnData, spatial_key: str, library_id: Optional[str] = None) -> float:
+        def spot_diameter(cls, adata: AnnData, spatial_key: str, library_id: str | None = None) -> float:
             try:
                 return float(adata.uns[spatial_key][library_id]["scalefactors"]["spot_diameter_fullres"])
             except KeyError:
@@ -90,9 +91,9 @@ class Key:
 
     class obsp:
         @classmethod
-        def spatial_dist(cls, value: Optional[str] = None) -> str:
+        def spatial_dist(cls, value: str | None = None) -> str:
             return f"{Key.obsm.spatial}_distances" if value is None else f"{value}_distances"
 
         @classmethod
-        def spatial_conn(cls, value: Optional[str] = None) -> str:
+        def spatial_conn(cls, value: str | None = None) -> str:
             return f"{Key.obsm.spatial}_connectivities" if value is None else f"{value}_connectivities"

@@ -10,6 +10,7 @@ import xarray
 from anndata import AnnData
 from loguru import logger
 from matplotlib.colors import to_rgba_array
+from napari._qt.qt_resources import get_stylesheet
 from napari._qt.utils import QImg2array
 from napari.layers import Image, Labels, Layer, Points, Shapes
 from napari.layers._multiscale_data import MultiScaleData
@@ -17,9 +18,11 @@ from napari.utils.events import Event
 from napari.utils.notifications import show_info
 from napari.viewer import Viewer
 from pandas.api.types import CategoricalDtype
+from qtpy import QtWidgets
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
     QComboBox,
+    QDialog,
     QGridLayout,
     QInputDialog,
     QLabel,
@@ -34,8 +37,16 @@ from spatialdata.models import TableModel
 
 from napari_spatialdata._annotationwidgets import MainWindow
 from napari_spatialdata._model import DataModel
-from napari_spatialdata._scatterwidgets import AxisWidgets, MatplotlibWidget
-from napari_spatialdata._widgets import AListWidget, CBarWidget, ComponentWidget, RangeSliderWidget, SaveDialog
+from napari_spatialdata._scatterwidgets import AxisWidgets, PlotWidget
+from napari_spatialdata._widgets import (
+    AListWidget,
+    AnnDataSaveDialog,
+    CBarWidget,
+    ComponentWidget,
+    RangeSliderWidget,
+    SaveDialog,
+    ScatterAnnotationDialog,
+)
 
 __all__ = ["QtAdataViewWidget", "QtAdataScatterWidget"]
 
@@ -45,43 +56,66 @@ from napari_spatialdata.utils._utils import _get_init_table_list, block_signals
 class QtAdataScatterWidget(QWidget):
     """Adata viewer widget."""
 
-    def __init__(self, napari_viewer: Viewer, model: DataModel | None = None):
+    def __init__(
+        self, napari_viewer: Viewer | None = None, model: DataModel | None = None, adata: AnnData | None = None
+    ):
         super().__init__()
 
-        self._model = (
-            model
-            if model is not None
-            else napari_viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
-        )
+        if napari_viewer is not None:
+            self._viewer = napari_viewer
 
+            self._model = (
+                model
+                if model is not None
+                else self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
+            )
+
+            self._select_layer()
+            self._viewer.layers.selection.events.changed.connect(self._select_layer)
+            self._viewer.layers.selection.events.changed.connect(self._on_selection)
+
+        elif adata is not None:
+
+            self._viewer = None
+
+            self._model = DataModel()
+            self._model.adata = adata
+
+            # fake an instance key as we don't have a napari layer
+            col = self._model.adata.obs.columns[0]
+            temp = {"region": "na", "region_key": "na", "instance_key": col}
+            self._model.adata.uns["spatialdata_attrs"] = temp
+
+            self.setStyleSheet(get_stylesheet("dark"))
+
+        else:
+            raise ValueError("Either napari viewer or adata object must be provided.")
+
+        # create the layout
         self.setLayout(QGridLayout())
-
-        self._viewer = napari_viewer
-        self._select_layer()
-        self._viewer.layers.selection.events.changed.connect(self._select_layer)
-        self._viewer.layers.selection.events.changed.connect(self._on_selection)
 
         # Create the splitter
         splitter = QSplitter(Qt.Vertical)
 
-        # Matplotlib widget
-        self.matplotlib_widget = MatplotlibWidget(self.viewer, self.model)
-        splitter.addWidget(self.matplotlib_widget)
+        # Plot widget
+        self.plot_widget = PlotWidget(self.viewer, self.model)
+        splitter.addWidget(self.plot_widget)
 
-        # Widget for table label and combo box, and other controls
+        # Control widget
         control_widget = QWidget()
         control_layout = QGridLayout()
         control_widget.setLayout(control_layout)
 
-        # Names of tables annotating respective layer.
-        table_label = QLabel("Tables annotating layer:")
-        self.table_name_widget = QComboBox()
-        if (table_names := self.model.table_names) is not None:
-            self.table_name_widget.addItems(table_names)
+        if self._viewer is not None:
 
-        self.table_name_widget.currentTextChanged.connect(self._update_adata)
-        control_layout.addWidget(table_label, 0, 0, Qt.AlignLeft)
-        control_layout.addWidget(self.table_name_widget, 0, 1, 1, 2)
+            table_label = QLabel("Tables annotating layer:")
+            self.table_name_widget = QComboBox()
+            if (table_names := self.model.table_names) is not None:
+                self.table_name_widget.addItems(table_names)
+
+            self.table_name_widget.currentTextChanged.connect(self._update_adata)
+            control_layout.addWidget(table_label, 0, 0, Qt.AlignLeft)
+            control_layout.addWidget(self.table_name_widget, 0, 1, 1, 2)
 
         self.x_widget = AxisWidgets(self.model, "X-axis")
         control_layout.addWidget(self.x_widget, 1, 0, 1, 1)
@@ -94,21 +128,42 @@ class QtAdataScatterWidget(QWidget):
 
         self.plot_button_widget = QPushButton("Plot")
         self.plot_button_widget.clicked.connect(
-            lambda: self.matplotlib_widget._onClick(
+            lambda: self.plot_widget._onClick(
                 self.x_widget.widget.data,
                 self.y_widget.widget.data,
-                self.color_widget.widget.data,  # type:ignore[arg-type]
+                self.color_widget.widget.data,
                 self.x_widget.getFormattedLabel(),
                 self.y_widget.getFormattedLabel(),
                 self.color_widget.getFormattedLabel(),
             )
         )
 
-        self.export_button_widget = QPushButton("Export")
-        self.export_button_widget.clicked.connect(self.export)
+        self.annotate_button_widget = QPushButton("Annotate")
+        self.annotate_button_widget.clicked.connect(self.export)
 
-        control_layout.addWidget(self.plot_button_widget, 2, 0, 1, 2)
-        control_layout.addWidget(self.export_button_widget, 2, 2, 1, 1)
+        self.save_button_widget = QPushButton("Save")
+        self.save_button_widget.clicked.connect(self.save_sdata)
+
+        control_layout.addWidget(self.plot_button_widget, 2, 0, 1, 1)
+        control_layout.addWidget(self.annotate_button_widget, 2, 1, 1, 1)
+        control_layout.addWidget(self.save_button_widget, 2, 2, 1, 1)
+
+        self.status_label = QLabel("Status: ")
+        control_layout.addWidget(self.status_label, 3, 0, 1, 3)
+
+        if self._viewer is not None:
+            if self._viewer.layers.selection.active is not None:
+                if "sdata" in self._viewer.layers.selection.active.metadata:
+                    if self._viewer.layers.selection.active.metadata["sdata"].is_backed():
+                        self.change_status("Sdata is backed - annotations can be saved.")
+                    else:
+                        self.change_status("Sdata present but not backed - annotations can be created but not saved.")
+                else:
+                    self.change_status("No sdata associated with the layer.")
+            else:
+                self.change_status("No layer selected.")
+        else:
+            self.change_status("No napari viewer detected. You can save annotations to AnnData directly.")
 
         splitter.addWidget(control_widget)
 
@@ -117,12 +172,169 @@ class QtAdataScatterWidget(QWidget):
 
         self.model.events.adata.connect(self._on_selection)
 
-    def export(self) -> None:
-        """Export shapes."""
-        if (self.matplotlib_widget.selector) is None or (self.matplotlib_widget.selector.exported_data is None):
-            raise ValueError("Data points haven't been selected from the matplotlib visualisation.")
+    def change_status(self, new_status: str) -> None:
+        """Change the status label text."""
+        self.status_label.setText(f"Status: {new_status}")
 
-        self.matplotlib_widget.selector.export(self.model.adata)
+    def open_annotation_dialog(self) -> str:
+        dialog = ScatterAnnotationDialog(self)
+        if dialog.exec_() == QDialog.Accepted:
+            annotation_name = dialog.get_annotation_name()
+
+        return str(annotation_name)
+
+    def export(self) -> None:
+        """Export selected points as adata column."""
+        if len(self.plot_widget.roi_list) > 0:
+
+            # display a message window to get the column name
+            self.annotation_name = self.open_annotation_dialog()
+
+            if self.annotation_name != "":
+
+                new_name = self.annotation_name not in self.model.adata.obs.columns
+
+                if not new_name:
+                    reply = QtWidgets.QMessageBox.question(
+                        self,
+                        "Overwrite Annotation",
+                        f"The annotation'{self.annotation_name}' already exists. Do you want to overwrite it?",
+                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No,
+                        QtWidgets.QMessageBox.No,
+                    )
+                    if reply == QtWidgets.QMessageBox.No:
+                        return
+
+                logger.debug(f"Annotating selected points as {self.annotation_name}")
+
+                # get selected points
+                self.selected_vector = self.plot_widget.get_selection()
+
+                # modify anndata table
+                self.model.adata.obs[self.annotation_name] = self.selected_vector
+
+                # modify sdata of the viewer
+                if self._viewer is not None:
+                    selected_layer = self._viewer.layers.selection.active
+                    selected_table = self.table_name_widget.currentText()
+
+                    # change adata of the layer
+                    selected_layer.metadata["adata"] = self.model.adata
+
+                    # change sdata of the layer
+                    sel_obs = selected_layer.metadata["sdata"][selected_table].obs
+
+                    if not new_name:
+                        logger.debug("Dropping a column")
+                        # clear the old annotation column
+                        sel_obs = sel_obs.drop(self.annotation_name, axis=1)
+
+                    columns_to_add = [col for col in self.model.adata.obs.columns if col not in sel_obs.columns]
+                    merge_on = [
+                        self.model.adata.uns["spatialdata_attrs"]["region_key"],
+                        self.model.adata.uns["spatialdata_attrs"]["instance_key"],
+                    ]
+
+                    new_df = pd.merge(sel_obs, self.model.adata.obs[merge_on + columns_to_add], on=merge_on, how="left")
+                    new_df[self.annotation_name] = new_df[self.annotation_name].astype("category")
+                    selected_layer.metadata["sdata"][selected_table].obs = new_df
+
+                    # check that the view widget is present
+                    # and trigger its update
+                    if "View (napari-spatialdata)" in dict(self._viewer.window._dock_widgets.items()):
+                        view_widget = dict(self._viewer.window._dock_widgets.items())["View (napari-spatialdata)"]
+                        qtAdataViewWidget = [x for x in view_widget.children() if isinstance(x, QtAdataViewWidget)][0]
+                        qtAdataViewWidget._on_layer_update()
+
+                # new annotation - update options
+                if new_name:
+                    # add the new option to the obs widget
+                    # without changing the current selection
+                    widgets = {
+                        "color_widget": self.color_widget.widget,
+                        "x_widget": self.x_widget.widget,
+                        "y_widget": self.y_widget.widget,
+                    }
+
+                    for widget in widgets.values():
+                        if widget.getAttribute() == "obs":
+                            widget.addItems(self.annotation_name)
+
+                    self.change_status("Annotation added.")
+
+                # old annotation - change data and replot
+                else:
+                    # change widget data if the annotation already exists and is selected
+                    if (self.color_widget.widget.getAttribute() == "obs") and (
+                        self.color_widget.widget.chosen == self.annotation_name
+                    ):
+                        if self.color_widget.widget.data is not None:
+                            self.color_widget.widget.data["vec"] = self.selected_vector
+
+                        color_label = self.color_widget.getFormattedLabel()
+                        if color_label is not None:
+                            color_label = color_label + "__change__"
+
+                        # automatically replot - may revisit later for performance
+                        self.plot_widget._onClick(
+                            self.x_widget.widget.data,
+                            self.y_widget.widget.data,
+                            self.color_widget.widget.data,
+                            self.x_widget.getFormattedLabel(),
+                            self.y_widget.getFormattedLabel(),
+                            color_label,
+                        )
+
+                    self.change_status("Annotation updated.")
+
+            # display status message that no column name was provided
+            else:
+
+                self.change_status("No column name provided.")
+
+        # display status message - no rois
+        else:
+
+            self.change_status("No rois selected.")
+
+    def save_sdata(self) -> None:
+        """Save sdata or AnnData."""
+        # data taken from the viewer
+        if self._viewer is not None:
+
+            selected_layer = self._viewer.layers.selection.active
+            selected_table = self.table_name_widget.currentText()
+
+            # trigger saving of the table
+            # TODO: have to find another way to pass this as this is deprecated from 0.5.0 onwards
+            # it's used in the save_sdata method
+            self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
+            self._viewer_model._write_element_to_disk(
+                selected_layer.metadata["sdata"],
+                selected_table,
+                selected_layer.metadata["sdata"][selected_table],
+                overwrite=True,
+            )
+        # data provided directly as AnnData
+        else:
+            d = AnnDataSaveDialog()
+            file_path = d.show_dialog()
+
+            if file_path:
+                if file_path.endswith(".h5ad") or file_path.endswith(".zarr") or file_path.endswith(".csv"):
+                    if file_path.endswith(".h5ad"):
+                        self.model.adata.write(file_path)
+                    if file_path.endswith(".zarr"):
+                        self.model.adata.write_zarr(file_path)
+                    if file_path.endswith(".csv"):
+                        self.model.adata.write_csvs(file_path)
+                    # display status message that AnnData was saved
+                    self.change_status("AnnData saved!")
+
+                else:
+                    logger.info("File format not supported.")
+                    # display status message that no valid file format was provided
+                    self.change_status("Data not saved. Only h5ad, zarr and csv are supported.")
 
     def _update_adata(self) -> None:
         if (table_name := self.table_name_widget.currentText()) == "":
@@ -204,7 +416,7 @@ class QtAdataScatterWidget(QWidget):
     @property
     def model(self) -> DataModel:
         """:mod:`napari` viewer."""
-        return self._model  # type: ignore[no-any-return]
+        return self._model
 
 
 class QtAdataViewWidget(QWidget):
@@ -312,7 +524,9 @@ class QtAdataViewWidget(QWidget):
         current_point = list(event.value)
         displayed = self._viewer.dims.displayed
         if layer.multiscale:
-            for i, (lo_size, hi_size, cord) in enumerate(zip(layer.data[-1].shape, layer.data[0].shape, current_point)):
+            for i, (lo_size, hi_size, cord) in enumerate(
+                zip(layer.data[-1].shape, layer.data[0].shape, current_point, strict=False)
+            ):
                 if i in displayed:
                     current_point[i] = slice(None)
                 else:
@@ -352,7 +566,7 @@ class QtAdataViewWidget(QWidget):
 
     def _on_layer_update(self, event: Any | None = None) -> None:
         """When the model updates the selected layer, update the relevant widgets."""
-        logger.info("Updating layer.")
+        logger.debug("Updating layer.")
 
         self.table_name_widget.clear()
 
@@ -385,7 +599,7 @@ class QtAdataViewWidget(QWidget):
                 self.var_widget.clear()
                 self.obsm_widget.clear()
                 self.color_by.clear()
-                if isinstance(layer, (Points, Shapes)) and (cols_df := layer.metadata.get("_columns_df")) is not None:
+                if isinstance(layer, Points | Shapes) and (cols_df := layer.metadata.get("_columns_df")) is not None:
                     self.dataframe_columns_widget.addItems(map(str, cols_df.columns))
                     self.model.system_name = layer.metadata.get("name", None)
             self.model.adata = None
@@ -467,7 +681,7 @@ class QtAdataViewWidget(QWidget):
     @property
     def model(self) -> DataModel:
         """:mod:`napari` viewer."""
-        return self._model  # type: ignore[no-any-return]
+        return self._model
 
     @property
     def layernames(self) -> frozenset[str]:

@@ -12,8 +12,7 @@ if TYPE_CHECKING:
 import napari
 from loguru import logger
 from PIL import Image
-
-from napari_spatialdata.utils._utils import NDArrayA
+from spatialdata._types import ArrayLike
 
 
 def get_center_pos_listitem(widget: QListWidget, text: str) -> QPoint:
@@ -72,7 +71,7 @@ def click_list_widget_item(
             raise ValueError(f"{click} is not a valid click")
 
 
-def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> NDArrayA | Any:
+def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> ArrayLike | Any:
     """Take screenshot of the Napari viewer.
 
     Parameters
@@ -84,7 +83,7 @@ def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> NDArray
 
     Returns
     -------
-    The screenshot as an NDArray
+    The screenshot as an array.
     """
     logger.info("Taking screenshot of viewer")
     # to distinguish between the black of the image background and the black of the napari background (now white)
@@ -98,7 +97,7 @@ def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> NDArray
     return interactive_screenshot
 
 
-def save_image(image_np: NDArrayA, file_path: str) -> None:
+def save_image(image_np: ArrayLike, file_path: str) -> None:
     """Save image to file.
 
     Parameters

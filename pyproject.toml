@@ -7,7 +7,7 @@ write_to = "src/napari_spatialdata/_version.py"
 
 [tool.black]
 line-length = 120
-target-version = ['py39']
+target-version = ['py310']
 include = '\.pyi?$'
 exclude = '''
 (
@@ -34,11 +34,12 @@ exclude = [
     "__pycache__",
     "build",
     "docs/_build",
+    "docs/notebooks",
     "dist",
     "setup.py",
 ]
 line-length = 120
-target-version = "py39"
+target-version = "py310"
 [tool.ruff.lint]
 ignore = [
     # Do not assign a lambda expression, use a def -> lambda expression assignments are convenient
