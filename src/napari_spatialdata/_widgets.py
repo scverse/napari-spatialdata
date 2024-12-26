@@ -218,7 +218,8 @@ class AListWidget(ListWidget):
                 color_dict = dict(zip(vec.cat.categories, colors, strict=False))
                 color_dict.update({np.nan: "#808080ff"})
             else:
-                color_dict = self.model.adata.uns[vec_color_name]
+                colors = self.model.adata.uns[vec_color_name]
+                color_dict = dict(zip(vec.cat.categories, colors.tolist(), strict=True))
         else:
             df = layer.metadata["_columns_df"]
             if vec_color_name not in df.columns:
