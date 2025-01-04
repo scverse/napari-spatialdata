@@ -10,6 +10,7 @@ api.md
 cli.md
 contributing.md
 limitations.md
+changelog.md
 references.md
 ```
 
