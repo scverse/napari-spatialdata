@@ -4,6 +4,7 @@ changelog:
       - release-ignore
     authors:
       - pre-commit-ci
+      - dependabot
   categories:
     - title: Major
       labels:
