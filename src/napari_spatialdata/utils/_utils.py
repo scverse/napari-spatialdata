@@ -369,7 +369,7 @@ def get_elements_meta_mapping(
     return elements, name_to_add
 
 
-def _get_init_metadata_adata(sdata: SpatialData, table_name: str, element_name: str) -> None | AnnData:
+def _get_init_metadata_adata(sdata: SpatialData, table_name: str | None, element_name: str) -> None | AnnData:
     """
     Retrieve AnnData to be used in layer metadata.
 
