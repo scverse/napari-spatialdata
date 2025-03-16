@@ -382,7 +382,7 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str | None, element
         sdata=sdata, spatial_element_names=element_name, table_name=table_name, how="left", match_rows="left"
     )
 
-    if adata.shape[0] == 0:
+    if adata is None or adata.shape[0] == 0:
         return None
     return adata
 
