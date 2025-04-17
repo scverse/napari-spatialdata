@@ -96,3 +96,4 @@ def test_load_data_in_thread(make_napari_viewer: Callable[[], Viewer], sdata_blo
     with qtbot.waitSignal(i._sdata_widget.worker_thread.finished):
         i.add_element(element="blobs_image", element_coordinate_system="global")
     assert "blobs_image" in viewer.layers
+    i._viewer.close()
