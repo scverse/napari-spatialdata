@@ -406,3 +406,4 @@ def test_auto_range_continuous(plot_widget, prepare_continuous_test_data):
     plot_widget.use_auto_range()
 
     assert np.allclose(plot_widget.lut.getLevels(), (color_min, color_max), atol=1e-03)
+    QtWidgets.QApplication.closeAllWindows()
