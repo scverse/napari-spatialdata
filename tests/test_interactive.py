@@ -24,10 +24,12 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         sdata_blobs["blobs_image"] = blobs_image
         i = Interactive(sdata=sdata_blobs, headless=True)
         i.add_element(element="blobs_image", element_coordinate_system="global")
+        i._viewer.close()
 
     def test_plot_can_add_element_label(self, sdata_blobs: SpatialData):
         i = Interactive(sdata=sdata_blobs, headless=True)
         i.add_element(element="blobs_labels", element_coordinate_system="global")
+        i._viewer.close()
 
     def test_plot_can_add_element_multiple(self, sdata_blobs: SpatialData):
         blobs_image = Image2DModel.parse(sdata_blobs["blobs_image"], c_coords=("r", "g", "b"))
@@ -40,6 +42,7 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         assert not i._sdata_widget.elements_widget._elements
         for layer in i._viewer.layers:
             assert layer.visible
+        i._viewer.close()
 
     def test_switch_coordinate_system(self, sdata_blobs: SpatialData):
         i = Interactive(sdata=sdata_blobs, headless=True)
