@@ -25,12 +25,19 @@ def coordinates_are_equal(coords1, coords2, tol=1e-6):
 
 
 @pytest.fixture
-def plot_widget(qtbot):
+def plot_widget(qtbot, request):
     """Fixture for creating a PlotWidget instance."""
     model = DataModel()
     widget = PlotWidget(None, model)
     qtbot.addWidget(widget)
-    yield widget
+
+    def cleanup():
+        widget.close()
+        QtWidgets.QApplication.processEvents()  # flush events
+
+    request.addfinalizer(cleanup)
+
+    return widget
 
 
 def test_initialization(plot_widget):
@@ -223,7 +230,6 @@ def test_roi_from_mouse_events(qtbot, plot_widget):
     qtbot.mouseRelease(view_widget, QtCore.Qt.LeftButton, pos=viewport_pos2)
 
     assert len(plot_widget.roi_list) == 2
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_roi_to_polygon(plot_widget):
@@ -235,7 +241,6 @@ def test_roi_to_polygon(plot_widget):
 
     assert isinstance(polygon_list[0], Polygon)
     assert coordinates_are_equal(list(polygon_list[0].exterior.coords)[:-1], vertices)
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_roi_to_polygon_rect(plot_widget):
@@ -249,7 +254,6 @@ def test_roi_to_polygon_rect(plot_widget):
 
     polygon_vertices = list(polygon_list[0].exterior.coords)[:-1]
     assert coordinates_are_equal(sorted(polygon_vertices), sorted(vertices))
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_coord_change_remove_roi(plot_widget, prepare_discrete_test_data):
@@ -261,7 +265,6 @@ def test_coord_change_remove_roi(plot_widget, prepare_discrete_test_data):
 
     plot_widget._onClick(*prepare_discrete_test_data)
     assert len(plot_widget.roi_list) == 0
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_add_roi_to_plot(qtbot, plot_widget, prepare_discrete_test_data):
@@ -276,7 +279,6 @@ def test_add_roi_to_plot(qtbot, plot_widget, prepare_discrete_test_data):
     rois = [item for item in plot_widget.scatter_plot.items if isinstance(item, pg.RectROI)]
 
     assert len(rois) == 1, "There should be exactly one ROI in the scatter_plot"
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_remove_roi_double_click(qtbot, plot_widget, prepare_discrete_test_data):
@@ -298,7 +300,6 @@ def test_remove_roi_double_click(qtbot, plot_widget, prepare_discrete_test_data)
     qtbot.wait(50)
 
     assert len(plot_widget.roi_list) == 0
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_remove_hovered_roi(qtbot, plot_widget, prepare_discrete_test_data):
@@ -315,7 +316,6 @@ def test_remove_hovered_roi(qtbot, plot_widget, prepare_discrete_test_data):
     plot_widget.remove_hovered_roi()
 
     assert len(plot_widget.roi_list) == 0
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_remove_all_rois(qtbot, plot_widget, prepare_discrete_test_data):
@@ -332,7 +332,6 @@ def test_remove_all_rois(qtbot, plot_widget, prepare_discrete_test_data):
     plot_widget.remove_all_rois()
 
     assert len(plot_widget.roi_list) == 0
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_keyboard_bindings(qtbot, plot_widget, prepare_discrete_test_data):
@@ -361,7 +360,6 @@ def test_keyboard_bindings(qtbot, plot_widget, prepare_discrete_test_data):
     event = QtGui.QKeyEvent(QtCore.QEvent.KeyPress, QtCore.Qt.Key_D, QtCore.Qt.ShiftModifier)
     QtWidgets.QApplication.sendEvent(plot_widget, event)
     assert len(plot_widget.roi_list) == 0
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_selection_from_roi(plot_widget, prepare_discrete_test_data):
@@ -374,7 +372,6 @@ def test_selection_from_roi(plot_widget, prepare_discrete_test_data):
 
     assert len(boolean_vector) == DATA_LEN
     assert np.sum(boolean_vector) == DATA_LEN
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_auto_range_discrete(plot_widget, prepare_discrete_test_data):
@@ -395,7 +392,6 @@ def test_auto_range_discrete(plot_widget, prepare_discrete_test_data):
     plot_widget.use_auto_range()
 
     assert np.allclose(plot_widget.discrete_color_widget.color_buttons[label].color().getRgbF(), org_color, atol=1e-03)
-    QtWidgets.QApplication.closeAllWindows()
 
 
 def test_auto_range_continuous(plot_widget, prepare_continuous_test_data):
@@ -417,4 +413,3 @@ def test_auto_range_continuous(plot_widget, prepare_continuous_test_data):
     plot_widget.use_auto_range()
 
     assert np.allclose(plot_widget.lut.getLevels(), (color_min, color_max), atol=1e-03)
-    QtWidgets.QApplication.closeAllWindows()
