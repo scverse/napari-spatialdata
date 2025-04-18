@@ -130,6 +130,13 @@ jobs:
       - name: Fetch latest release commit
         run: git fetch origin ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}
 
+      - name: Ensure local main exists
+        run: |
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$CURRENT_BRANCH" != "main" ]; then
+            git branch main origin/main
+          fi
+
       - name: Run benchmarks latest release
         uses: aganders3/headless-gui@v2
         with:
