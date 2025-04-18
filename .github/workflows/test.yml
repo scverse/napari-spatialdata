@@ -81,6 +81,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -123,8 +124,8 @@ jobs:
           PR: 1 # prevents asv from running very compute-intensive benchmarks
           PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt
 
-      - name: Fetch main branch
-        run: git fetch origin
+      - name: git fetch
+        run: git fetch --all
 
       - name: Run benchmarks latest release
         # here we check if the benchmark on the latest release is not broken
