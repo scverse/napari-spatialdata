@@ -123,6 +123,9 @@ jobs:
           PR: 1 # prevents asv from running very compute-intensive benchmarks
           PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt
 
+      - name: Fetch main branch
+        run: git fetch origin main:main
+
       - name: Run benchmarks latest release
         # here we check if the benchmark on the latest release is not broken
         uses: aganders3/headless-gui@v2
