@@ -63,9 +63,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Display Git history
-        run: git log --oneline --graph --decorate --all
-
       - uses: actions/setup-python@v5
         name: Install Python
         with:
