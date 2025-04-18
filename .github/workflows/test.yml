@@ -134,7 +134,7 @@ jobs:
         uses: aganders3/headless-gui@v2
         with:
           run: |
-            asv run --show-stderr --quick --attribute timeout=300 ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}^!
+            asv run --show-stderr --quick --attribute timeout=300 ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}
         env:
           PR: 1 # prevents asv from running very compute-intensive benchmarks
           PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt
