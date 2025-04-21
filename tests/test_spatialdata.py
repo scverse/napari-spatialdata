@@ -11,6 +11,7 @@ from dask.dataframe import from_dask_array
 from multiscale_spatial_image import to_multiscale
 from napari.layers import Image, Labels, Points
 from napari.utils.events import EventedList
+from napari.viewer import Viewer
 from numpy import int64
 from spatialdata import SpatialData, deepcopy
 from spatialdata._core.query.relational_query import get_element_instances
@@ -43,6 +44,7 @@ def test_elementwidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
         assert widget._elements[name]["element_type"] == "points"
     for name in blobs_extra_cs.shapes:
         assert widget._elements[name]["element_type"] == "shapes"
+    Viewer.close_all()
 
 
 def test_coordinatewidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
