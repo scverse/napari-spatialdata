@@ -48,7 +48,7 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         i.switch_coordinate_system("global")
         assert i._sdata_widget.coordinate_system_widget._system == "global"
         assert i._sdata_widget.elements_widget._elements
-        i._viewer.close()
+        Viewer.close_all()
 
 
 def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
@@ -56,7 +56,7 @@ def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     i.add_element(element="blobs_image", element_coordinate_system="global", view_element_system=True)
     assert i._sdata_widget.coordinate_system_widget._system == "global"
     assert i._viewer.layers[-1].visible
-    i._viewer.close()
+    Viewer.close_all()
 
 
 class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
@@ -66,13 +66,13 @@ class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
         layer = i.get_layer("blobs_image")
         assert layer is not None, "Expected to retrieve the blobs_image layer, but got None"
         assert layer.name == "blobs_image", f"Expected layer name 'blobs_image', got {layer.name}"
-        i._viewer.close()
+        Viewer.close_all()
 
     def test_get_layer_non_existing(self, sdata_blobs: SpatialData):
         i = Interactive(sdata=sdata_blobs, headless=True)
         layer = i.get_layer("non_existing_layer")
         assert layer is None, "Expected None for a non-existing layer, but got a layer"
-        i._viewer.close()
+        Viewer.close_all()
 
     def test_add_text_to_polygons(self, sdata_blobs: SpatialData):
         i = Interactive(sdata=sdata_blobs, headless=True)
@@ -85,7 +85,7 @@ class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
         # Verify that text is added
         i.add_text_to_polygons(layer_name="blobs_polygons", text_annotations=text_annotations)
         assert polygon_layer.text is not None, "Text annotations were not added to the polygon layer"
-        i._viewer.close()
+        Viewer.close_all()
 
 
 @pytest.mark.skipif(ARM_PROBLEM, reason="Test will segfault on ARM with numpy < 2")
@@ -96,3 +96,4 @@ def test_load_data_in_thread(make_napari_viewer: Callable[[], Viewer], sdata_blo
     with qtbot.waitSignal(i._sdata_widget.worker_thread.finished):
         i.add_element(element="blobs_image", element_coordinate_system="global")
     assert "blobs_image" in viewer.layers
+    Viewer.close_all()

@@ -25,12 +25,19 @@ def coordinates_are_equal(coords1, coords2, tol=1e-6):
 
 
 @pytest.fixture
-def plot_widget(qtbot):
+def plot_widget(qtbot, request):
     """Fixture for creating a PlotWidget instance."""
     model = DataModel()
     widget = PlotWidget(None, model)
     qtbot.addWidget(widget)
-    yield widget
+
+    def cleanup():
+        widget.close()
+        QtWidgets.QApplication.processEvents()  # flush events
+
+    request.addfinalizer(cleanup)
+
+    return widget
 
 
 def test_initialization(plot_widget):

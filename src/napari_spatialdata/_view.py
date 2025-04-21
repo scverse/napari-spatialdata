@@ -645,7 +645,7 @@ class QtAdataViewWidget(QWidget):
                 with self.model.events.adata.blocker():
                     self.model.adata = None
 
-        if self.model.adata.shape == (0, 0):
+        if self.model.adata is None or self.model.adata.shape == (0, 0):
             return
 
         self.model.system_name = layer.metadata.get("name", None)

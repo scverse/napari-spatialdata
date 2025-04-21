@@ -11,6 +11,7 @@ def test_view_exists():
     runner = CliRunner()
     result = runner.invoke(cli, ["view"])
     assert result.exit_code == 2  # Error because of missing argument
+    Viewer.close_all()
 
 
 def test_view_path_not_exists():
@@ -21,6 +22,8 @@ def test_view_path_not_exists():
             "non_existent_path.zarr does not exist"
         )
         assert result.exit_code == 1
+
+        Viewer.close_all()
 
 
 def test_view_path_is_dir():

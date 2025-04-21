@@ -81,6 +81,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.ref }}
 
       - uses: actions/setup-python@v5
         with:
@@ -123,12 +124,24 @@ jobs:
           PR: 1 # prevents asv from running very compute-intensive benchmarks
           PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt
 
+      - name: Fetch latest main
+        run: git fetch origin main
+
+      - name: Fetch latest release commit
+        run: git fetch origin ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}
+
+      - name: Ensure local main exists
+        run: |
+          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+          if [ "$CURRENT_BRANCH" != "main" ]; then
+            git branch main origin/main
+          fi
+
       - name: Run benchmarks latest release
-        # here we check if the benchmark on the latest release is not broken
         uses: aganders3/headless-gui@v2
         with:
           run: |
-            asv run --show-stderr --quick  --attribute timeout=300  ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}^!
+            asv run --show-stderr --quick --attribute timeout=300 ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}^!
         env:
           PR: 1 # prevents asv from running very compute-intensive benchmarks
           PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt
