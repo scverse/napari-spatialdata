@@ -10,6 +10,11 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/scverse/napari-spatialdata/main.svg)](https://results.pre-commit.ci/latest/github/scverse/napari-spatialdata/main)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatialdata)](https://napari-hub.org/plugins/napari-spatialdata)
 [![DOI](https://zenodo.org/badge/477021400.svg)](https://zenodo.org/badge/latestdoi/477021400)
+[![Documentation][badge-pypi]][link-pypi]
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/napari-spatialdata/badges/version.svg)](https://anaconda.org/conda-forge/napari-spatialdata)
+
+[badge-pypi]: https://badge.fury.io/py/napari-spatialdata.svg
+[link-pypi]: https://pypi.org/project/napari-spatialdata/
 
 This repository contains a napari plugin for interactively exploring and annotating
 SpatialData objects. Here you can find the [napari-spatialdata documentation]
