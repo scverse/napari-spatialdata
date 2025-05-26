@@ -10,8 +10,15 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/scverse/napari-spatialdata/main.svg)](https://results.pre-commit.ci/latest/github/scverse/napari-spatialdata/main)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatialdata)](https://napari-hub.org/plugins/napari-spatialdata)
 [![DOI](https://zenodo.org/badge/477021400.svg)](https://zenodo.org/badge/latestdoi/477021400)
+[![Documentation][badge-pypi]][link-pypi]
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/napari-spatialdata/badges/version.svg)](https://anaconda.org/conda-forge/napari-spatialdata)
 
-This repository contains a napari plugin for interactively exploring and annotating SpatialData objects. Here you can find the [napari-spatialdata documentation](https://spatialdata.scverse.org/projects/napari/en/latest/notebooks/spatialdata.html). `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [spatialdata documentation](https://spatialdata.scverse.org/).
+[badge-pypi]: https://badge.fury.io/py/napari-spatialdata.svg
+[link-pypi]: https://pypi.org/project/napari-spatialdata/
+
+This repository contains a napari plugin for interactively exploring and annotating
+SpatialData objects. Here you can find the [napari-spatialdata documentation]
+(https://spatialdata.scverse.org/projects/napari/en/stable/notebooks/spatialdata.html). `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [spatialdata documentation](https://spatialdata.scverse.org/).
 
 ## Installation
 
@@ -21,7 +28,7 @@ You can install `napari-spatialdata` via [pip]:
 
 The `all` command will install the qt bindings `PyQt5`.
 
-You can find more details on this in the [installation instructions](https://spatialdata.scverse.org/en/latest/installation.html).
+You can find more details on this in the [installation instructions](https://spatialdata.scverse.org/en/stable/installation.html).
 
 ## Using napari-spatialdata as default zarr reader
 
@@ -40,14 +47,19 @@ Or, you can also install in editable mode after cloning the repo by:
     cd napari-spatialdata
     pip install -e .
 
-Note: when performing an editable install of `napari-spatialdata`, `spatialdata` will be reinstalled from `pip`. So, if you previously also made an editable install of `spatialdata`, you need to re-run `pip install -e .` on the `spatialdata` repository. Please find more details on this in the [installation instructions](https://spatialdata.scverse.org/en/latest/installation.html).
+Note: when performing an editable install of `napari-spatialdata`, `spatialdata`
+will be reinstalled from `pip`. So, if you previously also made an editable install
+of `spatialdata`, you need to re-run `pip install -e .` on the `spatialdata`
+repository. Please find more details on this in the [installation instructions](https://spatialdata.scverse.org/en/stable/installation.html).
 
 ## Getting started
 
-To learn how to use the `napari-spatialdata` plugin, please see the [documentation](https://spatialdata.scverse.org/projects/napari/en/latest/notebooks/spatialdata.html). To learn how to integrate napari-spatialdata into your analysis workflows, please see the [SpatialData tutorials](https://spatialdata.scverse.org/en/latest/tutorials/notebooks/notebooks.html). In particular:
+To learn how to use the `napari-spatialdata` plugin, please see the [documentation](https://spatialdata.scverse.org/projects/napari/en/stable/notebooks/spatialdata.html).
+To learn how to integrate napari-spatialdata into your analysis workflows, please
+see the [SpatialData tutorials](https://spatialdata.scverse.org/en/stable/tutorials/notebooks/notebooks.html). In particular:
 
-- [Annotating regions of interest with napari](https://spatialdata.scverse.org/en/latest/tutorials/notebooks/notebooks/examples/napari_rois.html)
-- [Use landmark annotations to align multiple -omics layers](https://spatialdata.scverse.org/en/latest/tutorials/notebooks/notebooks/examples/alignment_using_landmarks.html)
+- [Annotating regions of interest with napari](https://spatialdata.scverse.org/en/stable/tutorials/notebooks/notebooks/examples/napari_rois.html)
+- [Use landmark annotations to align multiple -omics layers](https://spatialdata.scverse.org/en/stable/tutorials/notebooks/notebooks/examples/alignment_using_landmarks.html)
 
 ## Contributing
 
