@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from functools import wraps
 from random import randint
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
 
 import numpy as np
 import packaging.version
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from napari.utils.events import EventedList
     from qtpy.QtWidgets import QListWidgetItem
 
-    from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget
+    from napari_spatialdata._sdata_widgets import ListWidget
 
 from spatialdata._types import ArrayLike
 
@@ -405,9 +405,7 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str | None, element
     return adata
 
 
-def get_itemindex_by_text(
-    list_widget: CoordinateSystemWidget | ElementWidget, item_text: str
-) -> None | QListWidgetItem:
+def get_itemindex_by_text(list_widget: ListWidget, item_text: str) -> None | QListWidgetItem:
     """
     Get the item in a listwidget based on its text.
 
@@ -511,3 +509,37 @@ def block_signals(widget: QObject) -> Generator[None, None, None]:
         yield
     finally:
         widget.blockSignals(False)
+
+
+WidgetType = Literal["coordinate_system", "element", "channel"]
+F = TypeVar("F", bound=Callable[..., Any])
+
+
+def requires_widget_type(*allowed_types: WidgetType) -> Callable[[F], F]:
+    """
+    Restrict method execution to specific widget types.
+
+    Parameters
+    ----------
+    *allowed_types
+        The widget types for which the decorated method is valid.
+
+    Returns
+    -------
+    Callable
+        A decorator function that wraps the method.
+    """
+
+    def decorator(method: F) -> F:
+        @wraps(method)
+        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+            if getattr(self, "_widget_type", None) not in allowed_types:
+                raise RuntimeError(
+                    f"{method.__name__} is only valid when _widget_type is one of {allowed_types}, "
+                    f"but got '{self._widget_type}'"
+                )
+            return method(self, *args, **kwargs)
+
+        return cast(F, wrapper)
+
+    return decorator

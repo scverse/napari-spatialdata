@@ -21,7 +21,7 @@ from spatialdata.transformations.operations import set_transformation
 from xarray import DataArray, DataTree
 
 from napari_spatialdata import QtAdataViewWidget
-from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata._sdata_widgets import ListWidget, SdataWidget
 from napari_spatialdata.constants import config
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 
@@ -30,10 +30,10 @@ RNG = np.random.default_rng(seed=0)
 
 def test_elementwidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     _ = make_napari_viewer()
-    widget = ElementWidget(EventedList([blobs_extra_cs]))
+    widget = ListWidget(EventedList([blobs_extra_cs]), "element")
     assert widget._sdata is not None
     assert not widget._elements
-    widget._onItemChange("global")
+    widget._onCsItemChange("global")
     assert widget._elements
     for name in blobs_extra_cs.images:
         assert widget._elements[name]["element_type"] == "images"
@@ -47,7 +47,7 @@ def test_elementwidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
 
 def test_coordinatewidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     _ = make_napari_viewer()
-    widget = CoordinateSystemWidget(EventedList([blobs_extra_cs]))
+    widget = ListWidget(EventedList([blobs_extra_cs]), "coordinate_system")
     items = [widget.item(x).text() for x in range(widget.count())]
     assert len(items) == len(blobs_extra_cs.coordinate_systems)
     for item in items:
@@ -59,13 +59,13 @@ def test_sdatawidget_images(make_napari_viewer: Any, blobs_extra_cs: SpatialData
     widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onItemChange("global")
+    widget.elements_widget._onCsItemChange("global")
     widget._onClick(list(blobs_extra_cs.images.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert isinstance(widget.viewer_model.viewer.layers[0], Image)
     assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.images.keys())[0]
     blobs_extra_cs.images["image"] = to_multiscale(blobs_extra_cs.images["blobs_image"], [2, 4])
-    widget.elements_widget._onItemChange("global")
+    widget.elements_widget._onCsItemChange("global")
     widget._onClick("image")
 
     assert len(widget.viewer_model.viewer.layers) == 2
@@ -131,7 +131,7 @@ def test_sdatawidget_labels(qtbot, make_napari_viewer: Any, blobs_extra_cs: Spat
     widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onItemChange("global")
+    widget.elements_widget._onCsItemChange("global")
     widget._onClick(list(blobs_extra_cs.labels.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.labels.keys())[0]
@@ -172,7 +172,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: Spa
     widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onItemChange("global")
+    widget.elements_widget._onCsItemChange("global")
     widget._onClick(list(blobs_extra_cs.points.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.points.keys())[0]
