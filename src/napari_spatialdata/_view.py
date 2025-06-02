@@ -41,9 +41,7 @@ from napari_spatialdata._scatterwidgets import AxisWidgets, PlotWidget
 from napari_spatialdata._widgets import (
     AListWidget,
     AnnDataSaveDialog,
-    CBarWidget,
     ComponentWidget,
-    RangeSliderWidget,
     SaveDialog,
     ScatterAnnotationDialog,
 )
@@ -496,13 +494,6 @@ class QtAdataViewWidget(QWidget):
         # color by
         self.color_by = QLabel("Colored by:")
         self.layout().addWidget(self.color_by)
-
-        # scalebar
-        colorbar = CBarWidget(model=self.model)
-        self.slider = RangeSliderWidget(self.viewer, self.model, colorbar=colorbar)
-        self._viewer.window.add_dock_widget(self.slider, area="left", name="slider")
-        self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
-        self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
 
         if (layer := self.viewer.layers.selection.active) is not None and layer.metadata.get("adata") is not None:
             self._on_layer_update()

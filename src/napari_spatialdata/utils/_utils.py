@@ -221,6 +221,14 @@ def _points_inside_triangles(points: ArrayLike, triangles: ArrayLike) -> ArrayLi
     return out
 
 
+def _obtain_channel_image(element: DataArray | DataTree, channel_name: str) -> DataArray | list[DataArray]:
+    if isinstance(element, DataArray):
+        new_raster = element.sel(c=channel_name)
+    else:
+        pass
+    return new_raster
+
+
 def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | list[DataArray], bool]:
     """Swap the axes to y, x, c and check if an image supports rgb(a) visualization.
 
