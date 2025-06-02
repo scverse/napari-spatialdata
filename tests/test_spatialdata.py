@@ -73,6 +73,59 @@ def test_sdatawidget_images(make_napari_viewer: Any, blobs_extra_cs: SpatialData
     del blobs_extra_cs.images["image"]
 
 
+@pytest.mark.parametrize(
+    "images", [["blobs_image", "blobs_image_str_ch"], ["blobs_multiscale_image", "blobs_multiscale_image_str_ch"]]
+)
+def test_channel_selection(qtbot, make_napari_viewer, sdata_channel_images, images):
+    """Test selecting a channel from an image with integer channel names."""
+    # Create a viewer
+    viewer = make_napari_viewer()
+
+    # Create the SdataWidget
+    widget = SdataWidget(viewer, EventedList([sdata_channel_images]))
+
+    # Click on 'global' coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    # Click on the image element to populate the channel widget
+    center_pos = get_center_pos_listitem(widget.elements_widget, images[0])
+    click_list_widget_item(qtbot, widget.elements_widget, center_pos, "currentItemChanged")
+
+    # Verify that the channel widget has been populated with the correct channels
+    assert widget.channel_widget.count() == 3
+    assert widget.channel_widget.item(0).text() == "0"
+    assert widget.channel_widget.item(1).text() == "1"
+    assert widget.channel_widget.item(2).text() == "2"
+
+    # Double-click on a channel to add it as a layer
+    center_pos = get_center_pos_listitem(widget.channel_widget, "1")
+    click_list_widget_item(qtbot, widget.channel_widget, center_pos, "currentItemChanged", "double")
+    widget._onClick(images[0], "1")
+
+    # Verify that the layer has been added with the correct name and data
+    assert len(viewer.layers) == 1
+    assert viewer.layers[0].name == f"{images[0]}_ch:1"
+
+    # Verify that the layer contains only the selected channel
+    assert viewer.layers[0].data.shape == (512, 512)
+
+    center_pos = get_center_pos_listitem(widget.elements_widget, images[1])
+    click_list_widget_item(qtbot, widget.elements_widget, center_pos, "currentItemChanged")
+
+    assert widget.channel_widget.count() == 3
+    assert widget.channel_widget.item(0).text() == "channel1"
+    assert widget.channel_widget.item(1).text() == "channel2"
+    assert widget.channel_widget.item(2).text() == "channel3"
+
+    center_pos = get_center_pos_listitem(widget.channel_widget, "channel2")
+    click_list_widget_item(qtbot, widget.channel_widget, center_pos, "currentItemChanged", "double")
+    widget._onClick(images[1], "channel2")
+
+    assert len(viewer.layers) == 2
+    assert viewer.layers[1].name == f"{images[1]}_ch:channel2"
+
+
 def test_sdatawidget_labels(qtbot, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))

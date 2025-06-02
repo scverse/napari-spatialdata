@@ -234,7 +234,11 @@ def _datatree_to_dataarray_list(new_raster: DataArray | DataTree) -> DataArray |
 
 
 def _obtain_channel_image(element: DataArray | DataTree, channel_name: str | int) -> DataArray | list[DataArray]:
-    if np.issubdtype(element["scale0"].c.to_numpy().dtype, np.integer) and isinstance(channel_name, str):
+    is_multiscale_int_ch = isinstance(element, DataTree) and np.issubdtype(
+        element["scale0"].c.to_numpy().dtype, np.integer
+    )
+    is_int_ch = isinstance(element, DataArray) and np.issubdtype(element.c.to_numpy().dtype, np.integer)
+    if isinstance(channel_name, str) and (is_multiscale_int_ch or is_int_ch):
         channel_name = int(channel_name)
 
     # works for both DataArray and DataTree
