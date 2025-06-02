@@ -221,12 +221,25 @@ def _points_inside_triangles(points: ArrayLike, triangles: ArrayLike) -> ArrayLi
     return out
 
 
-def _obtain_channel_image(element: DataArray | DataTree, channel_name: str) -> DataArray | list[DataArray]:
-    if isinstance(element, DataArray):
-        new_raster = element.sel(c=channel_name)
-    else:
-        pass
+def _datatree_to_dataarray_list(new_raster: DataArray | DataTree) -> DataArray | list[DataArray]:
+    if isinstance(new_raster, DataTree):
+        list_of_xdata = []
+        for k in new_raster:
+            v = new_raster[k].values()
+            assert len(v) == 1
+            xdata = v.__iter__().__next__()
+            list_of_xdata.append(xdata)
+        return list_of_xdata
     return new_raster
+
+
+def _obtain_channel_image(element: DataArray | DataTree, channel_name: str | int) -> DataArray | list[DataArray]:
+    if np.issubdtype(element["scale0"].c.to_numpy().dtype, np.integer) and isinstance(channel_name, str):
+        channel_name = int(channel_name)
+
+    # works for both DataArray and DataTree
+    new_raster = element.sel(c=channel_name)
+    return _datatree_to_dataarray_list(new_raster)
 
 
 def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | list[DataArray], bool]:
@@ -272,14 +285,7 @@ def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | l
         rgb = False
         new_raster = element
 
-    if isinstance(new_raster, DataTree):
-        list_of_xdata = []
-        for k in new_raster:
-            v = new_raster[k].values()
-            assert len(v) == 1
-            xdata = v.__iter__().__next__()
-            list_of_xdata.append(xdata)
-        new_raster = list_of_xdata
+    new_raster = _datatree_to_dataarray_list(new_raster)
 
     return new_raster, rgb
 

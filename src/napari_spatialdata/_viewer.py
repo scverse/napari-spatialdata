@@ -473,7 +473,7 @@ class SpatialDataViewer(QObject):
         if channel_name:
             image = _obtain_channel_image(element=sdata.images[original_name], channel_name=channel_name)
             rgb = False
-            key = key + f"_{channel_name}"
+            key = key + f"_ch:{channel_name}"
         else:
             image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 

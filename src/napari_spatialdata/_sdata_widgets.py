@@ -253,11 +253,14 @@ class ChannelWidget(QListWidget):
         element : object
             The image element to extract channels from.
         """
-        channels = list(element.c.to_numpy())
+        if isinstance(element, DataArray):
+            channels = list(element.c.to_numpy())
+        else:
+            channels = list(element["scale0"].c.to_numpy())
         self._channels = channels
         if channels not in [["r", "g", "b"], ["r", "g", "b", "a"]]:
             for ch in channels:
-                item = QListWidgetItem(ch)
+                item = QListWidgetItem(str(ch))
                 self.addItem(item)
 
 
