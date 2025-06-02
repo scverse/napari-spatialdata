@@ -1,7 +1,7 @@
 """Widgets for displaying and interacting with SpatialData objects in napari.
 
 This module provides a set of Qt widgets for visualizing and interacting with
-SpatialData objects within the napari viewer. It includes widgets for selecting
+SpatialData objects within the napari viewer. It includes a ListWidget for selecting
 coordinate systems, browsing elements within SpatialData objects, and handling
 channel selection for multidimensional image data.
 """
@@ -67,12 +67,29 @@ class ListWidget(QListWidget):
     from the SpatialData objects, with warnings for elements that might be slow to render. A third option is to
     let it show channels from image elements.
 
+    The widget's behavior is determined by the `widget_type` parameter passed during initialization:
+    - "coordinate_system": Displays available coordinate systems from SpatialData objects
+    - "element": Displays available elements (images, labels, points, shapes) from SpatialData objects
+    - "channel": Displays available channels from selected image elements
+
     Attributes
     ----------
-        _icon: Icon used for warning indicators.
-        _sdata: List of SpatialData objects.
-        _duplicate_element_names: Dictionary of duplicate element names.
-        _elements: Dictionary mapping element names to their metadata.
+    _widget_type : str
+        Type of widget ("coordinate_system", "element", or "channel") determining its behavior.
+    _icon : QIcon
+        Icon used for warning indicators for elements that might be slow to render.
+    _sdata : EventedList
+        List of SpatialData objects.
+    _duplicate_element_names : dict
+        Dictionary of duplicate element names across SpatialData objects.
+    _elements : dict or None
+        Dictionary mapping element names to their metadata.
+    _element_widget_text : str or None
+        Text of the currently selected element in the ElementWidget.
+    _element_dict : dict or None
+        Dictionary with metadata of the currently selected element.
+    _system : str or None
+        Currently selected coordinate system.
     """
 
     def __init__(self, sdata: EventedList, widget_type: Literal["coordinate_system", "element", "channel"]):
