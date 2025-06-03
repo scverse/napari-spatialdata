@@ -81,8 +81,6 @@ class ListWidget(QListWidget):
         List of SpatialData objects.
     _duplicate_element_names : dict
         Dictionary of duplicate element names across SpatialData objects.
-    _elements : dict or None
-        Dictionary mapping element names to their metadata.
     _element_widget_text : str or None
         Text of the currently selected element in the ElementWidget.
     _element_dict : dict or None
@@ -106,7 +104,6 @@ class ListWidget(QListWidget):
         self._icon = QIcon(str(icon_path))
         self._sdata = sdata
         self._duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
-        self._elements: None | dict[str, dict[str, str | int]] = None
         self._element_widget_text: str | None = None
         self._element_dict: dict[str, str | int] | None = None
         self._system: None | str = None
@@ -131,7 +128,6 @@ class ListWidget(QListWidget):
         self.clear()
         elements, _ = get_elements_meta_mapping(self._sdata, selected_coordinate_system, self._duplicate_element_names)
         self._set_element_widget_items(elements)
-        self._elements = elements
 
     def _set_element_widget_items(self, elements: dict[str, dict[str, str | int]]) -> None:
         """Populate an element widget with element items.
