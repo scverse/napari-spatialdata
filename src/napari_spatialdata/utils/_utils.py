@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from functools import wraps
 from random import randint
-from typing import TYPE_CHECKING, Any, Literal, TypeVar, cast
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import numpy as np
 import packaging.version
@@ -513,33 +513,3 @@ def block_signals(widget: QObject) -> Generator[None, None, None]:
 
 WidgetType = Literal["coordinate_system", "element", "channel"]
 F = TypeVar("F", bound=Callable[..., Any])
-
-
-def requires_widget_type(*allowed_types: WidgetType) -> Callable[[F], F]:
-    """
-    Restrict method execution to specific widget types.
-
-    Parameters
-    ----------
-    *allowed_types
-        The widget types for which the decorated method is valid.
-
-    Returns
-    -------
-    Callable
-        A decorator function that wraps the method.
-    """
-
-    def decorator(method: F) -> F:
-        @wraps(method)
-        def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-            if getattr(self, "_widget_type", None) not in allowed_types:
-                raise RuntimeError(
-                    f"{method.__name__} is only valid when _widget_type is one of {allowed_types}, "
-                    f"but got '{self._widget_type}'"
-                )
-            return method(self, *args, **kwargs)
-
-        return cast(F, wrapper)
-
-    return decorator

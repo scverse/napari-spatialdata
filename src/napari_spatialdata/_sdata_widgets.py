@@ -34,7 +34,6 @@ from napari_spatialdata.utils._utils import (
     _get_sdata_key,
     get_duplicate_element_names,
     get_elements_meta_mapping,
-    requires_widget_type,
 )
 
 if TYPE_CHECKING:
@@ -120,7 +119,6 @@ class ListWidget(QListWidget):
                 coordinate_systems.insert(0, DEFAULT_COORDINATE_SYSTEM)
             self.addItems(coordinate_systems)
 
-    @requires_widget_type("element")
     def _onCsItemChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         """Update the element list of an element widget when the coordinate system selection changes.
 
@@ -135,7 +133,6 @@ class ListWidget(QListWidget):
         self._set_element_widget_items(elements)
         self._elements = elements
 
-    @requires_widget_type("element")
     def _set_element_widget_items(self, elements: dict[str, dict[str, str | int]]) -> None:
         """Populate an element widget with element items.
 
@@ -175,7 +172,6 @@ class ListWidget(QListWidget):
                     )
             self.addItem(item)
 
-    @requires_widget_type("coordinate_system")
     def _select_coord_sys(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
         """Store the currently selected coordinate system.
 
@@ -187,7 +183,6 @@ class ListWidget(QListWidget):
         """
         self._system = str(selected_coordinate_system)
 
-    @requires_widget_type("channel")
     def _on_element_item_changed(
         self, sdata: SpatialData, element_widget_text: str, element_dict: dict[str, str | int]
     ) -> None:
@@ -214,7 +209,6 @@ class ListWidget(QListWidget):
             self._element_widget_text = element_widget_text
             self._set_channel_widget_items(element)
 
-    @requires_widget_type("channel")
     def _set_channel_widget_items(self, element: DataArray | DataTree) -> None:
         """Populate a channel widget with channel items from the selected image element.
 
