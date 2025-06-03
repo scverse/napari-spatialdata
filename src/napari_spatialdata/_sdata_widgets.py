@@ -104,7 +104,7 @@ class ListWidget(QListWidget):
         self._sdata = sdata
         self._duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
         self._element_widget_text: str | None = None
-        self._element_dict: dict[str, str | int] | None = None
+        self._elements: dict[str, dict[str, str | int]] | None = None
         self._system: None | str = None
 
         if coordinate_system:
@@ -127,6 +127,7 @@ class ListWidget(QListWidget):
         self.clear()
         elements, _ = get_elements_meta_mapping(self._sdata, selected_coordinate_system, self._duplicate_element_names)
         self._set_element_widget_items(elements)
+        self._elements = elements
 
     def _set_element_widget_items(self, elements: dict[str, dict[str, str | int]]) -> None:
         """Populate an element widget with element items.
@@ -196,11 +197,9 @@ class ListWidget(QListWidget):
             Dictionary with metadata of the selected element.
         """
         self.clear()
-        self._element_dict = None
         self._element_widget_text = element_widget_text
         if element_dict["element_type"] == "images":
             element: DataArray | DataTree = sdata[element_dict["original_name"]]
-            self._element_dict = element_dict
             self._element_widget_text = element_widget_text
             self._set_channel_widget_items(element)
 
