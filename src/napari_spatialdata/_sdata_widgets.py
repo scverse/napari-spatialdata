@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from importlib.metadata import version
 from operator import itemgetter
 from pathlib import Path
-from typing import TYPE_CHECKING, Literal, cast
+from typing import TYPE_CHECKING, cast
 
 import numpy as np
 import shapely
@@ -89,7 +89,7 @@ class ListWidget(QListWidget):
         Currently selected coordinate system.
     """
 
-    def __init__(self, sdata: EventedList, widget_type: Literal["coordinate_system", "element", "channel"]):
+    def __init__(self, sdata: EventedList, coordinate_system: bool = False):
         """Initialize the Widget.
 
         Parameters
@@ -100,7 +100,6 @@ class ListWidget(QListWidget):
             The type of the widget. This determines what kind of items it will show.
         """
         super().__init__()
-        self._widget_type = widget_type
         self._icon = QIcon(str(icon_path))
         self._sdata = sdata
         self._duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
@@ -108,7 +107,7 @@ class ListWidget(QListWidget):
         self._element_dict: dict[str, str | int] | None = None
         self._system: None | str = None
 
-        if widget_type == "coordinate_system":
+        if coordinate_system:
             # Sort alphabetically, but keep default "global" at the top.
             coordinate_systems = sorted({cs for sdata in self._sdata for cs in sdata.coordinate_systems})
             if DEFAULT_COORDINATE_SYSTEM in coordinate_systems:
@@ -394,9 +393,9 @@ class SdataWidget(QWidget):
 
         self.setLayout(QVBoxLayout())
 
-        self.coordinate_system_widget = ListWidget(self._sdata, "coordinate_system")
-        self.elements_widget = ListWidget(self._sdata, "element")
-        self.channel_widget = ListWidget(self._sdata, "channel")
+        self.coordinate_system_widget = ListWidget(self._sdata, coordinate_system=True)
+        self.elements_widget = ListWidget(self._sdata)
+        self.channel_widget = ListWidget(self._sdata)
         self.slider = QProgressBar(self)
         self.slider.setRange(0, 0)
         self.slider.setVisible(False)
