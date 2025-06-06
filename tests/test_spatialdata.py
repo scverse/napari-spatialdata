@@ -21,7 +21,7 @@ from spatialdata.transformations.operations import set_transformation
 from xarray import DataArray, DataTree
 
 from napari_spatialdata import QtAdataViewWidget
-from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
+from napari_spatialdata._sdata_widgets import ListWidget, SdataWidget
 from napari_spatialdata.constants import config
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
 
@@ -30,10 +30,10 @@ RNG = np.random.default_rng(seed=0)
 
 def test_elementwidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     _ = make_napari_viewer()
-    widget = ElementWidget(EventedList([blobs_extra_cs]))
+    widget = ListWidget(EventedList([blobs_extra_cs]), "element")
     assert widget._sdata is not None
     assert not widget._elements
-    widget._onItemChange("global")
+    widget._onCsItemChange("global")
     assert widget._elements
     for name in blobs_extra_cs.images:
         assert widget._elements[name]["element_type"] == "images"
@@ -47,7 +47,7 @@ def test_elementwidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
 
 def test_coordinatewidget(make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     _ = make_napari_viewer()
-    widget = CoordinateSystemWidget(EventedList([blobs_extra_cs]))
+    widget = ListWidget(EventedList([blobs_extra_cs]), "coordinate_system")
     items = [widget.item(x).text() for x in range(widget.count())]
     assert len(items) == len(blobs_extra_cs.coordinate_systems)
     for item in items:
@@ -59,13 +59,13 @@ def test_sdatawidget_images(make_napari_viewer: Any, blobs_extra_cs: SpatialData
     widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onItemChange("global")
+    widget.elements_widget._onCsItemChange("global")
     widget._onClick(list(blobs_extra_cs.images.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert isinstance(widget.viewer_model.viewer.layers[0], Image)
     assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.images.keys())[0]
     blobs_extra_cs.images["image"] = to_multiscale(blobs_extra_cs.images["blobs_image"], [2, 4])
-    widget.elements_widget._onItemChange("global")
+    widget.elements_widget._onCsItemChange("global")
     widget._onClick("image")
 
     assert len(widget.viewer_model.viewer.layers) == 2
@@ -73,12 +73,65 @@ def test_sdatawidget_images(make_napari_viewer: Any, blobs_extra_cs: SpatialData
     del blobs_extra_cs.images["image"]
 
 
+@pytest.mark.parametrize(
+    "images", [["blobs_image", "blobs_image_str_ch"], ["blobs_multiscale_image", "blobs_multiscale_image_str_ch"]]
+)
+def test_channel_selection(qtbot, make_napari_viewer, sdata_channel_images, images):
+    """Test selecting a channel from an image with integer channel names."""
+    # Create a viewer
+    viewer = make_napari_viewer()
+
+    # Create the SdataWidget
+    widget = SdataWidget(viewer, EventedList([sdata_channel_images]))
+
+    # Click on 'global' coordinate system
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+
+    # Click on the image element to populate the channel widget
+    center_pos = get_center_pos_listitem(widget.elements_widget, images[0])
+    click_list_widget_item(qtbot, widget.elements_widget, center_pos, "currentItemChanged")
+
+    # Verify that the channel widget has been populated with the correct channels
+    assert widget.channel_widget.count() == 3
+    assert widget.channel_widget.item(0).text() == "0"
+    assert widget.channel_widget.item(1).text() == "1"
+    assert widget.channel_widget.item(2).text() == "2"
+
+    # Double-click on a channel to add it as a layer
+    center_pos = get_center_pos_listitem(widget.channel_widget, "1")
+    click_list_widget_item(qtbot, widget.channel_widget, center_pos, "currentItemChanged", "double")
+    widget._onClick(images[0], "1")
+
+    # Verify that the layer has been added with the correct name and data
+    assert len(viewer.layers) == 1
+    assert viewer.layers[0].name == f"{images[0]}_ch:1"
+
+    # Verify that the layer contains only the selected channel
+    assert viewer.layers[0].data.shape == (512, 512)
+
+    center_pos = get_center_pos_listitem(widget.elements_widget, images[1])
+    click_list_widget_item(qtbot, widget.elements_widget, center_pos, "currentItemChanged")
+
+    assert widget.channel_widget.count() == 3
+    assert widget.channel_widget.item(0).text() == "channel1"
+    assert widget.channel_widget.item(1).text() == "channel2"
+    assert widget.channel_widget.item(2).text() == "channel3"
+
+    center_pos = get_center_pos_listitem(widget.channel_widget, "channel2")
+    click_list_widget_item(qtbot, widget.channel_widget, center_pos, "currentItemChanged", "double")
+    widget._onClick(images[1], "channel2")
+
+    assert len(viewer.layers) == 2
+    assert viewer.layers[1].name == f"{images[1]}_ch:channel2"
+
+
 def test_sdatawidget_labels(qtbot, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     viewer = make_napari_viewer()
     widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onItemChange("global")
+    widget.elements_widget._onCsItemChange("global")
     widget._onClick(list(blobs_extra_cs.labels.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.labels.keys())[0]
@@ -119,7 +172,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: Spa
     widget = SdataWidget(viewer, EventedList([blobs_extra_cs]))
     assert len(widget.viewer_model.viewer.layers) == 0
     widget.coordinate_system_widget._select_coord_sys("global")
-    widget.elements_widget._onItemChange("global")
+    widget.elements_widget._onCsItemChange("global")
     widget._onClick(list(blobs_extra_cs.points.keys())[0])
     assert len(widget.viewer_model.viewer.layers) == 1
     assert widget.viewer_model.viewer.layers[0].name == list(blobs_extra_cs.points.keys())[0]

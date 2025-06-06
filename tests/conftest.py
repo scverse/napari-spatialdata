@@ -20,7 +20,7 @@ from skimage import data
 from spatialdata import SpatialData
 from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
-from spatialdata.models import TableModel
+from spatialdata.models import Image2DModel, TableModel
 
 from napari_spatialdata.utils._test_utils import save_image, take_screenshot
 
@@ -129,6 +129,18 @@ def adata_shapes() -> AnnData:
 @pytest.fixture()
 def sdata_blobs() -> SpatialData:
     return blobs()
+
+
+@pytest.fixture()
+def sdata_channel_images() -> SpatialData:
+    sdata = blobs()
+    sdata["blobs_image_str_ch"] = Image2DModel.parse(
+        sdata["blobs_image"], c_coords=["channel1", "channel2", "channel3"]
+    )
+    sdata["blobs_multiscale_image_str_ch"] = Image2DModel.parse(
+        sdata["blobs_image"], c_coords=["channel1", "channel2", "channel3"], scale_factors=[2, 2]
+    )
+    return sdata
 
 
 @pytest.fixture

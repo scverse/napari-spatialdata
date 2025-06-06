@@ -29,6 +29,7 @@ from napari_spatialdata.utils._utils import (
     _get_ellipses_from_circles,
     _get_init_metadata_adata,
     _get_transform,
+    _obtain_channel_image,
     _transform_coordinates,
     get_duplicate_element_names,
     get_napari_version,
@@ -442,10 +443,14 @@ class SpatialDataViewer(QObject):
         """Clean the worker."""
         self.worker = None
 
-    def add_sdata_image(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> None:
-        self.add_layer(self.get_sdata_image(sdata, key, selected_cs, multi))
+    def add_sdata_image(
+        self, sdata: SpatialData, key: str, selected_cs: str, multi: bool, channel_name: str | None = None
+    ) -> None:
+        self.add_layer(self.get_sdata_image(sdata, key, selected_cs, multi, channel_name))
 
-    def get_sdata_image(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Image:
+    def get_sdata_image(
+        self, sdata: SpatialData, key: str, selected_cs: str, multi: bool, channel_name: str | None = None
+    ) -> Image:
         """
         Add an image in a spatial data object to the viewer.
 
@@ -465,7 +470,12 @@ class SpatialDataViewer(QObject):
             original_name = original_name[: original_name.rfind("_")]
 
         affine = _get_transform(sdata.images[original_name], selected_cs)
-        rgb_image, rgb = _adjust_channels_order(element=sdata.images[original_name])
+        if channel_name:
+            image = _obtain_channel_image(element=sdata.images[original_name], channel_name=channel_name)
+            rgb = False
+            key = key + f"_ch:{channel_name}"
+        else:
+            image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 
         channels = ("RGB(A)",) if rgb else get_channels(sdata.images[original_name])
 
@@ -473,7 +483,7 @@ class SpatialDataViewer(QObject):
 
         # TODO: type check
         return Image(
-            rgb_image,
+            image,
             rgb=rgb,
             name=key,
             affine=affine,

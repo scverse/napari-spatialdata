@@ -5,7 +5,7 @@ from collections.abc import Callable, Generator, Iterable, Sequence
 from contextlib import contextmanager
 from functools import wraps
 from random import randint
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal, TypeVar
 
 import numpy as np
 import packaging.version
@@ -44,7 +44,7 @@ if TYPE_CHECKING:
     from napari.utils.events import EventedList
     from qtpy.QtWidgets import QListWidgetItem
 
-    from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget
+    from napari_spatialdata._sdata_widgets import ListWidget
 
 from spatialdata._types import ArrayLike
 
@@ -221,6 +221,31 @@ def _points_inside_triangles(points: ArrayLike, triangles: ArrayLike) -> ArrayLi
     return out
 
 
+def _datatree_to_dataarray_list(new_raster: DataArray | DataTree) -> DataArray | list[DataArray]:
+    if isinstance(new_raster, DataTree):
+        list_of_xdata = []
+        for k in new_raster:
+            v = new_raster[k].values()
+            assert len(v) == 1
+            xdata = v.__iter__().__next__()
+            list_of_xdata.append(xdata)
+        return list_of_xdata
+    return new_raster
+
+
+def _obtain_channel_image(element: DataArray | DataTree, channel_name: str | int) -> DataArray | list[DataArray]:
+    is_multiscale_int_ch = isinstance(element, DataTree) and np.issubdtype(
+        element["scale0"].c.to_numpy().dtype, np.integer
+    )
+    is_int_ch = isinstance(element, DataArray) and np.issubdtype(element.c.to_numpy().dtype, np.integer)
+    if isinstance(channel_name, str) and (is_multiscale_int_ch or is_int_ch):
+        channel_name = int(channel_name)
+
+    # works for both DataArray and DataTree
+    new_raster = element.sel(c=channel_name)
+    return _datatree_to_dataarray_list(new_raster)
+
+
 def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | list[DataArray], bool]:
     """Swap the axes to y, x, c and check if an image supports rgb(a) visualization.
 
@@ -264,14 +289,7 @@ def _adjust_channels_order(element: DataArray | DataTree) -> tuple[DataArray | l
         rgb = False
         new_raster = element
 
-    if isinstance(new_raster, DataTree):
-        list_of_xdata = []
-        for k in new_raster:
-            v = new_raster[k].values()
-            assert len(v) == 1
-            xdata = v.__iter__().__next__()
-            list_of_xdata.append(xdata)
-        new_raster = list_of_xdata
+    new_raster = _datatree_to_dataarray_list(new_raster)
 
     return new_raster, rgb
 
@@ -387,9 +405,7 @@ def _get_init_metadata_adata(sdata: SpatialData, table_name: str | None, element
     return adata
 
 
-def get_itemindex_by_text(
-    list_widget: CoordinateSystemWidget | ElementWidget, item_text: str
-) -> None | QListWidgetItem:
+def get_itemindex_by_text(list_widget: ListWidget, item_text: str) -> None | QListWidgetItem:
     """
     Get the item in a listwidget based on its text.
 
@@ -493,3 +509,7 @@ def block_signals(widget: QObject) -> Generator[None, None, None]:
         yield
     finally:
         widget.blockSignals(False)
+
+
+WidgetType = Literal["coordinate_system", "element", "channel"]
+F = TypeVar("F", bound=Callable[..., Any])
