@@ -219,7 +219,7 @@ class PlotTester(ABC):
         if tolerance is None:
             # see https://github.com/theislab/squidpy/pull/302
             tolerance = 2 * TOL if "Napari" in str(basename) else TOL
-        print(out_path)
+
         res = compare_images(str(EXPECTED / f"{basename}.png"), str(out_path), tolerance)
 
         assert res is None, res
