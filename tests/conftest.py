@@ -22,7 +22,7 @@ from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
 from spatialdata.models import TableModel
 
-from napari_spatialdata.utils._test_utils import save_image, take_screenshot
+from napari_spatialdata.utils._test_utils import export_figure, save_image
 
 HERE: Path = Path(__file__).parent
 
@@ -214,7 +214,7 @@ class PlotTester(ABC):
         out_path = ACTUAL / f"{basename}.png"
 
         viewer = napari.current_viewer()
-        save_image(take_screenshot(viewer, canvas_only=True), out_path)
+        save_image(export_figure(viewer, canvas_only=True), out_path)
 
         if tolerance is None:
             # see https://github.com/theislab/squidpy/pull/302
