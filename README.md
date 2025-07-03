@@ -29,7 +29,8 @@ You can install `napari-spatialdata` via [pip]:
 The `all` command will install the qt bindings `PyQt5`.
 
 Napari now also includes multiple triangulation backends. These improve the speed by which a napari 'Shapes' layer gets
-loaded. See also the napari [documentation](https://napari.org/stable/guides/triangulation.html). For installation via
+loaded (this does not improve the speed of editing large numbers of shapes yet!). See also the napari
+[documentation](https://napari.org/stable/guides/triangulation.html) and already slightly older [blog post](https://napari.org/island-dispatch/blog/triangles_speedup_beta.html). For installation via
 pip:
 
     pip install napari-spatialdata[all, bermuda]
