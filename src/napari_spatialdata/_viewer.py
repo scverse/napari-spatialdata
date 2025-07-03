@@ -52,6 +52,7 @@ class SpatialDataViewer(QObject):
         self.sdata = sdata
         self._model = DataModel()
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
+        self.viewer.bind_key("Ctrl-L", self._inherit_metadata, overwrite=True)
         self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=True)
         self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=True)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
