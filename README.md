@@ -17,8 +17,7 @@
 [link-pypi]: https://pypi.org/project/napari-spatialdata/
 
 This repository contains a napari plugin for interactively exploring and annotating
-SpatialData objects. Here you can find the [napari-spatialdata documentation]
-(https://spatialdata.scverse.org/projects/napari/en/stable/notebooks/spatialdata.html). `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [spatialdata documentation](https://spatialdata.scverse.org/).
+SpatialData objects. Here you can find the [napari-spatialdata documentation](https://spatialdata.scverse.org/projects/napari/en/stable/notebooks/spatialdata.html). `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [spatialdata documentation](https://spatialdata.scverse.org/).
 
 ## Installation
 
