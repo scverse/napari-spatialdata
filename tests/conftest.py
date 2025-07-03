@@ -214,7 +214,7 @@ class PlotTester(ABC):
         out_path = ACTUAL / f"{basename}.png"
 
         viewer = napari.current_viewer()
-        save_image(export_figure(viewer, canvas_only=True), out_path)
+        save_image(export_figure(viewer), out_path)
 
         if tolerance is None:
             # see https://github.com/theislab/squidpy/pull/302
