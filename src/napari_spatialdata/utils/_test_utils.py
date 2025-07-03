@@ -84,7 +84,10 @@ def export_figure(viewer: napari.Viewer) -> ArrayLike | Any:
     The exported figure as an array.
     """
     logger.info("Export figure of data in viewer canvas")
+    old_theme = viewer.theme
+    viewer.theme = "light"
     interactive_screenshot = viewer.export_figure()
+    viewer.theme = old_theme
     viewer.close()
 
     return interactive_screenshot
