@@ -133,7 +133,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: Spa
     with caplog.at_level(logging.INFO):
         assert (
             "Subsampling points because the number of points exceeds the currently supported 400."
-            in caplog.records[0].message
+            in caplog.records[1].message
         )
     assert widget.viewer_model.viewer.layers[1].metadata.get("adata").n_obs == 400
     del blobs_extra_cs.points["many_points"]
