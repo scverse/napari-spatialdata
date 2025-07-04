@@ -426,7 +426,7 @@ class QtAdataViewWidget(QWidget):
         super().__init__()
 
         self._viewer = napari_viewer
-        self._model = model if model else napari_viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
+        self._model = model if model else napari_viewer.window.dock_widgets["SpatialData"].viewer_model.model
 
         self._select_layer()
         self._viewer.layers.selection.events.changed.connect(self._select_layer)
