@@ -53,6 +53,11 @@ class SpatialDataViewer(QObject):
         self._model = DataModel()
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
         self.viewer.bind_key("Ctrl-L", self._inherit_metadata, overwrite=True)
+
+        logger.warning(
+            "Due to Shift-L being used as shortcut in napari, it is being deprecated and might not link a new layer"
+            " to an existing SpatialData object in the viewer. Please use ⌘-L on MacOS or else Ctrl-L.",
+        )
         self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=True)
         self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=True)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
