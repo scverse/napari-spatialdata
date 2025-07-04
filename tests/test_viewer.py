@@ -1,4 +1,5 @@
 import re
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -32,7 +33,10 @@ def test_metadata_inheritance(qtbot, make_napari_viewer: any):
     layers = widget.viewer_model.viewer.layers
     sdatas = [layer.metadata["sdata"] for layer in layers if "sdata" in layer.metadata]
     assert all(sdatas[0] is sdata for sdata in sdatas[1:])
-    qtbot.keyPress(viewer.window._qt_viewer, Qt.Key_L, Qt.ControlModifier)
+    if sys.platform == "darwin":
+        qtbot.keyPress(viewer.window._qt_viewer, Qt.Key_L, Qt.MetaModifier)
+    else:
+        qtbot.keyPress(viewer.window._qt_viewer, Qt.Key_L, Qt.ControlModifier)
 
     # Now we did let the shapes layer inherit sdata from another layer. The number of unique spatialdata objects
     # should still be one.
