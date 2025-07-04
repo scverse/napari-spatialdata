@@ -71,26 +71,22 @@ def click_list_widget_item(
             raise ValueError(f"{click} is not a valid click")
 
 
-def take_screenshot(viewer: napari.Viewer, canvas_only: bool = False) -> ArrayLike | Any:
-    """Take screenshot of the Napari viewer.
+def export_figure(viewer: napari.Viewer) -> ArrayLike | Any:
+    """Export figure from the data displayed in the Napari viewer.
 
     Parameters
     ----------
     viewer
         Instance of napari Viewer.
-    canvas_only
-        If True, only the canvas is saved, not the viewer window.
 
     Returns
     -------
-    The screenshot as an array.
+    The exported figure as an array.
     """
-    logger.info("Taking screenshot of viewer")
-    # to distinguish between the black of the image background and the black of the napari background (now white)
-    # TODO (melonora): remove when napari allows for getting rid of margins.
+    logger.info("Export figure of data in viewer canvas")
     old_theme = viewer.theme
     viewer.theme = "light"
-    interactive_screenshot = viewer.screenshot(canvas_only=canvas_only, size=(202, 284))
+    interactive_screenshot = viewer.export_figure()
     viewer.theme = old_theme
     viewer.close()
 
