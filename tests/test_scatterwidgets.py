@@ -7,6 +7,9 @@ from shapely.geometry import Polygon
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._scatterwidgets import PlotWidget
 
+pytestmark = pytest.mark.usefixtures("mock_app_model")
+
+
 DATA_LEN = 100
 
 
