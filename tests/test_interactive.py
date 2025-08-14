@@ -18,6 +18,7 @@ ARM_PROBLEM = (
 )
 
 
+@pytest.mark.usefixtures("mock_app_model")
 class TestImages(PlotTester, metaclass=PlotTesterMeta):
     def test_plot_can_add_element_image(self, sdata_blobs: SpatialData):
         blobs_image = Image2DModel.parse(sdata_blobs["blobs_image"], c_coords=("r", "g", "b"))
@@ -51,6 +52,7 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         Viewer.close_all()
 
 
+@pytest.mark.usefixtures("mock_app_model")
 def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     i = Interactive(sdata=sdata_blobs, headless=True)
     i.add_element(element="blobs_image", element_coordinate_system="global", view_element_system=True)
@@ -59,6 +61,7 @@ def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     Viewer.close_all()
 
 
+@pytest.mark.usefixtures("mock_app_model")
 class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
     def test_get_layer_existing(self, sdata_blobs: SpatialData):
         i = Interactive(sdata=sdata_blobs, headless=True)
