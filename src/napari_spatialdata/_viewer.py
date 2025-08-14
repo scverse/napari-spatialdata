@@ -724,7 +724,7 @@ class SpatialDataViewer(QObject):
             _, adata = _left_join_spatialelement_table(
                 {"points": {original_name: subsample_points}}, sdata[table_name], match_rows="left"
             )
-        axes = list(sorted(axes, reverse=True))
+        axes = sorted(axes, reverse=True)
         if not include_z and "z" in axes:
             axes.remove("z")
         coords = subsample_points[axes].values

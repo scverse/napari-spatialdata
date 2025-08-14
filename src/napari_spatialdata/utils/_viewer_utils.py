@@ -1,3 +1,5 @@
+from typing import cast
+
 from geopandas import GeoDataFrame
 from spatialdata.models import get_axes_names
 
@@ -21,26 +23,37 @@ def add_z_to_list_of_xy_tuples(xy: list[tuple[float, float]], z: float) -> list[
     return [(x, y, z) for x, y in xy]
 
 
-def _get_polygons_properties(
-    df: GeoDataFrame, simplify: bool, include_z: bool
-) -> (tuple)[list[list[tuple[float, float]]], list[int]]:
-    # for the moment this function assumes that there are no "Polygon Z", but that the z
-    # coordinates, if present, is in a separate column
-    indices = []
-    polygons = []
-    axes = get_axes_names(df)
-    include_z = include_z and "z" in axes
+# type aliases, only used in this module
+Coord2D = tuple[float, float]
+Coord3D = tuple[float, float, float]
+Polygon2D = list[Coord2D]
+Polygon3D = list[Coord3D]
+Polygon = Polygon2D | Polygon3D
 
-    for i in range(0, len(df)):
-        indices.append(df.iloc[i].name)
-        if include_z:
-            z = df.iloc[i].z.item()
+
+def _get_polygons_properties(df: GeoDataFrame, simplify: bool, include_z: bool) -> tuple[list[Polygon], list[int]]:
+    # assumes no "Polygon Z": z is in separate column if present
+    indices: list[int] = []
+    polygons: list[Polygon] = []
+
+    axes = get_axes_names(df)
+    add_z = include_z and "z" in axes
+
+    for i in range(len(df)):
+        indices.append(int(df.index[i]))
+
         if simplify:
-            # This can be removed once napari is sped up in the plotting. It changes the shapes only very slightly
-            xy = list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords)
+            xy = cast(list[Coord2D], list(df.geometry.iloc[i].exterior.simplify(tolerance=2).coords))
         else:
-            xy = list(df.geometry.iloc[i].exterior.coords)
-        coords = xy if not include_z else add_z_to_list_of_xy_tuples(xy=xy, z=z)
+            xy = cast(list[Coord2D], list(df.geometry.iloc[i].exterior.coords))
+
+        coords: Polygon2D | Polygon3D
+        if add_z:
+            z_val = float(df.iloc[i].z.item() if hasattr(df.iloc[i].z, "item") else df.iloc[i].z)
+            coords = cast(Polygon3D, add_z_to_list_of_xy_tuples(xy=xy, z=z_val))
+        else:
+            coords = cast(Polygon2D, xy)
+
         polygons.append(coords)
 
     return polygons, indices
