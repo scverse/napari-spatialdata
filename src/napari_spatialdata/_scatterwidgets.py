@@ -114,7 +114,7 @@ class ScatterListWidget(AListWidget):
         elif self.getAttribute() == "obsm":
             if TYPE_CHECKING:
                 assert isinstance(text, int | str)
-            self.text = text  # type: ignore[assignment]
+            self.text = text
             super().setIndex(text)
 
     @property
