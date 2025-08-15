@@ -18,7 +18,7 @@ ARM_PROBLEM = (
 )
 
 
-@pytest.mark.skipif(not OFFSCREEN, reason="Not running in offscreen mode")
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
 @pytest.mark.usefixtures("mock_app_model")
 class TestImages(PlotTester, metaclass=PlotTesterMeta):
     def test_plot_can_add_element_image(self, sdata_blobs: SpatialData):
@@ -53,7 +53,7 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         Viewer.close_all()
 
 
-@pytest.mark.skipif(not OFFSCREEN, reason="Not running in offscreen mode")
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
 @pytest.mark.usefixtures("mock_app_model")
 def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     i = Interactive(sdata=sdata_blobs, headless=True)
@@ -63,7 +63,7 @@ def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     Viewer.close_all()
 
 
-@pytest.mark.skipif(not OFFSCREEN, reason="Not running in offscreen mode")
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
 @pytest.mark.usefixtures("mock_app_model")
 class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
     def test_get_layer_existing(self, sdata_blobs: SpatialData):
@@ -94,7 +94,7 @@ class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
         Viewer.close_all()
 
 
-@pytest.mark.skipif(not OFFSCREEN, reason="Not running in offscreen mode")
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
 @pytest.mark.skipif(ARM_PROBLEM, reason="Test will segfault on ARM with numpy < 2")
 @pytest.mark.use_thread_loader
 def test_load_data_in_thread(make_napari_viewer: Callable[[], Viewer], sdata_blobs: SpatialData, qtbot: QtBot) -> None:

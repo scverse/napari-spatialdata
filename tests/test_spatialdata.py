@@ -95,7 +95,7 @@ def test_sdatawidget_labels(qtbot, make_napari_viewer: Any, blobs_extra_cs: Spat
     assert widget.viewer_model.viewer.layers[0].metadata.get("region_key") is not None
 
 
-@pytest.mark.skipif(not OFFSCREEN, reason="Not running in offscreen mode")
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
 def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     config.POINT_THRESHOLD = 400
     blobs_extra_cs.points["many_points"] = PointsModel.parse(
