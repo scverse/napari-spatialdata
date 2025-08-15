@@ -15,6 +15,7 @@ from napari_spatialdata.utils._utils import (
     _position_cluster_labels,
     _set_palette,
 )
+from tests.conftest import OFFSCREEN
 
 
 def test_get_categorical(adata_labels: AnnData):
@@ -84,6 +85,7 @@ def test_min_max_norm(vec: np.ndarray) -> None:
     assert (out.min(), out.max()) == (0, 1)
 
 
+@pytest.mark.skipif(not OFFSCREEN, reason="Not running in offscreen mode")
 def test_logger(caplog, prepare_continuous_test_data, adata_labels: AnnData, make_napari_viewer: Any):
     from napari_spatialdata._model import DataModel
     from napari_spatialdata._scatterwidgets import PlotWidget

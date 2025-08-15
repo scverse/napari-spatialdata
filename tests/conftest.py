@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import random
 import string
 from abc import ABC, ABCMeta
@@ -23,6 +24,8 @@ from spatialdata.datasets import blobs
 from spatialdata.models import TableModel
 
 from napari_spatialdata.utils._test_utils import export_figure, save_image
+
+OFFSCREEN = os.environ.get('QT_QPA_PLATFORM', '') == 'offscreen'
 
 HERE: Path = Path(__file__).parent
 
