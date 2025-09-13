@@ -11,7 +11,7 @@ from spatialdata import SpatialData
 from spatialdata.models import Image2DModel
 
 from napari_spatialdata._interactive import Interactive
-from tests.conftest import PlotTester, PlotTesterMeta, OFFSCREEN
+from tests.conftest import OFFSCREEN, PlotTester, PlotTesterMeta
 
 ARM_PROBLEM = (
     parse_version(version("numpy")) < parse_version("2") and sys.platform == "darwin" and platform.machine() == "arm64"
