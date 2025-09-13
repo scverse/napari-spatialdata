@@ -18,7 +18,7 @@ from shapely import Polygon
 from spatialdata import get_element_annotators, get_element_instances
 from spatialdata._core.query.relational_query import _left_join_spatialelement_table
 from spatialdata._types import ArrayLike
-from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
+from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channel_names
 from spatialdata.transformations import Affine, Identity
 
 from napari_spatialdata._model import DataModel
@@ -473,7 +473,7 @@ class SpatialDataViewer(QObject):
         affine = _get_transform(sdata.images[original_name], selected_cs)
         rgb_image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 
-        channels = ("RGB(A)",) if rgb else get_channels(sdata.images[original_name])
+        channels = ("RGB(A)",) if rgb else get_channel_names(sdata.images[original_name])
 
         adata = AnnData(shape=(0, len(channels)), var=pd.DataFrame(index=channels))
 
