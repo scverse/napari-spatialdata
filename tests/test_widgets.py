@@ -91,7 +91,7 @@ def test_change_layer(
     sdata_blobs: SpatialData,
 ) -> None:
     table = sdata_blobs["table"].copy()
-    table.obs["region"] = "blobs_labels"
+    table.obs["region"] = pd.Categorical(["blobs_labels"] * table.n_obs)
     table.uns["spatialdata_attrs"]["region"] = "blobs_labels"
     table.var_names = pd.Index([i + "_second" for i in table.var_names])
     sdata_blobs["second_table"] = table
