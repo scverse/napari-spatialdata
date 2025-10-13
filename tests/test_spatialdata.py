@@ -24,6 +24,7 @@ from napari_spatialdata import QtAdataViewWidget
 from napari_spatialdata._sdata_widgets import CoordinateSystemWidget, ElementWidget, SdataWidget
 from napari_spatialdata.constants import config
 from napari_spatialdata.utils._test_utils import click_list_widget_item, get_center_pos_listitem
+from tests.conftest import OFFSCREEN
 
 RNG = np.random.default_rng(seed=0)
 
@@ -94,6 +95,7 @@ def test_sdatawidget_labels(qtbot, make_napari_viewer: Any, blobs_extra_cs: Spat
     assert widget.viewer_model.viewer.layers[0].metadata.get("region_key") is not None
 
 
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
 def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
     config.POINT_THRESHOLD = 400
     blobs_extra_cs.points["many_points"] = PointsModel.parse(
@@ -133,7 +135,7 @@ def test_sdatawidget_points(caplog, make_napari_viewer: Any, blobs_extra_cs: Spa
     with caplog.at_level(logging.INFO):
         assert (
             "Subsampling points because the number of points exceeds the currently supported 400."
-            in caplog.records[0].message
+            in caplog.records[1].message
         )
     assert widget.viewer_model.viewer.layers[1].metadata.get("adata").n_obs == 400
     del blobs_extra_cs.points["many_points"]

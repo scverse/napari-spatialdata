@@ -50,9 +50,9 @@ def _get_polygons_properties(df: GeoDataFrame, simplify: bool, include_z: bool) 
         coords: Polygon2D | Polygon3D
         if add_z:
             z_val = float(df.iloc[i].z.item() if hasattr(df.iloc[i].z, "item") else df.iloc[i].z)
-            coords = cast(Polygon3D, add_z_to_list_of_xy_tuples(xy=xy, z=z_val))
+            coords = add_z_to_list_of_xy_tuples(xy=xy, z=z_val)
         else:
-            coords = cast(Polygon2D, xy)
+            coords = xy
 
         polygons.append(coords)
 

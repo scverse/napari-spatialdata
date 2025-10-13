@@ -492,7 +492,7 @@ def get_napari_version() -> packaging.version.Version:
 
 
 @contextmanager
-def block_signals(widget: QObject) -> Generator[None, None, None]:
+def block_signals(widget: QObject) -> Generator[None]:
     try:
         widget.blockSignals(True)
         yield

@@ -69,7 +69,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: plotting-results-${{ matrix.python-version }}-${{ matrix.platform }}
-          path: /home/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/*
+          path: /Users/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/generated/*
 
   test_benchmarks:
     name: test benchmarks
