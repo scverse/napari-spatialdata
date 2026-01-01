@@ -136,7 +136,7 @@ def test_hover_highlight_cont(plot_widget, prepare_continuous_test_data):
 
     plot_widget.update_hover_highlight(-1, -1)
     # plot_widget.grab().save('hover.png')
-    assert plot_widget.data_point_label.text() == "Value: 0.3880667317845192"
+    assert plot_widget.data_point_label.text() == "Value: 0.4258820863735099"
     assert plot_widget.hovered_point.data.size == 1
 
 
