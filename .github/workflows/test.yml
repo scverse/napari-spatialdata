@@ -27,10 +27,10 @@ jobs:
         python-version: ["3.11", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -66,7 +66,7 @@ jobs:
 
       - name: Archive figures generated during testing
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: plotting-results-${{ matrix.python-version }}-${{ matrix.platform }}
           path: /Users/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/generated/*
