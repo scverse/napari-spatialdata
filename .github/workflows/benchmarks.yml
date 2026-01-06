@@ -8,8 +8,8 @@ name: Benchmarks
 on:
   pull_request:
     types: [labeled]
-  schedule:
-    - cron: "6 6 * * 0" # every sunday
+  #  schedule:
+  #    - cron: "6 6 * * 0" # every sunday
   workflow_dispatch:
     inputs:
       base_ref:
@@ -140,7 +140,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PLATFORM: ${{ matrix.runs-on }}
-          PYTHON: "3.9"
+          PYTHON: "3.11"
           BACKEND: ${{ matrix.benchmark-name }}
           RUN_ID: ${{ github.run_id }}
           TITLE: "[test-bot] Benchmark tests failing"
