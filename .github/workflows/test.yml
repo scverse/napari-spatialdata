@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       matrix:
         platform: [ubuntu-latest, macos-latest] # [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.10", "3.12"]
+        python-version: ["3.11", "3.13"]
 
     steps:
       - uses: actions/checkout@v4
@@ -69,79 +69,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: plotting-results-${{ matrix.python-version }}-${{ matrix.platform }}
-          path: /home/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/*
-
-  test_benchmarks:
-    name: test benchmarks
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    env:
-      GIT_LFS_SKIP_SMUDGE: 1
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.ref }}
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: 3.11
-          cache-dependency-path: pyproject.toml
-
-      - name: Install dependencies with 'pre' extras (since the above doesn't check pre-releases)
-        run: |
-          python -m pip install --upgrade pip
-          pip install .[pre]
-
-      - uses: tlambert03/setup-qt-libs@v1
-
-      - uses: octokit/request-action@v2.x
-        # here we get hash of the latest release commit to compare with PR
-        id: latest_release
-        with:
-          route: GET /repos/{owner}/{repo}/releases/latest
-          owner: scverse
-          repo: napari-spatialdata
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: install dependencies
-        run: |
-          pip install --upgrade pip
-          pip install "asv[virtualenv]"
-        env:
-          PIP_CONSTRAINT: benchmarks/benchmark.txt
-
-      - name: asv machine
-        run: asv machine --yes
-
-      - name: Run benchmarks PR
-        uses: aganders3/headless-gui@v2
-        with:
-          run: |
-            asv run --show-stderr --quick  --attribute timeout=300 HEAD^!
-        env:
-          PR: 1 # prevents asv from running very compute-intensive benchmarks
-          PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt
-
-      - name: Fetch latest main
-        run: git fetch origin main
-
-      - name: Fetch latest release commit
-        run: git fetch origin ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}
-
-      - name: Ensure local main exists
-        run: |
-          CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-          if [ "$CURRENT_BRANCH" != "main" ]; then
-            git branch main origin/main
-          fi
-
-      - name: Run benchmarks latest release
-        uses: aganders3/headless-gui@v2
-        with:
-          run: |
-            asv run --show-stderr --quick --attribute timeout=300 ${{ fromJSON(steps.latest_release.outputs.data).target_commitish }}^!
-        env:
-          PR: 1 # prevents asv from running very compute-intensive benchmarks
-          PIP_CONSTRAINT: ${{ github.workspace }}/benchmarks/benchmark.txt
+          path: /Users/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/generated/*

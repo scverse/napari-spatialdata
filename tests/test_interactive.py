@@ -11,13 +11,15 @@ from spatialdata import SpatialData
 from spatialdata.models import Image2DModel
 
 from napari_spatialdata._interactive import Interactive
-from tests.conftest import PlotTester, PlotTesterMeta
+from tests.conftest import OFFSCREEN, PlotTester, PlotTesterMeta
 
 ARM_PROBLEM = (
     parse_version(version("numpy")) < parse_version("2") and sys.platform == "darwin" and platform.machine() == "arm64"
 )
 
 
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
+@pytest.mark.usefixtures("mock_app_model")
 class TestImages(PlotTester, metaclass=PlotTesterMeta):
     def test_plot_can_add_element_image(self, sdata_blobs: SpatialData):
         blobs_image = Image2DModel.parse(sdata_blobs["blobs_image"], c_coords=("r", "g", "b"))
@@ -51,6 +53,8 @@ class TestImages(PlotTester, metaclass=PlotTesterMeta):
         Viewer.close_all()
 
 
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
+@pytest.mark.usefixtures("mock_app_model")
 def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     i = Interactive(sdata=sdata_blobs, headless=True)
     i.add_element(element="blobs_image", element_coordinate_system="global", view_element_system=True)
@@ -59,6 +63,8 @@ def test_plot_can_add_element_switch_cs(sdata_blobs: SpatialData):
     Viewer.close_all()
 
 
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
+@pytest.mark.usefixtures("mock_app_model")
 class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
     def test_get_layer_existing(self, sdata_blobs: SpatialData):
         i = Interactive(sdata=sdata_blobs, headless=True)
@@ -88,6 +94,7 @@ class TestInteractive(PlotTester, metaclass=PlotTesterMeta):
         Viewer.close_all()
 
 
+@pytest.mark.skipif(OFFSCREEN, reason="Not running in offscreen mode")
 @pytest.mark.skipif(ARM_PROBLEM, reason="Test will segfault on ARM with numpy < 2")
 @pytest.mark.use_thread_loader
 def test_load_data_in_thread(make_napari_viewer: Callable[[], Viewer], sdata_blobs: SpatialData, qtbot: QtBot) -> None:

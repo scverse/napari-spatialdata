@@ -10,10 +10,14 @@
 [![pre-commit.ci status](https://results.pre-commit.ci/badge/github/scverse/napari-spatialdata/main.svg)](https://results.pre-commit.ci/latest/github/scverse/napari-spatialdata/main)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-spatialdata)](https://napari-hub.org/plugins/napari-spatialdata)
 [![DOI](https://zenodo.org/badge/477021400.svg)](https://zenodo.org/badge/latestdoi/477021400)
+[![Documentation][badge-pypi]][link-pypi]
+[![Anaconda-Server Badge](https://anaconda.org/conda-forge/napari-spatialdata/badges/version.svg)](https://anaconda.org/conda-forge/napari-spatialdata)
+
+[badge-pypi]: https://badge.fury.io/py/napari-spatialdata.svg
+[link-pypi]: https://pypi.org/project/napari-spatialdata/
 
 This repository contains a napari plugin for interactively exploring and annotating
-SpatialData objects. Here you can find the [napari-spatialdata documentation]
-(https://spatialdata.scverse.org/projects/napari/en/stable/notebooks/spatialdata.html). `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [spatialdata documentation](https://spatialdata.scverse.org/).
+SpatialData objects. Here you can find the [napari-spatialdata documentation](https://spatialdata.scverse.org/projects/napari/en/stable/notebooks/spatialdata.html). `napari-spatialdata` is part of the `SpatialData` ecosystem. To learn more about SpatialData, please see the [spatialdata documentation](https://spatialdata.scverse.org/).
 
 ## Installation
 
@@ -22,6 +26,13 @@ You can install `napari-spatialdata` via [pip]:
     pip install napari-spatialdata[all]
 
 The `all` command will install the qt bindings `PyQt5`.
+
+Napari now also includes multiple triangulation backends. These improve the speed by which a napari 'Shapes' layer gets
+loaded (this does not improve the speed of editing large numbers of shapes yet!). See also the napari
+[documentation](https://napari.org/stable/guides/triangulation.html) and already slightly older [blog post](https://napari.org/island-dispatch/blog/triangles_speedup_beta.html). For installation via
+pip:
+
+    pip install napari-spatialdata[all, bermuda]
 
 You can find more details on this in the [installation instructions](https://spatialdata.scverse.org/en/stable/installation.html).
 

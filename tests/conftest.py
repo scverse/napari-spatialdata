@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import random
 import string
 from abc import ABC, ABCMeta
@@ -22,7 +23,9 @@ from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
 from spatialdata.models import TableModel
 
-from napari_spatialdata.utils._test_utils import save_image, take_screenshot
+from napari_spatialdata.utils._test_utils import export_figure, save_image
+
+OFFSCREEN = os.environ.get("QT_QPA_PLATFORM", "") == "offscreen"
 
 HERE: Path = Path(__file__).parent
 
@@ -33,7 +36,6 @@ ACTUAL = HERE / "plots/generated"
 TOL = 70
 DPI = 40
 
-RNG = np.random.default_rng(seed=0)
 DATA_LEN = 100
 
 
@@ -145,9 +147,10 @@ def labels():
 
 @pytest.fixture
 def prepare_continuous_test_data():
-    x_vec = RNG.random(DATA_LEN)
-    y_vec = RNG.random(DATA_LEN)
-    color_vec = RNG.random(DATA_LEN)
+    rng = np.random.default_rng(SEED)
+    x_vec = rng.random(DATA_LEN)
+    y_vec = rng.random(DATA_LEN)
+    color_vec = rng.random(DATA_LEN)
 
     x_data = {"vec": x_vec}
     y_data = {"vec": y_vec}
@@ -161,8 +164,9 @@ def prepare_continuous_test_data():
 
 @pytest.fixture
 def prepare_discrete_test_data():
-    x_vec = RNG.random(DATA_LEN)
-    y_vec = RNG.random(DATA_LEN)
+    rng = np.random.default_rng(SEED)
+    x_vec = rng.random(DATA_LEN)
+    y_vec = rng.random(DATA_LEN)
     color_vec = np.zeros(DATA_LEN).astype(int)
 
     x_data = {"vec": x_vec}
@@ -214,7 +218,7 @@ class PlotTester(ABC):
         out_path = ACTUAL / f"{basename}.png"
 
         viewer = napari.current_viewer()
-        save_image(take_screenshot(viewer, canvas_only=True), out_path)
+        save_image(export_figure(viewer), str(out_path))
 
         if tolerance is None:
             # see https://github.com/theislab/squidpy/pull/302

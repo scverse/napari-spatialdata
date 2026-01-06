@@ -18,7 +18,7 @@ from shapely import Polygon
 from spatialdata import get_element_annotators, get_element_instances
 from spatialdata._core.query.relational_query import _left_join_spatialelement_table
 from spatialdata._types import ArrayLike
-from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channels
+from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channel_names
 from spatialdata.transformations import Affine, Identity
 
 from napari_spatialdata._model import DataModel
@@ -52,6 +52,12 @@ class SpatialDataViewer(QObject):
         self.sdata = sdata
         self._model = DataModel()
         self._layer_event_caches: dict[str, list[dict[str, Any]]] = {}
+        self.viewer.bind_key("Ctrl-L", self._inherit_metadata, overwrite=True)
+
+        logger.warning(
+            "Due to Shift-L being used as shortcut in napari, it is being deprecated and might not link a new layer"
+            " to an existing SpatialData object in the viewer. Please use ⌘-L on MacOS or else Ctrl-L.",
+        )
         self.viewer.bind_key("Shift-L", self._inherit_metadata, overwrite=True)
         self.viewer.bind_key("Shift-E", self._save_to_sdata, overwrite=True)
         self.viewer.layers.events.inserted.connect(self._on_layer_insert)
@@ -467,7 +473,7 @@ class SpatialDataViewer(QObject):
         affine = _get_transform(sdata.images[original_name], selected_cs)
         rgb_image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 
-        channels = ("RGB(A)",) if rgb else get_channels(sdata.images[original_name])
+        channels = ("RGB(A)",) if rgb else get_channel_names(sdata.images[original_name])
 
         adata = AnnData(shape=(0, len(channels)), var=pd.DataFrame(index=channels))
 
