@@ -9,19 +9,23 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
+import geopandas as gpd
 import napari
 import numpy as np
 import pandas as pd
 import pytest
 from anndata import AnnData
+from dask.dataframe import from_pandas
 from loguru import logger
 from matplotlib.testing.compare import compare_images
 from scipy import ndimage as ndi
+from shapely import MultiPolygon, Polygon
 from skimage import data
 from spatialdata import SpatialData
 from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
-from spatialdata.models import TableModel
+from spatialdata.models import PointsModel, ShapesModel, TableModel
+from spatialdata.transformations import Identity, set_transformation
 
 from napari_spatialdata.utils._test_utils import export_figure, save_image
 
@@ -259,3 +263,61 @@ def caplog(caplog):
 def always_sync(monkeypatch, request):
     if request.node.get_closest_marker("use_thread_loader") is None:
         monkeypatch.setattr("napari_spatialdata._sdata_widgets.PROBLEMATIC_NUMPY_MACOS", True)
+
+
+@pytest.fixture
+def sdata_3d_points() -> SpatialData:
+    """Create a SpatialData object with 3D points (x, y, z coordinates)."""
+    n_points = 10
+    rng = np.random.default_rng(SEED)
+    df = pd.DataFrame(
+        {
+            "x": rng.uniform(0, 100, n_points),
+            "y": rng.uniform(0, 100, n_points),
+            "z": rng.uniform(0, 50, n_points),
+        }
+    )
+    dask_df = from_pandas(df, npartitions=1)
+    points = PointsModel.parse(dask_df)
+    set_transformation(points, {"global": Identity()}, set_all=True)
+
+    return SpatialData(points={"points_3d": points})
+
+
+@pytest.fixture
+def sdata_2_5d_shapes() -> SpatialData:
+    """Create a SpatialData object with 2.5D shapes (3 layers at different z, polygons + multipolygons)."""
+    shapes = {}
+
+    geometries = []
+    z_values = []
+    indices = []
+    for i, z_val in enumerate([0.0, 10.0, 20.0]):
+        # Add simple polygons (triangles and quadrilaterals)
+        poly1 = Polygon([(10 + i * 5, 10), (20 + i * 5, 10), (15 + i * 5, 20)])
+        poly2 = Polygon([(30 + i * 5, 30), (40 + i * 5, 30), (40 + i * 5, 40), (30 + i * 5, 40)])
+        geometries.extend([poly1, poly2])
+        indices.extend([0, 1])
+        z_values.extend([z_val] * 2)
+
+        # Add a multipolygon (two separate polygon parts)
+        multi_poly = MultiPolygon(
+            [
+                Polygon([(50 + i * 5, 10), (60 + i * 5, 10), (55 + i * 5, 20)]),
+                Polygon([(50 + i * 5, 30), (60 + i * 5, 30), (60 + i * 5, 40), (50 + i * 5, 40)]),
+            ]
+        )
+        geometries.append(multi_poly)
+        indices.append(2)
+        z_values.append(z_val)
+
+    gdf = gpd.GeoDataFrame(
+        {"z": z_values, "geometry": geometries},
+        index=indices,
+    )
+
+    shape_element = ShapesModel.parse(gdf)
+    set_transformation(shape_element, {"global": Identity()}, set_all=True)
+    shapes["shapes_2.5d"] = shape_element
+
+    return SpatialData(shapes=shapes)
