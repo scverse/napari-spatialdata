@@ -31,7 +31,7 @@ from vispy.scene.widgets import ColorBarWidget
 try:
     from scanpy.plotting._utils import _set_default_colors_for_categorical_obs as set_default_colors_for_categorical_obs
 except ImportError:
-    from scanpy.plotting._utils import set_default_colors_for_categorical_obs
+    pass
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import _min_max_norm, get_napari_version
