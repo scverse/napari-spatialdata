@@ -24,13 +24,14 @@ from superqt import QRangeSlider
 from vispy import scene
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
+
 # See https://github.com/scverse/squidpy/issues/1061 for more details.
 # Scanpy 0.11.x-0.12.x renamed set_default_colors_for_categorical_obs to _set_default_colors_for_categorical_obs
 # and then changed it back. Try underscore version first, fall back to non-underscore.
 try:
     from scanpy.plotting._utils import _set_default_colors_for_categorical_obs as set_default_colors_for_categorical_obs
 except ImportError:
-    from scanpy.plotting._utils import set_default_colors_for_categorical_obs
+    pass
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import _min_max_norm, get_napari_version
