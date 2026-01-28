@@ -32,6 +32,14 @@ try:
 except ImportError:
     from scanpy.plotting._utils import set_default_colors_for_categorical_obs
 
+# See https://github.com/scverse/squidpy/issues/1061 for more details.
+# Scanpy 0.11.x-0.12.x renamed set_default_colors_for_categorical_obs to _set_default_colors_for_categorical_obs
+# and then changed it back. Try underscore version first, fall back to non-underscore.
+try:
+    from scanpy.plotting._utils import _set_colors_for_categorical_obs as set_colors_for_categorical_obs
+except ImportError:
+    from scanpy.plotting._utils import set_colors_for_categorical_obs
+
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import _min_max_norm, get_napari_version
 
@@ -219,7 +227,7 @@ class AListWidget(ListWidget):
         if self._attr != "columns_df":
             if vec_color_name not in self.model.adata.uns:
                 colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
-                _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
+                set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
                 colors = colorer.uns["vec_colors"]
                 color_dict = dict(zip(vec.cat.categories, colors, strict=False))
                 color_dict.update({np.nan: "#808080ff"})
@@ -230,7 +238,7 @@ class AListWidget(ListWidget):
             df = layer.metadata["_columns_df"]
             if vec_color_name not in df.columns:
                 colorer = AnnData(shape=(len(vec), 0), obs=pd.DataFrame(index=vec.index, data={"vec": vec}))
-                _set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
+                set_colors_for_categorical_obs(colorer, "vec", palette="tab20")
                 colors = colorer.uns["vec_colors"]
                 color_dict = dict(zip(vec.cat.categories, colors, strict=False))
                 color_dict.update({np.nan: "#808080ff"})

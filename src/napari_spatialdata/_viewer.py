@@ -18,12 +18,11 @@ from shapely import Polygon
 from spatialdata import get_element_annotators, get_element_instances
 from spatialdata._core.query.relational_query import _left_join_spatialelement_table
 from spatialdata._types import ArrayLike
-from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_channel_names
+from spatialdata.models import PointsModel, ShapesModel, TableModel, force_2d, get_axes_names, get_channel_names
 from spatialdata.transformations import Affine, Identity
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.constants import config
-from napari_spatialdata.constants.config import CIRCLES_AS_POINTS
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
     _get_ellipses_from_circles,
@@ -470,7 +469,7 @@ class SpatialDataViewer(QObject):
         if multi:
             original_name = original_name[: original_name.rfind("_")]
 
-        affine = _get_transform(sdata.images[original_name], selected_cs)
+        affine = _get_transform(sdata.images[original_name], selected_cs, include_z=True)
         rgb_image, rgb = _adjust_channels_order(element=sdata.images[original_name])
 
         channels = ("RGB(A)",) if rgb else get_channel_names(sdata.images[original_name])
@@ -517,6 +516,7 @@ class SpatialDataViewer(QObject):
         df = sdata.shapes[original_name]
         affine = _get_transform(sdata.shapes[original_name], selected_cs)
 
+        # 2.5D circles not supported yet
         xy = np.array([df.geometry.x, df.geometry.y]).T
         yx = np.fliplr(xy)
         radii = df.radius.to_numpy()
@@ -541,10 +541,10 @@ class SpatialDataViewer(QObject):
         version = get_napari_version()
         kwargs: dict[str, Any] = (
             {"edge_width": 0.0}
-            if version <= packaging.version.parse("0.4.20") or not CIRCLES_AS_POINTS
+            if version <= packaging.version.parse("0.4.20") or not config.CIRCLES_AS_POINTS
             else {"border_width": 0.0}
         )
-        if CIRCLES_AS_POINTS:
+        if config.CIRCLES_AS_POINTS:
             layer = Points(
                 yx,
                 name=key,
@@ -556,7 +556,7 @@ class SpatialDataViewer(QObject):
             assert affine is not None
             self._adjust_radii_of_points_layer(layer=layer, affine=affine)
         else:
-            if version <= packaging.version.parse("0.4.20") or not CIRCLES_AS_POINTS:
+            if version <= packaging.version.parse("0.4.20") or not config.CIRCLES_AS_POINTS:
                 kwargs |= {"edge_color": "white"}
             else:
                 kwargs |= {"border_color": "white"}
@@ -597,7 +597,8 @@ class SpatialDataViewer(QObject):
             original_name = original_name[: original_name.rfind("_")]
 
         df = sdata.shapes[original_name]
-        affine = _get_transform(sdata.shapes[original_name], selected_cs)
+        include_z = not config.PROJECT_2_5D_SHAPES_TO_2D
+        affine = _get_transform(sdata.shapes[original_name], selected_cs, include_z=include_z)
 
         # when mulitpolygons are present, we select the largest ones
         if "MultiPolygon" in np.unique(df.geometry.type):
@@ -609,7 +610,7 @@ class SpatialDataViewer(QObject):
             df = df.sort_index()  # reset the index to the first order
 
         simplify = len(df) > config.POLYGON_THRESHOLD
-        polygons, indices = _get_polygons_properties(df, simplify)
+        polygons, indices = _get_polygons_properties(df, simplify, include_z=include_z)
 
         # this will only work for polygons and not for multipolygons
         polygons = _transform_coordinates(polygons, f=lambda x: x[::-1])
@@ -662,7 +663,7 @@ class SpatialDataViewer(QObject):
             original_name = original_name[: original_name.rfind("_")]
 
         indices = get_element_instances(sdata.labels[original_name])
-        affine = _get_transform(sdata.labels[original_name], selected_cs)
+        affine = _get_transform(sdata.labels[original_name], selected_cs, include_z=True)
         rgb_labels, _ = _adjust_channels_order(element=sdata.labels[original_name])
 
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
@@ -706,8 +707,10 @@ class SpatialDataViewer(QObject):
         if multi:
             original_name = original_name[: original_name.rfind("_")]
 
+        axes = get_axes_names(sdata.points[original_name])
         points = sdata.points[original_name].compute()
-        affine = _get_transform(sdata.points[original_name], selected_cs)
+        include_z = "z" in axes and not config.PROJECT_3D_POINTS_TO_2D
+        affine = _get_transform(sdata.points[original_name], selected_cs, include_z=include_z)
         adata, table_name, table_names = self._get_table_data(sdata, original_name)
 
         if len(points) < config.POINT_THRESHOLD:
@@ -727,14 +730,16 @@ class SpatialDataViewer(QObject):
             _, adata = _left_join_spatialelement_table(
                 {"points": {original_name: subsample_points}}, sdata[table_name], match_rows="left"
             )
-        xy = subsample_points[["y", "x"]].values
-        np.fliplr(xy)
+        axes = sorted(axes, reverse=True)
+        if not include_z and "z" in axes:
+            axes.remove("z")
+        coords = subsample_points[axes].values
         # radii_size = _calc_default_radii(self.viewer, sdata, selected_cs)
         radii_size = 3
         version = get_napari_version()
         kwargs = {"edge_width": 0.0} if version <= packaging.version.parse("0.4.20") else {"border_width": 0.0}
         layer = Points(
-            xy,
+            coords,
             name=key,
             size=radii_size * 2,
             affine=affine,

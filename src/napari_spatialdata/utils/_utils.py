@@ -181,7 +181,9 @@ def _transform_coordinates(data: list[Any], f: Callable[..., Any]) -> list[Any]:
     return [[f(xy) for xy in sublist] for sublist in data]
 
 
-def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | ArrayLike:
+def _get_transform(
+    element: SpatialElement, coordinate_system_name: str | None = None, include_z: bool | None = None
+) -> None | ArrayLike:
     if not isinstance(element, DataArray | DataTree | DaskDataFrame | GeoDataFrame):
         raise RuntimeError("Cannot get transform for {type(element)}")
 
@@ -189,7 +191,10 @@ def _get_transform(element: SpatialElement, coordinate_system_name: str | None =
     cs = transformations.keys().__iter__().__next__() if coordinate_system_name is None else coordinate_system_name
     ct = transformations.get(cs)
     if ct:
-        return ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
+        axes_element = get_axes_names(element)
+        include_z = include_z and "z" in axes_element
+        axes_transformation = ("z", "y", "x") if include_z else ("y", "x")
+        return ct.to_affine_matrix(input_axes=axes_transformation, output_axes=axes_transformation)
     return None
 
 
