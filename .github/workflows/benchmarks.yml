@@ -170,7 +170,7 @@ jobs:
 
           fi
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: asv-benchmark-results-${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}-${{ matrix.benchmark-name }}
@@ -182,13 +182,13 @@ jobs:
     if: always()
     steps:
       - name: Download artifact
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           pattern: asv-benchmark-results*
           path: asv_result
           merge-multiple: true
       - name: Upload artifact
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: asv-benchmark-results-${{ github.run_id }}-${{ github.run_number }}-${{ github.run_attempt }}
           path: asv_result

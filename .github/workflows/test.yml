@@ -66,7 +66,7 @@ jobs:
 
       - name: Archive figures generated during testing
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: plotting-results-${{ matrix.python-version }}-${{ matrix.platform }}
           path: /Users/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/generated/*
