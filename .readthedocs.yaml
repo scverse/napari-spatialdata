@@ -12,7 +12,7 @@ python:
     - method: pip
       path: .
       extra_requirements:
-        - "doc"
+        - "docs"
         - "all"
         - "readthedocs"
         - "pre"
