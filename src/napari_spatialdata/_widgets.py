@@ -29,14 +29,6 @@ from vispy.scene.widgets import ColorBarWidget
 # Scanpy 0.11.x-0.12.x renamed set_default_colors_for_categorical_obs to _set_default_colors_for_categorical_obs
 # and then changed it back. Try underscore version first, fall back to non-underscore.
 try:
-    from scanpy.plotting._utils import _set_default_colors_for_categorical_obs as set_default_colors_for_categorical_obs
-except ImportError:
-    pass
-
-# See https://github.com/scverse/squidpy/issues/1061 for more details.
-# Scanpy 0.11.x-0.12.x renamed set_default_colors_for_categorical_obs to _set_default_colors_for_categorical_obs
-# and then changed it back. Try underscore version first, fall back to non-underscore.
-try:
     from scanpy.plotting._utils import _set_colors_for_categorical_obs as set_colors_for_categorical_obs
 except ImportError:
     from scanpy.plotting._utils import set_colors_for_categorical_obs
