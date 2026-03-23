@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# ruff: noqa: E402
 # MUST set environment variables BEFORE any Qt/napari/vispy imports
 # to enable headless mode in CI environments (Ubuntu/Linux without display)
 import os
@@ -15,8 +16,8 @@ os.environ.setdefault("NAPARI_HEADLESS", "1")
 def _patch_napari_gl_for_headless() -> None:
     """Patch napari's OpenGL utility functions to work without a real display.
 
-    The patch implements two workaround that are no-ops in environments that 
-    have a real display (CI with Xvfb, macOS, local dev). Once the upstreams 
+    The patch implements two workaround that are no-ops in environments that
+    have a real display (CI with Xvfb, macOS, local dev). Once the upstreams
     bugs are addressed this patch should be removed.
 
     In the Qt offscreen platform ``glGetString(GL_EXTENSIONS)`` returns ``None``
@@ -39,8 +40,8 @@ def _patch_napari_gl_for_headless() -> None:
       imported it) – fall back to ``(2048, 2048)`` when the GL query returns 0.
     """
     try:
-        import vispy.gloo.gl._pyopengl2 as _pyopengl2_mod
         import vispy.gloo.gl as _vgl
+        import vispy.gloo.gl._pyopengl2 as _pyopengl2_mod
 
         _orig_get_param = _pyopengl2_mod.glGetParameter
 
@@ -72,23 +73,23 @@ def _patch_napari_gl_for_headless() -> None:
                     max_2d = _vgl.glGetParameter(_vgl.GL_MAX_TEXTURE_SIZE)
                     max_3d = _vgl.glGetParameter(32883)  # GL_MAX_3D_TEXTURE_SIZE
                 return (int(max_2d) if max_2d else 2048, int(max_3d) if max_3d else 2048)
-            except Exception:
+            except Exception:  # noqa: BLE001
                 return 2048, 2048
 
-        import napari._vispy.utils.gl as _gl_mod
+        import napari._vispy.canvas as _canvas_mod
+        import napari._vispy.layers.base as _base_mod
         import napari._vispy.layers.image as _img_mod
         import napari._vispy.layers.labels as _lbl_mod
-        import napari._vispy.layers.base as _base_mod
-        import napari._vispy.canvas as _canvas_mod
+        import napari._vispy.utils.gl as _gl_mod
 
         for _mod in (_gl_mod, _img_mod, _lbl_mod, _base_mod, _canvas_mod):
             if hasattr(_mod, "get_max_texture_sizes"):
                 _mod.get_max_texture_sizes = _safe_get_max_texture_sizes
 
-    except Exception as exc:  # pragma: no cover
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover
         import warnings
 
-        warnings.warn(f"Could not patch napari GL functions for headless mode: {exc}")
+        warnings.warn(f"Could not patch napari GL functions for headless mode: {exc}", stacklevel=2)
 
 
 if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
