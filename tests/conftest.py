@@ -39,8 +39,8 @@ def _patch_napari_gl_for_headless() -> None:
       imported it) – fall back to ``(2048, 2048)`` when the GL query returns 0.
     """
     try:
-        import vispy.gloo.gl._pyopengl2 as _pyopengl2_mod
         import vispy.gloo.gl as _vgl
+        import vispy.gloo.gl._pyopengl2 as _pyopengl2_mod
 
         _orig_get_param = _pyopengl2_mod.glGetParameter
 
@@ -75,11 +75,11 @@ def _patch_napari_gl_for_headless() -> None:
             except Exception:
                 return 2048, 2048
 
-        import napari._vispy.utils.gl as _gl_mod
+        import napari._vispy.canvas as _canvas_mod
+        import napari._vispy.layers.base as _base_mod
         import napari._vispy.layers.image as _img_mod
         import napari._vispy.layers.labels as _lbl_mod
-        import napari._vispy.layers.base as _base_mod
-        import napari._vispy.canvas as _canvas_mod
+        import napari._vispy.utils.gl as _gl_mod
 
         for _mod in (_gl_mod, _img_mod, _lbl_mod, _base_mod, _canvas_mod):
             if hasattr(_mod, "get_max_texture_sizes"):
