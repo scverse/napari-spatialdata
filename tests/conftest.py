@@ -15,16 +15,16 @@ os.environ.setdefault("NAPARI_HEADLESS", "1")
 def _patch_napari_gl_for_headless() -> None:
     """Patch napari's OpenGL utility functions to work without a real display.
 
-    This patch should be removed once the problem is addressed upstream.
+    The patch implements two workaround that are no-ops in environments that 
+    have a real display (CI with Xvfb, macOS, local dev). Once the upstreams 
+    bugs are addressed this patch should be removed.
 
     In the Qt offscreen platform ``glGetString(GL_EXTENSIONS)`` returns ``None``
     (raising AttributeError on ``.decode()``) and ``glGetIntegerv`` returns an
     empty tuple instead of an integer. napari then stores ``None`` as the max
     texture size, which later crashes ``TiledImageNode``.
 
-    This is a workaround for two upstream bugs — remove this patch once they
-    are fixed:
-
+    Upstream bugs:
     * **vispy** – ``vispy/gloo/gl/_pyopengl2.py`` does not guard against
       ``GL.glGetString()`` returning ``None`` (no valid OpenGL context).
 
