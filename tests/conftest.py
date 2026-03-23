@@ -10,6 +10,90 @@ if sys.platform == "linux":
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 os.environ.setdefault("NAPARI_HEADLESS", "1")
+
+
+def _patch_napari_gl_for_headless() -> None:
+    """Patch napari's OpenGL utility functions to work without a real display.
+
+    This patch should be removed once the problem is addressed upstream.
+
+    In the Qt offscreen platform ``glGetString(GL_EXTENSIONS)`` returns ``None``
+    (raising AttributeError on ``.decode()``) and ``glGetIntegerv`` returns an
+    empty tuple instead of an integer. napari then stores ``None`` as the max
+    texture size, which later crashes ``TiledImageNode``.
+
+    This is a workaround for two upstream bugs — remove this patch once they
+    are fixed:
+
+    * **vispy** – ``vispy/gloo/gl/_pyopengl2.py`` does not guard against
+      ``GL.glGetString()`` returning ``None`` (no valid OpenGL context).
+
+    * **napari** – ``get_gl_extensions()`` and ``get_max_texture_sizes()`` in
+      ``napari/_vispy/utils/gl.py`` do not handle the failure/empty-result
+      case from the underlying GL calls, crashing when run in offscreen mode.
+
+    Fixes applied here:
+    * ``vispy.gloo.gl._pyopengl2.glGetParameter`` – return ``""`` for string
+      queries when the result is ``None``, and ``0`` for empty-tuple results.
+    * ``napari._vispy.utils.gl.get_max_texture_sizes`` (and every module that
+      imported it) – fall back to ``(2048, 2048)`` when the GL query returns 0.
+    """
+    try:
+        import vispy.gloo.gl._pyopengl2 as _pyopengl2_mod
+        import vispy.gloo.gl as _vgl
+
+        _orig_get_param = _pyopengl2_mod.glGetParameter
+
+        def _safe_get_param(pname):  # type: ignore[no-untyped-def]
+            try:
+                result = _orig_get_param(pname)
+            except AttributeError:
+                # glGetString returned None – no valid OpenGL context yet
+                return ""
+            if result is None:
+                return ""
+            if isinstance(result, tuple) and len(result) == 0:
+                return 0
+            return result
+
+        _pyopengl2_mod.glGetParameter = _safe_get_param
+        _vgl.glGetParameter = _safe_get_param
+
+        # get_max_texture_sizes caches (None, None) when GL returns 0/empty;
+        # replace it everywhere it was imported so image layers get valid sizes.
+        from functools import lru_cache
+
+        @lru_cache(maxsize=1)
+        def _safe_get_max_texture_sizes():  # type: ignore[no-untyped-def]
+            try:
+                from napari._vispy.utils.gl import _opengl_context
+
+                with _opengl_context():
+                    max_2d = _vgl.glGetParameter(_vgl.GL_MAX_TEXTURE_SIZE)
+                    max_3d = _vgl.glGetParameter(32883)  # GL_MAX_3D_TEXTURE_SIZE
+                return (int(max_2d) if max_2d else 2048, int(max_3d) if max_3d else 2048)
+            except Exception:
+                return 2048, 2048
+
+        import napari._vispy.utils.gl as _gl_mod
+        import napari._vispy.layers.image as _img_mod
+        import napari._vispy.layers.labels as _lbl_mod
+        import napari._vispy.layers.base as _base_mod
+        import napari._vispy.canvas as _canvas_mod
+
+        for _mod in (_gl_mod, _img_mod, _lbl_mod, _base_mod, _canvas_mod):
+            if hasattr(_mod, "get_max_texture_sizes"):
+                _mod.get_max_texture_sizes = _safe_get_max_texture_sizes
+
+    except Exception as exc:  # pragma: no cover
+        import warnings
+
+        warnings.warn(f"Could not patch napari GL functions for headless mode: {exc}")
+
+
+if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+    _patch_napari_gl_for_headless()
+
 import random
 import string
 from abc import ABC, ABCMeta
