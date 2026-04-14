@@ -462,10 +462,13 @@ def generate_random_color_hex() -> str:
 def _get_ellipses_from_circles(yx: ArrayLike, radii: ArrayLike) -> ArrayLike:
     """Convert circles to ellipses.
 
+    Supports both 2D (y, x) and 2.5D (z, y, x) centroids. For 2.5D input the radius is
+    applied only to y and x while z is kept constant across the four corner vertices.
+
     Parameters
     ----------
     yx
-        Centroids of the circles.
+        Centroids of the circles with shape ``(N, 2)`` or ``(N, 3)``.
     radii
         Radii of the circles.
 
@@ -475,13 +478,27 @@ def _get_ellipses_from_circles(yx: ArrayLike, radii: ArrayLike) -> ArrayLike:
         Ellipses.
     """
     ndim = yx.shape[1]
-    assert ndim == 2
-    r = np.stack([radii] * ndim, axis=1)
-    lower_left = yx - r
-    upper_right = yx + r
+    assert ndim in (2, 3)
+
+    if ndim == 3:
+        z = yx[:, :1]
+        yx_2d = yx[:, 1:]
+    else:
+        yx_2d = yx
+
+    r = np.stack([radii, radii], axis=1)
+    lower_left = yx_2d - r
+    upper_right = yx_2d + r
     r[:, 0] = -r[:, 0]
-    lower_right = yx - r
-    upper_left = yx + r
+    lower_right = yx_2d - r
+    upper_left = yx_2d + r
+
+    if ndim == 3:
+        lower_left = np.column_stack([z, lower_left])
+        lower_right = np.column_stack([z, lower_right])
+        upper_right = np.column_stack([z, upper_right])
+        upper_left = np.column_stack([z, upper_left])
+
     ellipses = np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
     assert isinstance(ellipses, np.ndarray)
     return ellipses

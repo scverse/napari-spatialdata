@@ -119,7 +119,7 @@ from spatialdata import SpatialData
 from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
 from spatialdata.models import PointsModel, ShapesModel, TableModel
-from spatialdata.transformations import Identity, set_transformation
+from spatialdata.transformations import Affine, Identity, set_transformation
 
 from napari_spatialdata.utils._test_utils import export_figure, save_image
 
@@ -415,3 +415,59 @@ def sdata_2_5d_shapes() -> SpatialData:
     shapes["shapes_2.5d"] = shape_element
 
     return SpatialData(shapes=shapes)
+
+
+@pytest.fixture
+def sdata_2_5d_circles() -> SpatialData:
+    """Create a SpatialData object with 2.5D circles (circles at different z levels)."""
+    n_circles = 10
+    rng = np.random.default_rng(SEED)
+    gdf = gpd.GeoDataFrame(
+        {
+            "geometry": gpd.points_from_xy(
+                rng.uniform(0, 100, n_circles),
+                rng.uniform(0, 100, n_circles),
+            ),
+            "radius": rng.uniform(5, 15, n_circles),
+            "z": rng.uniform(0, 50, n_circles),
+        }
+    )
+    circles = ShapesModel.parse(gdf)
+    set_transformation(circles, {"global": Identity()}, set_all=True)
+
+    return SpatialData(shapes={"circles_2.5d": circles})
+
+
+@pytest.fixture
+def sdata_3d_points_two_cs() -> SpatialData:
+    """Create a SpatialData with 3D points registered to two coordinate systems.
+
+    The element lives in ``global`` (identity) and in ``scaled`` (2x scale
+    with a 10-unit z-translation).  This is useful for testing that
+    ``_affine_transform_layers`` produces a correctly-sized affine matrix
+    when switching between coordinate systems.
+    """
+    n_points = 5
+    rng = np.random.default_rng(SEED)
+    df = pd.DataFrame(
+        {
+            "x": rng.uniform(0, 100, n_points),
+            "y": rng.uniform(0, 100, n_points),
+            "z": rng.uniform(0, 50, n_points),
+        }
+    )
+    dask_df = from_pandas(df, npartitions=1)
+    points = PointsModel.parse(dask_df)
+
+    affine_matrix = np.array(
+        [
+            [2.0, 0.0, 0.0, 0.0],
+            [0.0, 2.0, 0.0, 0.0],
+            [0.0, 0.0, 2.0, 10.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+    scaled_affine = Affine(affine_matrix, input_axes=("x", "y", "z"), output_axes=("x", "y", "z"))
+    set_transformation(points, {"global": Identity(), "scaled": scaled_affine}, set_all=True)
+
+    return SpatialData(points={"points_3d": points})
