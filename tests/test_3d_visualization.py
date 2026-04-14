@@ -374,6 +374,206 @@ class TestSaveShapesPreservesZ:
             config.PROJECT_2_5D_SHAPES_TO_2D = original_value
 
 
+class TestUIToggle:
+    """Test the 3D settings checkboxes in SdataWidget."""
+
+    def test_toggle_3d_points_checkbox(self, make_napari_viewer: Any):
+        """Toggling the 3D points checkbox must update the config flag."""
+        original_value = config.PROJECT_3D_POINTS_TO_2D
+        try:
+            config.PROJECT_3D_POINTS_TO_2D = True
+
+            viewer = make_napari_viewer()
+            widget = SdataWidget(viewer, EventedList([]))
+
+            assert not widget.enable_3d_points.isChecked()
+            assert config.PROJECT_3D_POINTS_TO_2D is True
+
+            widget.enable_3d_points.setChecked(True)
+            assert config.PROJECT_3D_POINTS_TO_2D is False
+
+            widget.enable_3d_points.setChecked(False)
+            assert config.PROJECT_3D_POINTS_TO_2D is True
+        finally:
+            config.PROJECT_3D_POINTS_TO_2D = original_value
+
+    def test_toggle_2_5d_shapes_checkbox(self, make_napari_viewer: Any):
+        """Toggling the 2.5D shapes checkbox must update the config flag."""
+        original_value = config.PROJECT_2_5D_SHAPES_TO_2D
+        try:
+            config.PROJECT_2_5D_SHAPES_TO_2D = True
+
+            viewer = make_napari_viewer()
+            widget = SdataWidget(viewer, EventedList([]))
+
+            assert not widget.enable_2_5d_shapes.isChecked()
+            assert config.PROJECT_2_5D_SHAPES_TO_2D is True
+
+            widget.enable_2_5d_shapes.setChecked(True)
+            assert config.PROJECT_2_5D_SHAPES_TO_2D is False
+
+            widget.enable_2_5d_shapes.setChecked(False)
+            assert config.PROJECT_2_5D_SHAPES_TO_2D is True
+        finally:
+            config.PROJECT_2_5D_SHAPES_TO_2D = original_value
+
+    def test_toggle_affects_loaded_points(
+        self,
+        make_napari_viewer: Any,
+        sdata_3d_points: SpatialData,
+    ):
+        """Loading points after toggling 3D on must produce 3D coordinates."""
+        original_value = config.PROJECT_3D_POINTS_TO_2D
+        try:
+            config.PROJECT_3D_POINTS_TO_2D = True
+
+            viewer = make_napari_viewer()
+            widget = SdataWidget(viewer, EventedList([sdata_3d_points]))
+
+            widget.coordinate_system_widget._select_coord_sys("global")
+            widget.elements_widget._onItemChange("global")
+
+            widget._onClick("points_3d")
+            assert viewer.layers[0].data.shape[1] == 2
+
+            viewer.layers.clear()
+
+            widget.enable_3d_points.setChecked(True)
+            widget._onClick("points_3d")
+            assert viewer.layers[0].data.shape[1] == 3
+        finally:
+            config.PROJECT_3D_POINTS_TO_2D = original_value
+
+
+class TestZBinning:
+    """Test z-range slider filtering for points and shapes."""
+
+    def test_z_slider_hidden_without_z_data(self, make_napari_viewer: Any):
+        """The z-range slider must be hidden when no layer has z data."""
+        viewer = make_napari_viewer()
+        widget = SdataWidget(viewer, EventedList([]))
+        assert not widget._z_slider_visible
+
+    def test_z_slider_appears_with_3d_points(
+        self,
+        make_napari_viewer: Any,
+        sdata_3d_points: SpatialData,
+    ):
+        """Adding a 3D points layer must activate the z-range slider."""
+        original_value = config.PROJECT_3D_POINTS_TO_2D
+        try:
+            config.PROJECT_3D_POINTS_TO_2D = False
+
+            viewer = make_napari_viewer()
+            widget = SdataWidget(viewer, EventedList([sdata_3d_points]))
+
+            assert not widget._z_slider_visible
+
+            widget.coordinate_system_widget._select_coord_sys("global")
+            widget.elements_widget._onItemChange("global")
+            widget._onClick("points_3d")
+
+            widget._update_z_slider()
+            assert widget._z_slider_visible
+        finally:
+            config.PROJECT_3D_POINTS_TO_2D = original_value
+
+    def test_filter_points_by_z_range(
+        self,
+        make_napari_viewer: Any,
+        sdata_3d_points: SpatialData,
+    ):
+        """Narrowing the z range must hide points outside the range via the shown mask."""
+        original_value = config.PROJECT_3D_POINTS_TO_2D
+        try:
+            config.PROJECT_3D_POINTS_TO_2D = False
+
+            viewer = make_napari_viewer()
+            widget = SdataWidget(viewer, EventedList([sdata_3d_points]))
+
+            widget.coordinate_system_widget._select_coord_sys("global")
+            widget.elements_widget._onItemChange("global")
+            widget._onClick("points_3d")
+
+            layer = viewer.layers[0]
+            assert isinstance(layer, Points)
+            assert layer.data.shape[1] == 3
+            assert np.all(layer.shown)
+
+            z_vals = layer.data[:, 0]
+            z_mid = (z_vals.min() + z_vals.max()) / 2.0
+            widget.viewer_model.filter_layers_by_z_range(z_mid, z_vals.max())
+
+            expected_mask = (z_vals >= z_mid) & (z_vals <= z_vals.max())
+            np.testing.assert_array_equal(layer.shown, expected_mask)
+            assert not np.all(layer.shown)
+        finally:
+            config.PROJECT_3D_POINTS_TO_2D = original_value
+
+    def test_filter_shapes_by_z_range(
+        self,
+        make_napari_viewer: Any,
+        sdata_2_5d_shapes: SpatialData,
+    ):
+        """Narrowing the z range must set alpha=0 for shapes outside the range."""
+        original_value = config.PROJECT_2_5D_SHAPES_TO_2D
+        try:
+            config.PROJECT_2_5D_SHAPES_TO_2D = False
+
+            viewer = make_napari_viewer()
+            widget = SdataWidget(viewer, EventedList([sdata_2_5d_shapes]))
+
+            widget.coordinate_system_widget._select_coord_sys("global")
+            widget.elements_widget._onItemChange("global")
+            widget._onClick("shapes_2.5d")
+
+            layer = viewer.layers[0]
+            assert isinstance(layer, Shapes)
+
+            widget.viewer_model.filter_layers_by_z_range(15.0, 25.0)
+
+            z_vals = sdata_2_5d_shapes.shapes["shapes_2.5d"]["z"].values
+            n_shapes = len(layer.data)
+            if len(z_vals) == n_shapes:
+                expected_visible = (z_vals >= 15.0) & (z_vals <= 25.0)
+                for i, visible in enumerate(expected_visible):
+                    if visible:
+                        assert layer.edge_color[i, 3] == 1.0
+                    else:
+                        assert layer.edge_color[i, 3] == 0.0
+        finally:
+            config.PROJECT_2_5D_SHAPES_TO_2D = original_value
+
+    def test_get_z_range(
+        self,
+        make_napari_viewer: Any,
+        sdata_3d_points: SpatialData,
+    ):
+        """get_z_range must return the global min/max z across all layers."""
+        original_value = config.PROJECT_3D_POINTS_TO_2D
+        try:
+            config.PROJECT_3D_POINTS_TO_2D = False
+
+            viewer = make_napari_viewer()
+            widget = SdataWidget(viewer, EventedList([sdata_3d_points]))
+
+            assert widget.viewer_model.get_z_range() is None
+
+            widget.coordinate_system_widget._select_coord_sys("global")
+            widget.elements_widget._onItemChange("global")
+            widget._onClick("points_3d")
+
+            z_range = widget.viewer_model.get_z_range()
+            assert z_range is not None
+            z_min, z_max = z_range
+
+            actual_z = sdata_3d_points.points["points_3d"].compute()["z"].values
+            np.testing.assert_almost_equal(z_min, actual_z.min())
+            np.testing.assert_almost_equal(z_max, actual_z.max())
+        finally:
+            config.PROJECT_3D_POINTS_TO_2D = original_value
+
+
 class TestMixed2D3DVisualization:
     """Test mixed 2D and 3D visualization scenarios."""
 
