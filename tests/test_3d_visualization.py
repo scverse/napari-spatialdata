@@ -530,17 +530,17 @@ class TestZBinning:
             layer = viewer.layers[0]
             assert isinstance(layer, Shapes)
 
+            z_vals = np.array([float(s[0, 0]) for s in layer.data])
+            assert len(z_vals) == len(layer.data)
+
             widget.viewer_model.filter_layers_by_z_range(15.0, 25.0)
 
-            z_vals = sdata_2_5d_shapes.shapes["shapes_2.5d"]["z"].values
-            n_shapes = len(layer.data)
-            if len(z_vals) == n_shapes:
-                expected_visible = (z_vals >= 15.0) & (z_vals <= 25.0)
-                for i, visible in enumerate(expected_visible):
-                    if visible:
-                        assert layer.edge_color[i, 3] == 1.0
-                    else:
-                        assert layer.edge_color[i, 3] == 0.0
+            expected_visible = (z_vals >= 15.0) & (z_vals <= 25.0)
+            for i, visible in enumerate(expected_visible):
+                if visible:
+                    assert layer.edge_color[i, 3] > 0.0
+                else:
+                    assert layer.edge_color[i, 3] == 0.0
         finally:
             config.PROJECT_2_5D_SHAPES_TO_2D = original_value
 

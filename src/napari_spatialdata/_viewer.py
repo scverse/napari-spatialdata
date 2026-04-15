@@ -874,7 +874,8 @@ class SpatialDataViewer(QObject):
 
         For :class:`~napari.layers.Points` layers the ``shown`` property is
         used.  For :class:`~napari.layers.Shapes` layers the face and edge
-        color alpha channels are set to 0 for shapes outside the range.
+        color alpha channels are set to 0 for shapes outside the range while
+        preserving the original alpha for visible shapes.
         """
         for layer in self.viewer.layers:
             metadata = layer.metadata
@@ -896,17 +897,28 @@ class SpatialDataViewer(QObject):
                 layer.shown = mask
 
             elif isinstance(layer, Shapes):
-                if isinstance(element_data, GeoDataFrame) and "z" in element_data.columns:
-                    z_vals = element_data["z"].values
-                    n_shapes = len(layer.data)
-                    if len(z_vals) != n_shapes:
+                n_shapes = len(layer.data)
+                if n_shapes == 0:
+                    continue
+
+                if layer.data[0].shape[1] == 3:
+                    z_vals = np.array([float(s[0, 0]) for s in layer.data])
+                elif isinstance(element_data, GeoDataFrame) and "z" in element_data.columns:
+                    z_raw = element_data["z"].values
+                    if len(z_raw) != n_shapes:
                         continue
-                    mask = (z_vals >= z_min) & (z_vals <= z_max)
-                    face_colors = layer.face_color.copy()
-                    edge_colors = layer.edge_color.copy()
-                    face_colors[~mask, 3] = 0.0
-                    face_colors[mask, 3] = 1.0
-                    edge_colors[~mask, 3] = 0.0
-                    edge_colors[mask, 3] = 1.0
-                    layer.face_color = face_colors
-                    layer.edge_color = edge_colors
+                    z_vals = z_raw
+                else:
+                    continue
+
+                if "_original_face_color" not in metadata:
+                    metadata["_original_face_color"] = layer.face_color.copy()
+                    metadata["_original_edge_color"] = layer.edge_color.copy()
+
+                mask = (z_vals >= z_min) & (z_vals <= z_max)
+                face_colors = metadata["_original_face_color"].copy()
+                edge_colors = metadata["_original_edge_color"].copy()
+                face_colors[~mask, 3] = 0.0
+                edge_colors[~mask, 3] = 0.0
+                layer.face_color = face_colors
+                layer.edge_color = edge_colors
