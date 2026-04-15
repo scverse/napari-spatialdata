@@ -334,9 +334,7 @@ class TestSaveShapesPreservesZ:
 
             saved_z = parsed["z"].values
             original_unique_z = np.unique(sdata_2_5d_shapes.shapes["shapes_2.5d"]["z"].values)
-            np.testing.assert_array_almost_equal(
-                np.unique(saved_z), original_unique_z
-            )
+            np.testing.assert_array_almost_equal(np.unique(saved_z), original_unique_z)
         finally:
             config.PROJECT_2_5D_SHAPES_TO_2D = original_value
 

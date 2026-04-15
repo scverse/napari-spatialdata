@@ -25,9 +25,9 @@ from qtpy.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
-from superqt import QDoubleRangeSlider
 from spatialdata import SpatialData
 from spatialdata.models._utils import DEFAULT_COORDINATE_SYSTEM
+from superqt import QDoubleRangeSlider
 
 from napari_spatialdata._viewer import SpatialDataViewer
 from napari_spatialdata.constants import config
