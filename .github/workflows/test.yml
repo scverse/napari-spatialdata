@@ -62,11 +62,11 @@ jobs:
           PLATFORM: ${{ matrix.platform }}
 
       - name: Coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
 
       - name: Archive figures generated during testing
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: plotting-results-${{ matrix.python-version }}-${{ matrix.platform }}
           path: /Users/runner/work/napari-spatialdata/napari-spatialdata/tests/plots/generated/*
