@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from importlib.metadata import version
 from operator import itemgetter
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 import shapely
@@ -218,8 +218,6 @@ class SdataWidget(QWidget):
                 "points",
             }:
                 return
-
-            type_ = cast(str, type_)
 
             self.worker_thread.load_data(type_, text, sdata, selected_cs, multi)
             if not PROBLEMATIC_NUMPY_MACOS:
