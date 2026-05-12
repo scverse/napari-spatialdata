@@ -251,14 +251,12 @@ class DiscreteColorWidget(GraphicsWidget):
             color_button = ColorButton(color=color)
             color_button.setMinimumSize(60, 30)
             color_button.setMaximumSize(60, 30)
-            color_button.setStyleSheet(
-                """
+            color_button.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
                 border: none;
             }
-            """
-            )
+            """)
 
             self.color_buttons[obj_category] = color_button
 
@@ -384,8 +382,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.drawing_mode_button = QPushButton(self)
         self.drawing_mode_button.setIcon(QIcon(str(Path(__file__).parent / "resources/icons8-polygon-80.png")))
         self.drawing_mode_button.setIconSize(QSize(24, 24))
-        self.drawing_mode_button.setStyleSheet(
-            f"""
+        self.drawing_mode_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 border: none;
@@ -393,8 +390,7 @@ class PlotWidget(GraphicsLayoutWidget):
             QPushButton:checked {{
                 border: 1px solid rgb{self.color};
             }}
-        """
-        )
+        """)
         self.drawing_mode_button.setCheckable(True)
         self.drawing_mode_button.clicked.connect(self.toggle_drawing_mode)
         self.drawing_mode_button.setToolTip("Add freehand ROIs.")
@@ -405,8 +401,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.rectangle_mode_button = QPushButton(self)
         self.rectangle_mode_button.setIcon(QIcon(str(Path(__file__).parent / "resources/icons8-rectangle-48.png")))
         self.rectangle_mode_button.setIconSize(QSize(24, 24))
-        self.rectangle_mode_button.setStyleSheet(
-            f"""
+        self.rectangle_mode_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 border: none;
@@ -414,8 +409,7 @@ class PlotWidget(GraphicsLayoutWidget):
             QPushButton:checked {{
                 border: 1px solid rgb{self.color};
             }}
-        """
-        )
+        """)
         self.rectangle_mode_button.setCheckable(True)
         self.rectangle_mode_button.clicked.connect(self.toggle_rectangle_mode)
         self.rectangle_mode_button.setToolTip("Add rectangular ROIs.")
@@ -873,14 +867,12 @@ class PlotWidget(GraphicsLayoutWidget):
         # view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         # sets stle of the vertical slider
         view.setStyleSheet(get_current_stylesheet())
-        view.setStyleSheet(
-            """
+        view.setStyleSheet("""
             QGraphicsView {
             border: none;
             background: rgb(0, 0, 0);
             }
-            """
-        )
+            """)
 
         view.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
 
