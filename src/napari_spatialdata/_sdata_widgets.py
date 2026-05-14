@@ -17,7 +17,6 @@ from qtpy.QtCore import QThread, Signal
 from qtpy.QtGui import QIcon
 from qtpy.QtWidgets import (
     QCheckBox,
-    QHBoxLayout,
     QLabel,
     QListWidget,
     QListWidgetItem,
@@ -27,7 +26,6 @@ from qtpy.QtWidgets import (
 )
 from spatialdata import SpatialData
 from spatialdata.models._utils import DEFAULT_COORDINATE_SYSTEM
-from superqt import QDoubleRangeSlider
 
 from napari_spatialdata._viewer import SpatialDataViewer
 from napari_spatialdata.constants import config
@@ -185,45 +183,39 @@ class SdataWidget(QWidget):
         self.slider.setRange(0, 0)
         self.slider.setVisible(False)
 
-        self.enable_3d_points = QCheckBox("Enable 3D points")
-        self.enable_3d_points.setChecked(not config.PROJECT_3D_POINTS_TO_2D)
-        self.enable_3d_points.setToolTip("When checked, points with a z coordinate are displayed in 3D.")
-        self.enable_3d_points.toggled.connect(self._on_3d_points_toggled)
+        self.discard_z_points = QCheckBox("Discard z for 3D points")
+        self.discard_z_points.setChecked(config.PROJECT_3D_POINTS_TO_2D)
+        self.discard_z_points.setToolTip(
+            "When checked, the z coordinate of new points layers is discarded so they are loaded in 2D. "
+            "Only applies to new layers; layers already displayed are not affected."
+        )
+        self.discard_z_points.toggled.connect(self._on_discard_z_points_toggled)
 
-        self.enable_2_5d_shapes = QCheckBox("Enable 2.5D shapes")
-        self.enable_2_5d_shapes.setChecked(not config.PROJECT_2_5D_SHAPES_TO_2D)
-        self.enable_2_5d_shapes.setToolTip("When checked, shapes with a z coordinate are displayed in 2.5D.")
-        self.enable_2_5d_shapes.toggled.connect(self._on_2_5d_shapes_toggled)
+        self.discard_z_shapes = QCheckBox("Discard z for 2.5D shapes")
+        self.discard_z_shapes.setChecked(config.PROJECT_2_5D_SHAPES_TO_2D)
+        self.discard_z_shapes.setToolTip(
+            "When checked, the z coordinate of new shapes layers is discarded so they are loaded in 2D. "
+            "Only applies to new layers; layers already displayed are not affected."
+        )
+        self.discard_z_shapes.toggled.connect(self._on_discard_z_shapes_toggled)
 
-        self.z_range_label = QLabel("Z range:")
-        self.z_range_value_label = QLabel("")
-        z_range_header = QHBoxLayout()
-        z_range_header.addWidget(self.z_range_label)
-        z_range_header.addWidget(self.z_range_value_label)
-        z_range_header.addStretch()
-        self.z_range_header_widget = QWidget()
-        self.z_range_header_widget.setLayout(z_range_header)
-
-        self.z_range_slider = QDoubleRangeSlider()
-        self.z_range_slider.setRange(0.0, 1.0)
-        self.z_range_slider.setValue((0.0, 1.0))
-        self.z_range_slider.setToolTip("Filter visible points and shapes by z coordinate range.")
-        self.z_range_slider.valueChanged.connect(self._on_z_range_changed)
-
-        self._z_slider_visible = False
-        self.z_range_header_widget.setVisible(False)
-        self.z_range_slider.setVisible(False)
+        # The 3D toggles only matter when at least one element across the loaded
+        # SpatialData objects has a z axis. Otherwise we hide them to save screen
+        # real estate for users working with 2D-only data.
+        self._has_z_data = self._sdatas_have_z_axis(self._sdata)
+        self._three_d_settings_label = QLabel("3D Settings:")
+        self._three_d_settings_label.setVisible(self._has_z_data)
+        self.discard_z_points.setVisible(self._has_z_data)
+        self.discard_z_shapes.setVisible(self._has_z_data)
 
         self.layout().addWidget(self.slider)
         self.layout().addWidget(QLabel("Coordinate System:"))
         self.layout().addWidget(self.coordinate_system_widget)
         self.layout().addWidget(QLabel("Elements:"))
         self.layout().addWidget(self.elements_widget)
-        self.layout().addWidget(QLabel("3D Settings:"))
-        self.layout().addWidget(self.enable_3d_points)
-        self.layout().addWidget(self.enable_2_5d_shapes)
-        self.layout().addWidget(self.z_range_header_widget)
-        self.layout().addWidget(self.z_range_slider)
+        self.layout().addWidget(self._three_d_settings_label)
+        self.layout().addWidget(self.discard_z_points)
+        self.layout().addWidget(self.discard_z_shapes)
         self.elements_widget.itemDoubleClicked.connect(self._on_click_item)
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.elements_widget._onItemChange(item.text())
@@ -241,14 +233,12 @@ class SdataWidget(QWidget):
     def _on_insert_layer(self, event: Event) -> None:
         layer = event.value
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
-        self._update_z_slider()
 
     def _on_click_item(self, item: QListWidgetItem) -> None:
         self._onClick(item.text())
 
     def _hide_slider(self) -> None:
         self.slider.setVisible(False)
-        self._update_z_slider()
 
     def _onClick(self, text: str) -> None:
         selected_cs = self.coordinate_system_widget._system
@@ -303,37 +293,23 @@ class SdataWidget(QWidget):
                         layer.metadata["_active_in_cs"].add(coordinate_system)
                         layer.metadata["_current_cs"] = coordinate_system
 
-    def _on_3d_points_toggled(self, checked: bool) -> None:
-        config.PROJECT_3D_POINTS_TO_2D = not checked
+    def _on_discard_z_points_toggled(self, checked: bool) -> None:
+        config.PROJECT_3D_POINTS_TO_2D = checked
 
-    def _on_2_5d_shapes_toggled(self, checked: bool) -> None:
-        config.PROJECT_2_5D_SHAPES_TO_2D = not checked
+    def _on_discard_z_shapes_toggled(self, checked: bool) -> None:
+        config.PROJECT_2_5D_SHAPES_TO_2D = checked
 
-    def _update_z_slider(self) -> None:
-        """Show the z-range slider when layers with z data are present and update its range."""
-        z_range = self.viewer_model.get_z_range()
-        if z_range is None:
-            self.z_range_header_widget.setVisible(False)
-            self.z_range_slider.setVisible(False)
-            self._z_slider_visible = False
-            return
+    @staticmethod
+    def _sdatas_have_z_axis(sdatas: EventedList) -> bool:
+        """Return ``True`` if any element across the given ``SpatialData`` objects has a z axis.
 
-        z_min, z_max = z_range
-        if z_min == z_max:
-            z_max = z_min + 1.0
-
-        self.z_range_slider.setRange(z_min, z_max)
-        if not self._z_slider_visible:
-            self.z_range_slider.setValue((z_min, z_max))
-            self._z_slider_visible = True
-        self.z_range_value_label.setText(f"[{z_min:.1f}, {z_max:.1f}]")
-        self.z_range_header_widget.setVisible(True)
-        self.z_range_slider.setVisible(True)
-
-    def _on_z_range_changed(self, value: tuple[float, float]) -> None:
-        z_min, z_max = value
-        self.z_range_value_label.setText(f"[{z_min:.1f}, {z_max:.1f}]")
-        self.viewer_model.filter_layers_by_z_range(z_min, z_max)
+        Used to decide whether to expose the 3D / 2.5D projection toggles in the widget.
+        """
+        for sdata in sdatas:
+            for _, _, element in sdata._gen_elements():
+                if SpatialDataViewer._has_z_axis(element):
+                    return True
+        return False
 
     def _get_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Shapes | Points:
         original_name = key[: key.rfind("_")] if multi else key

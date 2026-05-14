@@ -569,7 +569,7 @@ class SpatialDataViewer(QObject):
             else:
                 kwargs |= {"border_color": "white"}
             # useful code to have readily available to debug the correct radius of circles when represented as points
-            ellipses = _get_ellipses_from_circles(yx=yx, radii=radii)
+            ellipses = _get_ellipses_from_circles(coords=yx, radii=radii)
             layer = Shapes(
                 ellipses,
                 shape_type="ellipse",
@@ -820,6 +820,21 @@ class SpatialDataViewer(QObject):
                         self._adjust_radii_of_points_layer(layer, affine)
 
     @staticmethod
+    def _has_z_axis(element: Any) -> bool:
+        """Return ``True`` if ``element`` exposes a ``z`` axis.
+
+        For raster elements (images / labels) the ``z`` axis is reported by
+        :func:`spatialdata.models.get_axes_names`. For vector elements (points
+        as :class:`~dask.dataframe.DataFrame`, shapes as
+        :class:`~geopandas.GeoDataFrame`) the same helper is used.
+        """
+        from xarray import DataArray, DataTree
+
+        if not isinstance(element, DataArray | DataTree | DaskDataFrame | GeoDataFrame):
+            return False
+        return "z" in get_axes_names(element)
+
+    @staticmethod
     def _should_include_z(element: DaskDataFrame | GeoDataFrame) -> bool:
         """Determine whether to include the z axis for a given spatial element.
 
@@ -837,88 +852,3 @@ class SpatialDataViewer(QObject):
         if isinstance(element, DaskDataFrame):
             return not config.PROJECT_3D_POINTS_TO_2D
         return not config.PROJECT_2_5D_SHAPES_TO_2D
-
-    def get_z_range(self) -> tuple[float, float] | None:
-        """Return the global (min, max) z range across all visible layers, or ``None`` if no z data exists."""
-        z_min, z_max = float("inf"), float("-inf")
-        found = False
-        for layer in self.viewer.layers:
-            metadata = layer.metadata
-            if not metadata.get("sdata"):
-                continue
-            sdata = metadata["sdata"]
-            element_name = metadata["name"]
-            element_data = sdata[element_name]
-            axes = get_axes_names(element_data)
-            if "z" not in axes:
-                continue
-            if isinstance(element_data, DaskDataFrame):
-                z_vals = element_data["z"].compute().values
-            elif isinstance(element_data, GeoDataFrame):
-                if "z" not in element_data.columns:
-                    continue
-                z_vals = element_data["z"].values
-            else:
-                continue
-            if len(z_vals) == 0:
-                continue
-            found = True
-            z_min = min(z_min, float(z_vals.min()))
-            z_max = max(z_max, float(z_vals.max()))
-        if not found:
-            return None
-        return z_min, z_max
-
-    def filter_layers_by_z_range(self, z_min: float, z_max: float) -> None:
-        """Hide points/shapes outside the given z range.
-
-        For :class:`~napari.layers.Points` layers the ``shown`` property is
-        used.  For :class:`~napari.layers.Shapes` layers the face and edge
-        color alpha channels are set to 0 for shapes outside the range while
-        preserving the original alpha for visible shapes.
-        """
-        for layer in self.viewer.layers:
-            metadata = layer.metadata
-            if not metadata.get("sdata"):
-                continue
-            sdata = metadata["sdata"]
-            element_name = metadata["name"]
-            element_data = sdata[element_name]
-            axes = get_axes_names(element_data)
-            if "z" not in axes:
-                continue
-
-            if isinstance(layer, Points):
-                if layer.data.shape[1] == 3:
-                    z_vals = layer.data[:, 0]
-                else:
-                    continue
-                mask = (z_vals >= z_min) & (z_vals <= z_max)
-                layer.shown = mask
-
-            elif isinstance(layer, Shapes):
-                n_shapes = len(layer.data)
-                if n_shapes == 0:
-                    continue
-
-                if layer.data[0].shape[1] == 3:
-                    z_vals = np.array([float(s[0, 0]) for s in layer.data])
-                elif isinstance(element_data, GeoDataFrame) and "z" in element_data.columns:
-                    z_raw = element_data["z"].values
-                    if len(z_raw) != n_shapes:
-                        continue
-                    z_vals = z_raw
-                else:
-                    continue
-
-                if "_original_face_color" not in metadata:
-                    metadata["_original_face_color"] = layer.face_color.copy()
-                    metadata["_original_edge_color"] = layer.edge_color.copy()
-
-                mask = (z_vals >= z_min) & (z_vals <= z_max)
-                face_colors = metadata["_original_face_color"].copy()
-                edge_colors = metadata["_original_edge_color"].copy()
-                face_colors[~mask, 3] = 0.0
-                edge_colors[~mask, 3] = 0.0
-                layer.face_color = face_colors
-                layer.edge_color = edge_colors
