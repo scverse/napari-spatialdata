@@ -19,14 +19,14 @@ from pyqtgraph.Qt.QtCore import pyqtSignal
 from pyqtgraph.widgets.ColorButton import ColorButton
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
-from qtpy.QtWidgets import QPushButton
+from qtpy.QtWidgets import QLabel, QPushButton, QSpinBox
 from scipy.spatial import cKDTree
 from shapely.geometry import Point, Polygon
 from spatialdata._types import ArrayLike
 
+import napari_spatialdata.constants.config
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._widgets import AListWidget, ComponentWidget
-from napari_spatialdata.constants.config import POINT_SIZE_SCATTERPLOT_WIDGET
 
 __all__ = [
     "PlotWidget",
@@ -114,7 +114,7 @@ class ScatterListWidget(AListWidget):
         elif self.getAttribute() == "obsm":
             if TYPE_CHECKING:
                 assert isinstance(text, int | str)
-            self.text = text  # type: ignore[assignment]
+            self.text = text
             super().setIndex(text)
 
     @property
@@ -251,14 +251,12 @@ class DiscreteColorWidget(GraphicsWidget):
             color_button = ColorButton(color=color)
             color_button.setMinimumSize(60, 30)
             color_button.setMaximumSize(60, 30)
-            color_button.setStyleSheet(
-                """
+            color_button.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
                 border: none;
             }
-            """
-            )
+            """)
 
             self.color_buttons[obj_category] = color_button
 
@@ -334,6 +332,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.lut: pg.HistogramLUTItem | None = None
         self.discrete_color_widget: DiscreteColorWidget | None = None
         self.wrapped_widget: QtWidgets.QGraphicsProxyWidget | None = None
+        self._point_size: int = napari_spatialdata.constants.config.POINT_SIZE_SCATTERPLOT_WIDGET
 
         self.scatter_plot = self.addPlot(title="")
         self.scatter_plot.setLabel("bottom", self.x_label)
@@ -344,7 +343,10 @@ class PlotWidget(GraphicsLayoutWidget):
 
         # Create a separate ScatterPlotItem for the highlighted point
         self.hovered_point = pg.ScatterPlotItem(
-            pen=pg.mkPen("r", width=2), symbol="o", size=POINT_SIZE_SCATTERPLOT_WIDGET, brush=pg.mkBrush(255, 0, 0)
+            pen=pg.mkPen("r", width=2),
+            symbol="o",
+            size=self._point_size + 2,
+            brush=pg.mkBrush(255, 0, 0),
         )
         self.scatter_plot.addItem(self.hovered_point)
 
@@ -380,8 +382,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.drawing_mode_button = QPushButton(self)
         self.drawing_mode_button.setIcon(QIcon(str(Path(__file__).parent / "resources/icons8-polygon-80.png")))
         self.drawing_mode_button.setIconSize(QSize(24, 24))
-        self.drawing_mode_button.setStyleSheet(
-            f"""
+        self.drawing_mode_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 border: none;
@@ -389,8 +390,7 @@ class PlotWidget(GraphicsLayoutWidget):
             QPushButton:checked {{
                 border: 1px solid rgb{self.color};
             }}
-        """
-        )
+        """)
         self.drawing_mode_button.setCheckable(True)
         self.drawing_mode_button.clicked.connect(self.toggle_drawing_mode)
         self.drawing_mode_button.setToolTip("Add freehand ROIs.")
@@ -401,8 +401,7 @@ class PlotWidget(GraphicsLayoutWidget):
         self.rectangle_mode_button = QPushButton(self)
         self.rectangle_mode_button.setIcon(QIcon(str(Path(__file__).parent / "resources/icons8-rectangle-48.png")))
         self.rectangle_mode_button.setIconSize(QSize(24, 24))
-        self.rectangle_mode_button.setStyleSheet(
-            f"""
+        self.rectangle_mode_button.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
                 border: none;
@@ -410,12 +409,24 @@ class PlotWidget(GraphicsLayoutWidget):
             QPushButton:checked {{
                 border: 1px solid rgb{self.color};
             }}
-        """
-        )
+        """)
         self.rectangle_mode_button.setCheckable(True)
         self.rectangle_mode_button.clicked.connect(self.toggle_rectangle_mode)
         self.rectangle_mode_button.setToolTip("Add rectangular ROIs.")
         self.rectangle_mode_button.move(50, 10)  # Adjust position as needed
+
+        # Point size control
+        self.point_size_label = QLabel("Size:", self)
+        self.point_size_label.setStyleSheet(f"QLabel {{ color: rgb{self.color}; background-color: transparent; }}")
+        self.point_size_label.move(130, 14)
+
+        self.point_size_spinbox = QSpinBox(self)
+        self.point_size_spinbox.setRange(1, 50)
+        self.point_size_spinbox.setValue(self._point_size)
+        self.point_size_spinbox.setFixedWidth(50)
+        self.point_size_spinbox.setToolTip("Adjust point size in scatter plot")
+        self.point_size_spinbox.valueChanged.connect(self._on_point_size_changed)
+        self.point_size_spinbox.move(165, 10)
 
         # Connect mouse events
         self.scatter_plot.setMouseEnabled(x=True, y=True)
@@ -460,6 +471,25 @@ class PlotWidget(GraphicsLayoutWidget):
         if self.scatter is not None:
             logger.debug("Updating proximity sensitivity...")
             self.dist_threshold = [x * 15 for x in self.scatter.pixelSize()]  # Adjust this factor as needed
+
+    @property
+    def point_size(self) -> int:
+        """Get the current point size for the scatter plot."""
+        return self._point_size
+
+    @point_size.setter
+    def point_size(self, value: int) -> None:
+        """Set the point size for the scatter plot."""
+        self._point_size = value
+        self.point_size_spinbox.setValue(value)
+
+    def _on_point_size_changed(self, value: int) -> None:
+        """Handle point size spinbox value change."""
+        self._point_size = value
+        # Update hovered point indicator size to be slightly larger
+        self.hovered_point.setSize(value + 2)
+        if self.scatter is not None:
+            self.plot()
 
     def update_hover_highlight(self, x: float, y: float) -> None:
         """Update the hover highlight based on the cursor position."""
@@ -759,6 +789,7 @@ class PlotWidget(GraphicsLayoutWidget):
                     pen=None,
                     symbolPen=self.symbolPen,
                     symbol="o",
+                    symbolSize=self._point_size,
                     clear=True,
                     symbolBrush=self.brushes,
                 )
@@ -773,6 +804,7 @@ class PlotWidget(GraphicsLayoutWidget):
                     fillLevel=0,
                     pen=None,
                     symbolPen=self.symbolPen,
+                    symbolSize=self._point_size,
                     symbolBrush=self.brushes,
                     clear=True,
                 )
@@ -785,6 +817,7 @@ class PlotWidget(GraphicsLayoutWidget):
                     fillLevel=0,
                     pen=None,
                     symbolPen=self.symbolPen,
+                    symbolSize=self._point_size,
                     symbolBrush=self.brushes,
                     clear=True,
                 )
@@ -834,14 +867,12 @@ class PlotWidget(GraphicsLayoutWidget):
         # view.setVerticalScrollBarPolicy(QtCore.Qt.ScrollBarAlwaysOn)
         # sets stle of the vertical slider
         view.setStyleSheet(get_current_stylesheet())
-        view.setStyleSheet(
-            """
+        view.setStyleSheet("""
             QGraphicsView {
             border: none;
             background: rgb(0, 0, 0);
             }
-            """
-        )
+            """)
 
         view.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Preferred)
 

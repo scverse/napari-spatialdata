@@ -91,7 +91,7 @@ def test_change_layer(
     sdata_blobs: SpatialData,
 ) -> None:
     table = sdata_blobs["table"].copy()
-    table.obs["region"] = "blobs_labels"
+    table.obs["region"] = pd.Categorical(["blobs_labels"] * table.n_obs)
     table.uns["spatialdata_attrs"]["region"] = "blobs_labels"
     table.var_names = pd.Index([i + "_second" for i in table.var_names])
     sdata_blobs["second_table"] = table
@@ -267,6 +267,7 @@ def test_layer_selection(make_napari_viewer: Any, image: ArrayLike, widget: Any,
     assert widget.model.adata.n_obs == 0
 
 
+@pytest.mark.usefixtures("mock_app_model")
 def test_export_no_rois(adata_labels):
     """Test export for no rois situation."""
 
@@ -277,6 +278,7 @@ def test_export_no_rois(adata_labels):
     assert scatter_widget.status_label.text() == "Status: No rois selected."
 
 
+@pytest.mark.usefixtures("mock_app_model")
 def test_export_no_name(adata_labels, mocker):
     """Test export - no column name provided."""
 
@@ -290,6 +292,7 @@ def test_export_no_name(adata_labels, mocker):
     assert scatter_widget._model.adata.obs.equals(adata_labels.obs)
 
 
+@pytest.mark.usefixtures("mock_app_model")
 def test_new_annotation(adata_labels, annotation_values, mocker):
     """Test export - adding a new annotation."""
 
@@ -304,6 +307,7 @@ def test_new_annotation(adata_labels, annotation_values, mocker):
     assert np.array_equal(scatter_widget._model.adata.obs.test, annotation_values)
 
 
+@pytest.mark.usefixtures("mock_app_model")
 def test_old_annotation(adata_labels, annotation_values, mocker):
     """Test updating existing annotation."""
 

@@ -246,7 +246,7 @@ class DataModel:
         return self._adata_layer
 
     @adata_layer.setter
-    def adata_layer(self, adata_layer: str) -> None:
+    def adata_layer(self, adata_layer: str | None) -> None:
         self._adata_layer = adata_layer
 
     @property

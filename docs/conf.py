@@ -23,7 +23,7 @@ print(napari_spatialdata.__file__)  # noqa: T201
 info = metadata("napari-spatialdata")
 project_name = info["Name"]
 author = info["Author"]
-copyright = f"{datetime.now():%Y}, {author}."
+copyright = f"{datetime.now():%Y}, {author}"
 version = info["Version"]
 repository_url = f"https://github.com/scverse/{project_name}"
 

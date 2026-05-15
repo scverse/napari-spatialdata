@@ -181,7 +181,35 @@ def _transform_coordinates(data: list[Any], f: Callable[..., Any]) -> list[Any]:
     return [[f(xy) for xy in sublist] for sublist in data]
 
 
-def _get_transform(element: SpatialElement, coordinate_system_name: str | None = None) -> None | ArrayLike:
+def _get_transform(
+    element: SpatialElement, coordinate_system_name: str | None = None, include_z: bool | None = None
+) -> None | ArrayLike:
+    """Return the affine matrix for ``element`` in the given coordinate system.
+
+    The z axis is included in the returned affine when **both**:
+
+    * ``include_z`` is truthy, **and**
+    * the element (and therefore its underlying transformation) has a ``z`` axis,
+      as reported by :func:`spatialdata.models.get_axes_names`.
+
+    If ``include_z`` is requested but the element / transformation does not expose a
+    ``z`` axis, the flag is silently ignored and a 2D ``(y, x)`` affine is returned.
+
+    Parameters
+    ----------
+    element
+        The :class:`spatialdata.models.SpatialElement` for which to compute the affine.
+    coordinate_system_name
+        Coordinate system to use. If ``None``, the first available is selected.
+    include_z
+        Whether to include the z axis in the affine. The z is only included when the
+        element / transformation also has a z axis; otherwise this flag is ignored.
+
+    Returns
+    -------
+    The affine matrix as an ``ArrayLike`` (``(3, 3)`` for 2D and ``(4, 4)`` for 2.5D/3D),
+    or ``None`` if no transformation is defined for the requested coordinate system.
+    """
     if not isinstance(element, DataArray | DataTree | DaskDataFrame | GeoDataFrame):
         raise RuntimeError("Cannot get transform for {type(element)}")
 
@@ -189,7 +217,10 @@ def _get_transform(element: SpatialElement, coordinate_system_name: str | None =
     cs = transformations.keys().__iter__().__next__() if coordinate_system_name is None else coordinate_system_name
     ct = transformations.get(cs)
     if ct:
-        return ct.to_affine_matrix(input_axes=("y", "x"), output_axes=("y", "x"))
+        axes_element = get_axes_names(element)
+        include_z = include_z and "z" in axes_element
+        axes_transformation = ("z", "y", "x") if include_z else ("y", "x")
+        return ct.to_affine_matrix(input_axes=axes_transformation, output_axes=axes_transformation)
     return None
 
 
@@ -470,13 +501,17 @@ def generate_random_color_hex() -> str:
     return f"#{randint(0, 255):02x}{randint(0, 255):02x}{randint(0, 255):02x}ff"
 
 
-def _get_ellipses_from_circles(yx: ArrayLike, radii: ArrayLike) -> ArrayLike:
+def _get_ellipses_from_circles(coords: ArrayLike, radii: ArrayLike) -> ArrayLike:
     """Convert circles to ellipses.
+
+    Supports both 2D and 2.5D centroids. For 2.5D input the radius is applied only to
+    y and x while z is kept constant across the four corner vertices.
 
     Parameters
     ----------
-    yx
-        Centroids of the circles.
+    coords
+        Centroids of the circles with shape ``(N, 2)`` in ``(y, x)`` order or ``(N, 3)``
+        in ``(z, y, x)`` order.
     radii
         Radii of the circles.
 
@@ -485,14 +520,29 @@ def _get_ellipses_from_circles(yx: ArrayLike, radii: ArrayLike) -> ArrayLike:
     ArrayLike
         Ellipses.
     """
-    ndim = yx.shape[1]
-    assert ndim == 2
-    r = np.stack([radii] * ndim, axis=1)
-    lower_left = yx - r
-    upper_right = yx + r
+    ndim = coords.shape[1]
+    if ndim not in (2, 3):
+        raise ValueError(f"Expected centroids with 2 or 3 columns (yx or zyx), got shape {coords.shape}.")
+
+    if ndim == 3:
+        z = coords[:, :1]
+        yx_2d = coords[:, 1:]
+    else:
+        yx_2d = coords
+
+    r = np.stack([radii, radii], axis=1)
+    lower_left = yx_2d - r
+    upper_right = yx_2d + r
     r[:, 0] = -r[:, 0]
-    lower_right = yx - r
-    upper_left = yx + r
+    lower_right = yx_2d - r
+    upper_left = yx_2d + r
+
+    if ndim == 3:
+        lower_left = np.column_stack([z, lower_left])
+        lower_right = np.column_stack([z, lower_right])
+        upper_right = np.column_stack([z, upper_right])
+        upper_left = np.column_stack([z, upper_left])
+
     ellipses = np.stack([lower_left, lower_right, upper_right, upper_left], axis=1)
     assert isinstance(ellipses, np.ndarray)
     return ellipses
@@ -503,7 +553,7 @@ def get_napari_version() -> packaging.version.Version:
 
 
 @contextmanager
-def block_signals(widget: QObject) -> Generator[None, None, None]:
+def block_signals(widget: QObject) -> Generator[None]:
     try:
         widget.blockSignals(True)
         yield

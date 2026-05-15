@@ -13,7 +13,7 @@ from collections.abc import Iterable
 from importlib.metadata import version
 from operator import itemgetter
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 import shapely
@@ -23,12 +23,21 @@ from napari.utils.notifications import show_info
 from packaging.version import parse as parse_version
 from qtpy.QtCore import QThread, Signal
 from qtpy.QtGui import QIcon
-from qtpy.QtWidgets import QLabel, QListWidget, QListWidgetItem, QProgressBar, QVBoxLayout, QWidget
+from qtpy.QtWidgets import (
+    QCheckBox,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QProgressBar,
+    QVBoxLayout,
+    QWidget,
+)
 from spatialdata import SpatialData
 from spatialdata.models._utils import DEFAULT_COORDINATE_SYSTEM
 from xarray import DataArray, DataTree
 
 from napari_spatialdata._viewer import SpatialDataViewer
+from napari_spatialdata.constants import config
 from napari_spatialdata.constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
 from napari_spatialdata.utils._utils import (
     _get_sdata_key,
@@ -399,11 +408,39 @@ class SdataWidget(QWidget):
         self.slider.setRange(0, 0)
         self.slider.setVisible(False)
 
+        self.discard_z_points = QCheckBox("Discard z for 3D points")
+        self.discard_z_points.setChecked(config.PROJECT_3D_POINTS_TO_2D)
+        self.discard_z_points.setToolTip(
+            "When checked, the z coordinate of new points layers is discarded so they are loaded in 2D. "
+            "Only applies to new layers; layers already displayed are not affected."
+        )
+        self.discard_z_points.toggled.connect(self._on_discard_z_points_toggled)
+
+        self.discard_z_shapes = QCheckBox("Discard z for 2.5D shapes")
+        self.discard_z_shapes.setChecked(config.PROJECT_2_5D_SHAPES_TO_2D)
+        self.discard_z_shapes.setToolTip(
+            "When checked, the z coordinate of new shapes layers is discarded so they are loaded in 2D. "
+            "Only applies to new layers; layers already displayed are not affected."
+        )
+        self.discard_z_shapes.toggled.connect(self._on_discard_z_shapes_toggled)
+
+        # The 3D toggles only matter when at least one element across the loaded
+        # SpatialData objects has a z axis. Otherwise we hide them to save screen
+        # real estate for users working with 2D-only data.
+        self._has_z_data = self._sdatas_have_z_axis(self._sdata)
+        self._three_d_settings_label = QLabel("3D Settings:")
+        self._three_d_settings_label.setVisible(self._has_z_data)
+        self.discard_z_points.setVisible(self._has_z_data)
+        self.discard_z_shapes.setVisible(self._has_z_data)
+
         self.layout().addWidget(self.slider)
         self.layout().addWidget(QLabel("Coordinate System:"))
         self.layout().addWidget(self.coordinate_system_widget)
         self.layout().addWidget(QLabel("Elements:"))
         self.layout().addWidget(self.elements_widget)
+        self.layout().addWidget(self._three_d_settings_label)
+        self.layout().addWidget(self.discard_z_points)
+        self.layout().addWidget(self.discard_z_shapes)
         self.layout().addWidget(QLabel("Channels:"))
         self.layout().addWidget(self.channel_widget)
         self.elements_widget.currentItemChanged.connect(self._on_element_item_changed)
@@ -503,8 +540,6 @@ class SdataWidget(QWidget):
             }:
                 return
 
-            type_ = cast(str, type_)
-
             self.worker_thread.load_data(type_, element_name, sdata, selected_cs, multi, channel_name)
             if not PROBLEMATIC_NUMPY_MACOS:
                 self.slider.setVisible(True)
@@ -552,6 +587,24 @@ class SdataWidget(QWidget):
                         # Prevent _update_visible_in_coordinate_system of invalid removal of coordinate system
                         layer.metadata["_active_in_cs"].add(coordinate_system)
                         layer.metadata["_current_cs"] = coordinate_system
+
+    def _on_discard_z_points_toggled(self, checked: bool) -> None:
+        config.PROJECT_3D_POINTS_TO_2D = checked
+
+    def _on_discard_z_shapes_toggled(self, checked: bool) -> None:
+        config.PROJECT_2_5D_SHAPES_TO_2D = checked
+
+    @staticmethod
+    def _sdatas_have_z_axis(sdatas: EventedList) -> bool:
+        """Return ``True`` if any element across the given ``SpatialData`` objects has a z axis.
+
+        Used to decide whether to expose the 3D / 2.5D projection toggles in the widget.
+        """
+        for sdata in sdatas:
+            for _, _, element in sdata._gen_elements():
+                if SpatialDataViewer._has_z_axis(element):
+                    return True
+        return False
 
     def _get_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Shapes | Points:
         """Load and create appropriate layer for shape data.

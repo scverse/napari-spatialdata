@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 from napari.viewer import Viewer
 from spatialdata.datasets import blobs
@@ -14,6 +15,7 @@ def test_view_exists():
     Viewer.close_all()
 
 
+@pytest.mark.usefixtures("mock_app_model")
 def test_view_path_not_exists():
     runner = CliRunner()
     with runner.isolated_filesystem():
@@ -26,6 +28,8 @@ def test_view_path_not_exists():
         Viewer.close_all()
 
 
+# added due to this https://github.com/napari/napari/issues/8214#issuecomment-3188565917
+@pytest.mark.usefixtures("mock_app_model")
 def test_view_path_is_dir():
     runner = CliRunner()
     with runner.isolated_filesystem():

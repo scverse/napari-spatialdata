@@ -1,5 +1,100 @@
 from __future__ import annotations
 
+# ruff: noqa: E402
+# MUST set environment variables BEFORE any Qt/napari/vispy imports
+# to enable headless mode in CI environments (Ubuntu/Linux without display)
+import os
+import sys
+
+# Only use offscreen on Linux - macOS doesn't support the offscreen Qt platform plugin
+if sys.platform == "linux":
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+os.environ.setdefault("NAPARI_HEADLESS", "1")
+
+
+def _patch_napari_gl_for_headless() -> None:
+    """Patch napari's OpenGL utility functions to work without a real display.
+
+    The patch implements two workaround that are no-ops in environments that
+    have a real display (CI with Xvfb, macOS, local dev). Once the upstreams
+    bugs are addressed this patch should be removed.
+
+    In the Qt offscreen platform ``glGetString(GL_EXTENSIONS)`` returns ``None``
+    (raising AttributeError on ``.decode()``) and ``glGetIntegerv`` returns an
+    empty tuple instead of an integer. napari then stores ``None`` as the max
+    texture size, which later crashes ``TiledImageNode``.
+
+    Upstream bugs:
+    * **vispy** – ``vispy/gloo/gl/_pyopengl2.py`` does not guard against
+      ``GL.glGetString()`` returning ``None`` (no valid OpenGL context).
+
+    * **napari** – ``get_gl_extensions()`` and ``get_max_texture_sizes()`` in
+      ``napari/_vispy/utils/gl.py`` do not handle the failure/empty-result
+      case from the underlying GL calls, crashing when run in offscreen mode.
+
+    Fixes applied here:
+    * ``vispy.gloo.gl._pyopengl2.glGetParameter`` – return ``""`` for string
+      queries when the result is ``None``, and ``0`` for empty-tuple results.
+    * ``napari._vispy.utils.gl.get_max_texture_sizes`` (and every module that
+      imported it) – fall back to ``(2048, 2048)`` when the GL query returns 0.
+    """
+    try:
+        import vispy.gloo.gl as _vgl
+        import vispy.gloo.gl._pyopengl2 as _pyopengl2_mod
+
+        _orig_get_param = _pyopengl2_mod.glGetParameter
+
+        def _safe_get_param(pname):  # type: ignore[no-untyped-def]
+            try:
+                result = _orig_get_param(pname)
+            except AttributeError:
+                # glGetString returned None – no valid OpenGL context yet
+                return ""
+            if result is None:
+                return ""
+            if isinstance(result, tuple) and len(result) == 0:
+                return 0
+            return result
+
+        _pyopengl2_mod.glGetParameter = _safe_get_param
+        _vgl.glGetParameter = _safe_get_param
+
+        # get_max_texture_sizes caches (None, None) when GL returns 0/empty;
+        # replace it everywhere it was imported so image layers get valid sizes.
+        from functools import lru_cache
+
+        @lru_cache(maxsize=1)
+        def _safe_get_max_texture_sizes():  # type: ignore[no-untyped-def]
+            try:
+                from napari._vispy.utils.gl import _opengl_context
+
+                with _opengl_context():
+                    max_2d = _vgl.glGetParameter(_vgl.GL_MAX_TEXTURE_SIZE)
+                    max_3d = _vgl.glGetParameter(32883)  # GL_MAX_3D_TEXTURE_SIZE
+                return (int(max_2d) if max_2d else 2048, int(max_3d) if max_3d else 2048)
+            except Exception:  # noqa: BLE001
+                return 2048, 2048
+
+        import napari._vispy.canvas as _canvas_mod
+        import napari._vispy.layers.base as _base_mod
+        import napari._vispy.layers.image as _img_mod
+        import napari._vispy.layers.labels as _lbl_mod
+        import napari._vispy.utils.gl as _gl_mod
+
+        for _mod in (_gl_mod, _img_mod, _lbl_mod, _base_mod, _canvas_mod):
+            if hasattr(_mod, "get_max_texture_sizes"):
+                _mod.get_max_texture_sizes = _safe_get_max_texture_sizes
+
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover
+        import warnings
+
+        warnings.warn(f"Could not patch napari GL functions for headless mode: {exc}", stacklevel=2)
+
+
+if os.environ.get("QT_QPA_PLATFORM") == "offscreen":
+    _patch_napari_gl_for_headless()
+
 import random
 import string
 from abc import ABC, ABCMeta
@@ -8,21 +103,27 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 
+import geopandas as gpd
 import napari
 import numpy as np
 import pandas as pd
 import pytest
 from anndata import AnnData
+from dask.dataframe import from_pandas
 from loguru import logger
 from matplotlib.testing.compare import compare_images
 from scipy import ndimage as ndi
+from shapely import MultiPolygon, Polygon
 from skimage import data
 from spatialdata import SpatialData
 from spatialdata._types import ArrayLike
 from spatialdata.datasets import blobs
-from spatialdata.models import Image2DModel, TableModel
+from spatialdata.models import Image2DModel, PointsModel, ShapesModel, TableModel
+from spatialdata.transformations import Affine, Identity, set_transformation
 
-from napari_spatialdata.utils._test_utils import save_image, take_screenshot
+from napari_spatialdata.utils._test_utils import export_figure, save_image
+
+OFFSCREEN = os.environ.get("QT_QPA_PLATFORM", "") == "offscreen"
 
 HERE: Path = Path(__file__).parent
 
@@ -33,7 +134,6 @@ ACTUAL = HERE / "plots/generated"
 TOL = 70
 DPI = 40
 
-RNG = np.random.default_rng(seed=0)
 DATA_LEN = 100
 
 
@@ -157,9 +257,10 @@ def labels():
 
 @pytest.fixture
 def prepare_continuous_test_data():
-    x_vec = RNG.random(DATA_LEN)
-    y_vec = RNG.random(DATA_LEN)
-    color_vec = RNG.random(DATA_LEN)
+    rng = np.random.default_rng(SEED)
+    x_vec = rng.random(DATA_LEN)
+    y_vec = rng.random(DATA_LEN)
+    color_vec = rng.random(DATA_LEN)
 
     x_data = {"vec": x_vec}
     y_data = {"vec": y_vec}
@@ -173,8 +274,9 @@ def prepare_continuous_test_data():
 
 @pytest.fixture
 def prepare_discrete_test_data():
-    x_vec = RNG.random(DATA_LEN)
-    y_vec = RNG.random(DATA_LEN)
+    rng = np.random.default_rng(SEED)
+    x_vec = rng.random(DATA_LEN)
+    y_vec = rng.random(DATA_LEN)
     color_vec = np.zeros(DATA_LEN).astype(int)
 
     x_data = {"vec": x_vec}
@@ -226,7 +328,7 @@ class PlotTester(ABC):
         out_path = ACTUAL / f"{basename}.png"
 
         viewer = napari.current_viewer()
-        save_image(take_screenshot(viewer, canvas_only=True), out_path)
+        save_image(export_figure(viewer), str(out_path))
 
         if tolerance is None:
             # see https://github.com/theislab/squidpy/pull/302
@@ -267,3 +369,117 @@ def caplog(caplog):
 def always_sync(monkeypatch, request):
     if request.node.get_closest_marker("use_thread_loader") is None:
         monkeypatch.setattr("napari_spatialdata._sdata_widgets.PROBLEMATIC_NUMPY_MACOS", True)
+
+
+@pytest.fixture
+def sdata_3d_points() -> SpatialData:
+    """Create a SpatialData object with 3D points (x, y, z coordinates)."""
+    n_points = 10
+    rng = np.random.default_rng(SEED)
+    df = pd.DataFrame(
+        {
+            "x": rng.uniform(0, 100, n_points),
+            "y": rng.uniform(0, 100, n_points),
+            "z": rng.uniform(0, 50, n_points),
+        }
+    )
+    dask_df = from_pandas(df, npartitions=1)
+    points = PointsModel.parse(dask_df)
+    set_transformation(points, {"global": Identity()}, set_all=True)
+
+    return SpatialData(points={"points_3d": points})
+
+
+@pytest.fixture
+def sdata_2_5d_shapes() -> SpatialData:
+    """Create a SpatialData object with 2.5D shapes (3 layers at different z, polygons + multipolygons)."""
+    shapes = {}
+
+    geometries = []
+    z_values = []
+    indices = []
+    for i, z_val in enumerate([0.0, 10.0, 20.0]):
+        # Add simple polygons (triangles and quadrilaterals)
+        poly1 = Polygon([(10 + i * 5, 10), (20 + i * 5, 10), (15 + i * 5, 20)])
+        poly2 = Polygon([(30 + i * 5, 30), (40 + i * 5, 30), (40 + i * 5, 40), (30 + i * 5, 40)])
+        geometries.extend([poly1, poly2])
+        indices.extend([0, 1])
+        z_values.extend([z_val] * 2)
+
+        # Add a multipolygon (two separate polygon parts)
+        multi_poly = MultiPolygon(
+            [
+                Polygon([(50 + i * 5, 10), (60 + i * 5, 10), (55 + i * 5, 20)]),
+                Polygon([(50 + i * 5, 30), (60 + i * 5, 30), (60 + i * 5, 40), (50 + i * 5, 40)]),
+            ]
+        )
+        geometries.append(multi_poly)
+        indices.append(2)
+        z_values.append(z_val)
+
+    gdf = gpd.GeoDataFrame(
+        {"z": z_values, "geometry": geometries},
+        index=indices,
+    )
+
+    shape_element = ShapesModel.parse(gdf)
+    set_transformation(shape_element, {"global": Identity()}, set_all=True)
+    shapes["shapes_2.5d"] = shape_element
+
+    return SpatialData(shapes=shapes)
+
+
+@pytest.fixture
+def sdata_2_5d_circles() -> SpatialData:
+    """Create a SpatialData object with 2.5D circles (circles at different z levels)."""
+    n_circles = 10
+    rng = np.random.default_rng(SEED)
+    gdf = gpd.GeoDataFrame(
+        {
+            "geometry": gpd.points_from_xy(
+                rng.uniform(0, 100, n_circles),
+                rng.uniform(0, 100, n_circles),
+            ),
+            "radius": rng.uniform(5, 15, n_circles),
+            "z": rng.uniform(0, 50, n_circles),
+        }
+    )
+    circles = ShapesModel.parse(gdf)
+    set_transformation(circles, {"global": Identity()}, set_all=True)
+
+    return SpatialData(shapes={"circles_2.5d": circles})
+
+
+@pytest.fixture
+def sdata_3d_points_two_cs() -> SpatialData:
+    """Create a SpatialData with 3D points registered to two coordinate systems.
+
+    The element lives in ``global`` (identity) and in ``scaled`` (2x scale
+    with a 10-unit z-translation).  This is useful for testing that
+    ``_affine_transform_layers`` produces a correctly-sized affine matrix
+    when switching between coordinate systems.
+    """
+    n_points = 5
+    rng = np.random.default_rng(SEED)
+    df = pd.DataFrame(
+        {
+            "x": rng.uniform(0, 100, n_points),
+            "y": rng.uniform(0, 100, n_points),
+            "z": rng.uniform(0, 50, n_points),
+        }
+    )
+    dask_df = from_pandas(df, npartitions=1)
+    points = PointsModel.parse(dask_df)
+
+    affine_matrix = np.array(
+        [
+            [2.0, 0.0, 0.0, 0.0],
+            [0.0, 2.0, 0.0, 0.0],
+            [0.0, 0.0, 2.0, 10.0],
+            [0.0, 0.0, 0.0, 1.0],
+        ]
+    )
+    scaled_affine = Affine(affine_matrix, input_axes=("x", "y", "z"), output_axes=("x", "y", "z"))
+    set_transformation(points, {"global": Identity(), "scaled": scaled_affine}, set_all=True)
+
+    return SpatialData(points={"points_3d": points})
