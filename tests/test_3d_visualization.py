@@ -41,7 +41,7 @@ class Test3DPointsVisualization:
             widget = SdataWidget(viewer, EventedList([sdata_3d_points]))
 
             widget.coordinate_system_widget._select_coord_sys("global")
-            widget.elements_widget._onItemChange("global")
+            widget.elements_widget._onCsItemChange("global")
             widget._onClick("points_3d")
             viewer.dims.ndisplay = 3
 
@@ -76,7 +76,7 @@ class Test2_5DShapesVisualization:
             widget = SdataWidget(viewer, EventedList([sdata_2_5d_shapes]))
 
             widget.coordinate_system_widget._select_coord_sys("global")
-            widget.elements_widget._onItemChange("global")
+            widget.elements_widget._onCsItemChange("global")
             widget._onClick("shapes_2.5d")
 
             assert len(viewer.layers) == 1
@@ -111,7 +111,7 @@ class Test2_5DCirclesVisualization:
             widget = SdataWidget(viewer, EventedList([sdata_2_5d_circles]))
 
             widget.coordinate_system_widget._select_coord_sys("global")
-            widget.elements_widget._onItemChange("global")
+            widget.elements_widget._onCsItemChange("global")
             widget._onClick("circles_2.5d")
 
             assert len(viewer.layers) == 1
@@ -145,7 +145,7 @@ class TestAffineTransformLayers:
             widget = SdataWidget(viewer, EventedList([sdata_3d_points_two_cs]))
 
             widget.coordinate_system_widget._select_coord_sys("global")
-            widget.elements_widget._onItemChange("global")
+            widget.elements_widget._onCsItemChange("global")
             widget._onClick("points_3d")
 
             assert len(viewer.layers) == 1
@@ -196,7 +196,7 @@ class TestSavePointsPreservesZ:
             widget = SdataWidget(viewer, EventedList([sdata_3d_points]))
 
             widget.coordinate_system_widget._select_coord_sys("global")
-            widget.elements_widget._onItemChange("global")
+            widget.elements_widget._onCsItemChange("global")
             widget._onClick("points_3d")
 
             layer = viewer.layers[0]
@@ -245,7 +245,7 @@ class TestSaveShapesPreservesZ:
             widget = SdataWidget(viewer, EventedList([sdata_2_5d_shapes]))
 
             widget.coordinate_system_widget._select_coord_sys("global")
-            widget.elements_widget._onItemChange("global")
+            widget.elements_widget._onCsItemChange("global")
             widget._onClick("shapes_2.5d")
 
             layer = viewer.layers[0]
@@ -287,7 +287,7 @@ class TestUIToggle:
             widget = SdataWidget(viewer, EventedList([sdata_3d_points]))
 
             widget.coordinate_system_widget._select_coord_sys("global")
-            widget.elements_widget._onItemChange("global")
+            widget.elements_widget._onCsItemChange("global")
 
             widget._onClick("points_3d")
             assert viewer.layers[0].data.shape[1] == 2
@@ -336,7 +336,7 @@ class TestMixed2D3DVisualization:
             widget = SdataWidget(viewer, EventedList([combined_sdata]))
 
             widget.coordinate_system_widget._select_coord_sys("global")
-            widget.elements_widget._onItemChange("global")
+            widget.elements_widget._onCsItemChange("global")
 
             widget._onClick("points_3d")
             assert viewer.layers[0].data.shape[1] == points_dim
