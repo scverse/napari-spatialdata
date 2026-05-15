@@ -58,8 +58,9 @@ class ListWidget(QtWidgets.QListWidget):
         self._index: int | str = 0
         self._unique = unique
         self._viewer = viewer
+        self._pre_click_selection: tuple[str, ...] = ()
 
-        self.itemDoubleClicked.connect(lambda item: self._onAction((item.text(),)))
+        self.itemDoubleClicked.connect(self._on_item_double_clicked)
         self.enterPressed.connect(self._onAction)
         self.indexChanged.connect(self._onAction)
 
@@ -88,6 +89,17 @@ class ListWidget(QtWidgets.QListWidget):
             super().addItems(labels)
             # self.sortItems(QtCore.Qt.AscendingOrder)
 
+    def mousePressEvent(self, event: QtCore.QEvent) -> None:
+        self._pre_click_selection = tuple(s.text() for s in self.selectedItems())
+        super().mousePressEvent(event)
+
+    def _on_item_double_clicked(self, item: QtWidgets.QListWidgetItem) -> None:
+        pre = self._pre_click_selection
+        if len(pre) > 1 and item.text() in pre:
+            self._onAction(pre)
+        else:
+            self._onAction((item.text(),))
+
     def keyPressEvent(self, event: QtCore.QEvent) -> None:
         if event.key() == QtCore.Qt.Key_Return:
             event.accept()
@@ -98,6 +110,7 @@ class ListWidget(QtWidgets.QListWidget):
 
 class AListWidget(ListWidget):
     layerChanged = Signal()
+    load_channels = Signal(object)  # emits a tuple[str, ...] of channel names
 
     def __init__(self, viewer: Viewer | None, model: DataModel, attr: str, **kwargs: Any):
         if attr != "None" and attr not in DataModel.VALID_ATTRIBUTES:
@@ -106,8 +119,8 @@ class AListWidget(ListWidget):
 
         self._viewer = viewer
         self._model = model
-
         self._attr = attr
+        self.add_in_new_layer = False
 
         if attr == "None":
             self._getter: Callable[..., Any] = lambda: None
@@ -123,10 +136,17 @@ class AListWidget(ListWidget):
             self.addItems(self.model.get_items(self._attr))
 
     def _onAction(self, items: Iterable[str]) -> None:
+        channels_to_load: list[str] = []
         for item in sorted(set(items)):
             if isinstance(self.model.layer, (Image)):
-                i = self.model.layer.metadata["adata"].var.index.get_loc(item)
-                self.viewer.dims.set_point(0, i)
+                if self.add_in_new_layer:
+                    channels_to_load.append(item)
+                else:
+                    layer = self.model.layer
+                    data_ndim = layer.data[-1].ndim if layer.multiscale else layer.data.ndim
+                    if data_ndim > 2:
+                        i = layer.metadata["adata"].var.index.get_loc(item)
+                        self.viewer.dims.set_point(0, i)
             else:
                 vec, name, index = self._getter(item, index=self.getIndex())
 
@@ -162,6 +182,9 @@ class AListWidget(ListWidget):
                     #  done
                     # TODO(giovp): make layer editable?
                     # self.viewer.layers[layer_name].editable = False
+
+        if channels_to_load:
+            self.load_channels.emit(tuple(channels_to_load))
 
     def setAdataLayer(self, layer: str | None) -> None:
         if layer in ("default", "None", "X"):

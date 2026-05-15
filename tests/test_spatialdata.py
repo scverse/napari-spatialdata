@@ -80,7 +80,7 @@ def test_sdatawidget_images(make_napari_viewer: Any, blobs_extra_cs: SpatialData
     "images", [["blobs_image", "blobs_image_str_ch"], ["blobs_multiscale_image", "blobs_multiscale_image_str_ch"]]
 )
 def test_channel_selection(qtbot, make_napari_viewer, sdata_channel_images, images):
-    """Test selecting a channel from an image with integer channel names."""
+    """Test selecting a channel from an image via _onClick (the underlying mechanism used by 'add in new layer')."""
     # Create a viewer
     viewer = make_napari_viewer()
 
@@ -91,19 +91,11 @@ def test_channel_selection(qtbot, make_napari_viewer, sdata_channel_images, imag
     center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
     click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
 
-    # Click on the image element to populate the channel widget
+    # Click on the image element
     center_pos = get_center_pos_listitem(widget.elements_widget, images[0])
     click_list_widget_item(qtbot, widget.elements_widget, center_pos, "currentItemChanged")
 
-    # Verify that the channel widget has been populated with the correct channels
-    assert widget.channel_widget.count() == 3
-    assert widget.channel_widget.item(0).text() == "0"
-    assert widget.channel_widget.item(1).text() == "1"
-    assert widget.channel_widget.item(2).text() == "2"
-
-    # Double-click on a channel to add it as a layer
-    center_pos = get_center_pos_listitem(widget.channel_widget, "1")
-    click_list_widget_item(qtbot, widget.channel_widget, center_pos, "currentItemChanged", "double")
+    # Load a specific channel via _onClick (triggered by "add in new layer" checkbox in the View widget)
     widget._onClick(images[0], "1")
 
     # Verify that the layer has been added with the correct name and data
@@ -116,17 +108,39 @@ def test_channel_selection(qtbot, make_napari_viewer, sdata_channel_images, imag
     center_pos = get_center_pos_listitem(widget.elements_widget, images[1])
     click_list_widget_item(qtbot, widget.elements_widget, center_pos, "currentItemChanged")
 
-    assert widget.channel_widget.count() == 3
-    assert widget.channel_widget.item(0).text() == "channel1"
-    assert widget.channel_widget.item(1).text() == "channel2"
-    assert widget.channel_widget.item(2).text() == "channel3"
-
-    center_pos = get_center_pos_listitem(widget.channel_widget, "channel2")
-    click_list_widget_item(qtbot, widget.channel_widget, center_pos, "currentItemChanged", "double")
     widget._onClick(images[1], "channel2")
 
     assert len(viewer.layers) == 2
     assert viewer.layers[1].name == f"{images[1]}_ch:channel2"
+
+
+@pytest.mark.parametrize(
+    "images", [["blobs_image", "blobs_image_str_ch"], ["blobs_multiscale_image", "blobs_multiscale_image_str_ch"]]
+)
+def test_add_in_new_layer_multiple_channels(qtbot, make_napari_viewer, sdata_channel_images, images):
+    """Test that enqueueing multiple channels loads each as a separate layer in order."""
+    viewer = make_napari_viewer()
+    widget = SdataWidget(viewer, EventedList([sdata_channel_images]))
+
+    center_pos = get_center_pos_listitem(widget.coordinate_system_widget, "global")
+    click_list_widget_item(qtbot, widget.coordinate_system_widget, center_pos, "currentItemChanged")
+    center_pos = get_center_pos_listitem(widget.elements_widget, images[0])
+    click_list_widget_item(qtbot, widget.elements_widget, center_pos, "currentItemChanged")
+
+    # Enqueue all three channels in one go — mirrors what _load_channels_in_new_layer does
+    # when the user has multiple vars selected with "add in new layer" checked.
+    for ch in ["0", "1", "2"]:
+        widget._enqueue_channel(images[0], ch)
+
+    qtbot.waitUntil(lambda: len(viewer.layers) == 3, timeout=5000)
+
+    layer_names = {layer.name for layer in viewer.layers}
+    for ch in ["0", "1", "2"]:
+        assert f"{images[0]}_ch:{ch}" in layer_names
+
+    for layer in viewer.layers:
+        assert isinstance(layer, Image)
+        assert layer.data.shape == (512, 512)
 
 
 def test_sdatawidget_labels(qtbot, make_napari_viewer: Any, blobs_extra_cs: SpatialData):
