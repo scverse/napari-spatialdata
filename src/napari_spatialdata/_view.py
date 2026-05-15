@@ -21,9 +21,11 @@ from pandas.api.types import CategoricalDtype
 from qtpy import QtWidgets
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import (
+    QCheckBox,
     QComboBox,
     QDialog,
     QGridLayout,
+    QHBoxLayout,
     QInputDialog,
     QLabel,
     QLineEdit,
@@ -41,9 +43,7 @@ from napari_spatialdata._scatterwidgets import AxisWidgets, PlotWidget
 from napari_spatialdata._widgets import (
     AListWidget,
     AnnDataSaveDialog,
-    CBarWidget,
     ComponentWidget,
-    RangeSliderWidget,
     SaveDialog,
     ScatterAnnotationDialog,
 )
@@ -453,8 +453,19 @@ class QtAdataViewWidget(QWidget):
         # Vars
         var_label = QLabel("Vars:")
         var_label.setToolTip("Names from `adata.var_names` or `adata.raw.var_names`.")
+        self.add_in_new_layer_checkbox = QCheckBox("add in new layer")
+        self.add_in_new_layer_checkbox.setChecked(False)
+        var_header = QWidget()
+        var_header_layout = QHBoxLayout(var_header)
+        var_header_layout.setContentsMargins(0, 0, 0, 0)
+        var_header_layout.addWidget(var_label)
+        var_header_layout.addWidget(self.add_in_new_layer_checkbox)
+        var_header_layout.addStretch()
+
         self.var_widget = AListWidget(self.viewer, self.model, attr="var")
         self.var_widget.setAdataLayer("X")
+        self.add_in_new_layer_checkbox.toggled.connect(self._on_add_in_new_layer_toggled)
+        self.var_widget.load_channels.connect(self._load_channels_in_new_layer)
 
         self.viewer.dims.events.current_step.connect(self._channel_changed)
 
@@ -470,7 +481,7 @@ class QtAdataViewWidget(QWidget):
 
         self.layout().addWidget(adata_layer_label)
         self.layout().addWidget(self.adata_layer_widget)
-        self.layout().addWidget(var_label)
+        self.layout().addWidget(var_header)
         self.layout().addWidget(self.var_widget)
 
         # obsm
@@ -497,18 +508,24 @@ class QtAdataViewWidget(QWidget):
         self.color_by = QLabel("Colored by:")
         self.layout().addWidget(self.color_by)
 
-        # scalebar
-        colorbar = CBarWidget(model=self.model)
-        self.slider = RangeSliderWidget(self.viewer, self.model, colorbar=colorbar)
-        self._viewer.window.add_dock_widget(self.slider, area="left", name="slider")
-        self._viewer.window.add_dock_widget(colorbar, area="left", name="colorbar")
-        self.viewer.layers.selection.events.active.connect(self.slider._onLayerChange)
-
         if (layer := self.viewer.layers.selection.active) is not None and layer.metadata.get("adata") is not None:
             self._on_layer_update()
 
         self.model.events.adata.connect(self._on_layer_update)
         self.model.events.color_by.connect(self._change_color_by)
+
+    def _on_add_in_new_layer_toggled(self, checked: bool) -> None:
+        self.var_widget.add_in_new_layer = checked
+
+    def _load_channels_in_new_layer(self, channel_names: tuple[str, ...]) -> None:
+        layer = self.model.layer
+        if layer is None:
+            return
+        layer_name = layer.name
+        element_name = layer_name[: layer_name.rfind("_ch:")] if "_ch:" in layer_name else layer_name
+        sdata_widget = self._viewer.window._dock_widgets["SpatialData"].widget()
+        for channel_name in channel_names:
+            sdata_widget._enqueue_channel(element_name, channel_name)
 
     def _channel_changed(self, event: Event) -> None:
         layer = self.model.layer
@@ -522,6 +539,14 @@ class QtAdataViewWidget(QWidget):
             return
 
         current_point = list(event.value)
+        data = layer.data[-1] if isinstance(layer.data, MultiScaleData) else layer.data
+        # after loading a channel into a new layer, the new layer is selected, but one can
+        # still load additional channels as new layers. If deselecting the checkbox for adding
+        # channels as new layers, without the next if block one would get a crash due to
+        # going out of index
+        if data.ndim < len(current_point):
+            return
+
         displayed = self._viewer.dims.displayed
         if layer.multiscale:
             for i, (lo_size, hi_size, cord) in enumerate(
