@@ -28,8 +28,6 @@ class DataModel:
     _layer: Layer = field(init=False, default=None, repr=True)
     _adata: AnnData | None = field(init=False, default=None, repr=True)
     _adata_layer: str | None = field(init=False, default=None, repr=False)
-    _region_key: str | None = field(default=None, repr=True)
-    _instance_key: str | None = field(default=None, repr=True)
     _color_by: str = field(default="", repr=True, init=False)
     _system_name: str | None = field(default=None, repr=True)
 

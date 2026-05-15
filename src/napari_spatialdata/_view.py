@@ -65,9 +65,7 @@ class QtAdataScatterWidget(QWidget):
             self._viewer = napari_viewer
 
             self._model = (
-                model
-                if model is not None
-                else self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model._model
+                model if model is not None else self._viewer.window.dock_widgets["SpatialData"].viewer_model._model
             )
 
             self._select_layer()
@@ -241,9 +239,8 @@ class QtAdataScatterWidget(QWidget):
 
                     # check that the view widget is present
                     # and trigger its update
-                    if "View (napari-spatialdata)" in dict(self._viewer.window._dock_widgets.items()):
-                        view_widget = dict(self._viewer.window._dock_widgets.items())["View (napari-spatialdata)"]
-                        qtAdataViewWidget = [x for x in view_widget.children() if isinstance(x, QtAdataViewWidget)][0]
+                    if "View (napari-spatialdata)" in self._viewer.window.dock_widgets:
+                        qtAdataViewWidget = self._viewer.window.dock_widgets["View (napari-spatialdata)"]
                         qtAdataViewWidget._on_layer_update()
 
                 # new annotation - update options
@@ -306,9 +303,7 @@ class QtAdataScatterWidget(QWidget):
             selected_table = self.table_name_widget.currentText()
 
             # trigger saving of the table
-            # TODO: have to find another way to pass this as this is deprecated from 0.5.0 onwards
-            # it's used in the save_sdata method
-            self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
+            self._viewer_model = self._viewer.window.dock_widgets["SpatialData"].viewer_model
             self._viewer_model._write_element_to_disk(
                 selected_layer.metadata["sdata"],
                 selected_table,
@@ -611,8 +606,6 @@ class QtAdataViewWidget(QWidget):
         if self.model.adata.shape == (0, 0):
             return
 
-        self.model._region_key = layer.metadata["region_key"] if isinstance(layer, Labels) else None
-        self.model._instance_key = layer.metadata["instance_key"] if isinstance(layer, Labels) else None
         self.model.system_name = layer.metadata.get("name", None)
 
         if hasattr(
@@ -695,8 +688,7 @@ class QtAdataAnnotationWidget(QWidget):
     def __init__(self, napari_viewer: Viewer):
         super().__init__()
         self._viewer = napari_viewer
-        # TODO: have to find another way to pass this as this is deprecated from 0.5.0 onwards
-        self._viewer_model = self._viewer.window._dock_widgets["SpatialData"].widget().viewer_model
+        self._viewer_model = self._viewer.window.dock_widgets["SpatialData"].viewer_model
 
         self.setLayout(QGridLayout())
         self._current_color = "#FFFFFF"
