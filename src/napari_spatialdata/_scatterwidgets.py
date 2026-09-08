@@ -15,7 +15,7 @@ from pandas.api.types import CategoricalDtype
 from pyqtgraph import GraphicsLayoutWidget, GraphicsWidget
 from pyqtgraph.graphicsItems import ROI
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
-from pyqtgraph.Qt.QtCore import pyqtSignal
+from qtpy.QtCore import Signal as pyqtSignal
 from pyqtgraph.widgets.ColorButton import ColorButton
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
