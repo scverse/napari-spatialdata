@@ -136,7 +136,8 @@ class DataModel:
         except KeyError:
             raise KeyError(f"Key `{name}` not found in `adata.var_names`.") from None
 
-        column = self.adata._get_X(layer=self.adata_layer)[ix]
+        X = self.adata.X if self.adata_layer is None else self.adata.layers[self.adata_layer]
+        column = X[ix]
         index = self.adata.obs[[self.instance_key]].set_index(self.instance_key).index
         return column, self._format_key(name, adata_layer=True), index
 
