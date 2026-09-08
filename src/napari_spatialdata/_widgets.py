@@ -18,12 +18,7 @@ from napari.utils import DirectLabelColormap
 from napari.viewer import Viewer
 from qtpy import QtCore, QtWidgets
 from qtpy.QtCore import Qt, Signal
-from sklearn.preprocessing import MinMaxScaler
 from spatialdata._types import ArrayLike
-from superqt import QRangeSlider
-from vispy import scene
-from vispy.color.colormap import Colormap, MatplotlibColormap
-from vispy.scene.widgets import ColorBarWidget
 
 # See https://github.com/scverse/squidpy/issues/1061 for more details.
 # Scanpy 0.11.x-0.12.x renamed set_default_colors_for_categorical_obs to _set_default_colors_for_categorical_obs
@@ -36,7 +31,7 @@ except ImportError:
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import _min_max_norm, get_napari_version
 
-__all__ = ["AListWidget", "CBarWidget", "RangeSliderWidget", "ComponentWidget"]
+__all__ = ["AListWidget", "ComponentWidget"]
 
 # label string: attribute name
 # TODO(giovp): remove since layer controls private?
@@ -63,8 +58,9 @@ class ListWidget(QtWidgets.QListWidget):
         self._index: int | str = 0
         self._unique = unique
         self._viewer = viewer
+        self._pre_click_selection: tuple[str, ...] = ()
 
-        self.itemDoubleClicked.connect(lambda item: self._onAction((item.text(),)))
+        self.itemDoubleClicked.connect(self._on_item_double_clicked)
         self.enterPressed.connect(self._onAction)
         self.indexChanged.connect(self._onAction)
 
@@ -93,6 +89,17 @@ class ListWidget(QtWidgets.QListWidget):
             super().addItems(labels)
             # self.sortItems(QtCore.Qt.AscendingOrder)
 
+    def mousePressEvent(self, event: QtCore.QEvent) -> None:
+        self._pre_click_selection = tuple(s.text() for s in self.selectedItems())
+        super().mousePressEvent(event)
+
+    def _on_item_double_clicked(self, item: QtWidgets.QListWidgetItem) -> None:
+        pre = self._pre_click_selection
+        if len(pre) > 1 and item.text() in pre:
+            self._onAction(pre)
+        else:
+            self._onAction((item.text(),))
+
     def keyPressEvent(self, event: QtCore.QEvent) -> None:
         if event.key() == QtCore.Qt.Key_Return:
             event.accept()
@@ -103,6 +110,7 @@ class ListWidget(QtWidgets.QListWidget):
 
 class AListWidget(ListWidget):
     layerChanged = Signal()
+    load_channels = Signal(object)  # emits a tuple[str, ...] of channel names
 
     def __init__(self, viewer: Viewer | None, model: DataModel, attr: str, **kwargs: Any):
         if attr != "None" and attr not in DataModel.VALID_ATTRIBUTES:
@@ -111,8 +119,8 @@ class AListWidget(ListWidget):
 
         self._viewer = viewer
         self._model = model
-
         self._attr = attr
+        self.add_in_new_layer = False
 
         if attr == "None":
             self._getter: Callable[..., Any] = lambda: None
@@ -128,10 +136,17 @@ class AListWidget(ListWidget):
             self.addItems(self.model.get_items(self._attr))
 
     def _onAction(self, items: Iterable[str]) -> None:
+        channels_to_load: list[str] = []
         for item in sorted(set(items)):
             if isinstance(self.model.layer, (Image)):
-                i = self.model.layer.metadata["adata"].var.index.get_loc(item)
-                self.viewer.dims.set_point(0, i)
+                if self.add_in_new_layer:
+                    channels_to_load.append(item)
+                else:
+                    layer = self.model.layer
+                    data_ndim = layer.data[-1].ndim if layer.multiscale else layer.data.ndim
+                    if data_ndim > 2:
+                        i = layer.metadata["adata"].var.index.get_loc(item)
+                        self.viewer.dims.set_point(0, i)
             else:
                 vec, name, index = self._getter(item, index=self.getIndex())
 
@@ -167,6 +182,9 @@ class AListWidget(ListWidget):
                     #  done
                     # TODO(giovp): make layer editable?
                     # self.viewer.layers[layer_name].editable = False
+
+        if channels_to_load:
+            self.load_channels.emit(tuple(channels_to_load))
 
     def setAdataLayer(self, layer: str | None) -> None:
         if layer in ("default", "None", "X"):
@@ -414,193 +432,6 @@ class ComponentWidget(QtWidgets.QComboBox):
         if field not in ("var", "obs", "obsm"):
             raise ValueError(f"{field} is not a valid adata field.")
         self._attr = field
-
-
-class CBarWidget(QtWidgets.QWidget):
-    FORMAT = "{0:0.2f}"
-
-    cmapChanged = Signal(str)
-    climChanged = Signal((float, float))
-
-    def __init__(
-        self,
-        model: DataModel,
-        cmap: str = "viridis",
-        label: str | None = None,
-        width: int | None = 250,
-        height: int | None = 50,
-        **kwargs: Any,
-    ):
-        super().__init__(**kwargs)
-
-        self._model = model
-
-        self._clim = (0.0, 1.0)
-        self._oclim = self._clim
-
-        self._width = width
-        self._height = height
-        self._label = label
-
-        self.__init_UI()
-
-    def __init_UI(self) -> None:
-        self.setFixedWidth(self._width)
-        self.setFixedHeight(self._height)
-
-        # use napari's BG color for dark mode
-        self._canvas = scene.SceneCanvas(
-            size=(self._width, self._height), bgcolor="#262930", parent=self, decorate=False, resizable=False, dpi=150
-        )
-        self._colorbar = ColorBarWidget(
-            self._create_colormap(self.cmap),
-            orientation="top",
-            label=self._label,
-            label_color="white",
-            clim=self.getClim(),
-            border_width=1.0,
-            border_color="black",
-            padding=(0.3, 0.167),
-            axis_ratio=0.05,
-        )
-
-        self._canvas.central_widget.add_widget(self._colorbar)
-
-        self.climChanged.connect(self.onClimChanged)
-        self.cmapChanged.connect(self.onCmapChanged)
-
-    def _create_colormap(self, cmap: str) -> Colormap:
-        ominn, omaxx = self.getOclim()
-        delta = omaxx - ominn + 1e-12
-
-        minn, maxx = self.getClim()
-        minn = (minn - ominn) / delta
-        maxx = (maxx - ominn) / delta
-
-        assert 0 <= minn <= 1, f"Expected `min` to be in `[0, 1]`, found `{minn}`"
-        assert 0 <= maxx <= 1, f"Expected `maxx` to be in `[0, 1]`, found `{maxx}`"
-
-        cm = MatplotlibColormap(cmap)
-
-        return Colormap(cm[np.linspace(minn, maxx, len(cm.colors))], interpolation="linear")
-
-    def getCmap(self) -> str:
-        return self.cmap
-
-    def onCmapChanged(self, value: str) -> None:
-        # this does not trigger update for some reason...
-        self._colorbar.cmap = self._create_colormap(value)
-        self._colorbar._colorbar._update()
-
-    def setClim(self, value: tuple[float, float]) -> None:
-        if value == self._clim:
-            return
-
-        self._clim = value
-        self.climChanged.emit(*value)
-
-    def getClim(self) -> tuple[float, float]:
-        return self._clim
-
-    def getOclim(self) -> tuple[float, float]:
-        return self._oclim
-
-    def setOclim(self, value: tuple[float, float]) -> None:
-        # original color limit used for 0-1 normalization
-        self._oclim = value
-
-    def onClimChanged(self, minn: float, maxx: float) -> None:
-        # ticks are not working with vispy's colorbar
-        self._colorbar.cmap = self._create_colormap(self.cmap)
-        self._colorbar.clim = (self.FORMAT.format(minn), self.FORMAT.format(maxx))
-
-    def getCanvas(self) -> scene.SceneCanvas:
-        return self._canvas
-
-    def getColorBar(self) -> ColorBarWidget:
-        return self._colorbar
-
-    def setLayout(self, layout: QtWidgets.QLayout) -> None:
-        layout.addWidget(self.getCanvas().native)
-        super().setLayout(layout)
-
-    def update_color(self) -> None:
-        # when changing selected layers that have the same limit
-        # could also trigger it as self._colorbar.clim = self.getClim()
-        # but the above option also updates geometry
-        # cbarwidget->cbar->cbarvisual
-        self._colorbar._colorbar._colorbar._update()
-
-    @property
-    def cmap(self) -> str:
-        return self._model.cmap
-
-
-class RangeSliderWidget(QRangeSlider):
-    def __init__(self, viewer: Viewer, model: DataModel, colorbar: CBarWidget, **kwargs: Any):
-        super().__init__(**kwargs)
-
-        self._viewer = viewer
-        self._model = model
-        self._colorbar = colorbar
-        self._cmap = plt.get_cmap(self._colorbar.cmap)
-        self.setValue((0, 100))
-        self.setSliderPosition((0, 100))
-        self.setSingleStep(0.01)
-        self.setOrientation(Qt.Horizontal)
-        self.valueChanged.connect(self._onValueChange)
-
-    def _onLayerChange(self) -> None:
-        layer = self.viewer.layers.selection.active
-        if layer is not None:
-            self._onValueChange((0, 100))
-
-    def _onValueChange(self, percentile: tuple[float, float]) -> None:
-        layer = self.viewer.layers.selection.active
-        # TODO(michalk8): use constants
-        if "data" not in layer.metadata:
-            return None  # noqa: RET501
-        v = layer.metadata["data"]
-        # this code is currently not used since the slider is not enabled; so I silenced the mypy error; 2. there is a
-        # mismatch for this error with the mypy in the CI, so I silenced the unused-ignore from the local mypy.
-        # when this code is re-enabled, let's fix mypy
-        clipped = np.clip(v, *np.percentile(v, percentile))  # type: ignore[misc,unused-ignore]
-
-        if isinstance(layer, Points):
-            layer.metadata = {**layer.metadata, "perc": percentile}
-            layer.face_color = "value"
-            layer.properties = {"value": clipped}
-            layer.refresh_colors()
-        elif isinstance(layer, Labels):
-            norm_vec = self._scale_vec(clipped)
-            color_vec = self._cmap(norm_vec)
-            layer.color = dict(zip(layer.color.keys(), color_vec, strict=False))
-            layer.properties = {"value": clipped}
-            layer.refresh()
-
-        self._colorbar.setOclim(layer.metadata["minmax"])
-        self._colorbar.setClim((np.min(layer.properties["value"]), np.max(layer.properties["value"])))
-        self._colorbar.update_color()
-
-    def _scale_vec(self, vec: ArrayLike) -> ArrayLike:
-        ominn, omaxx = self._colorbar.getOclim()
-        delta = omaxx - ominn + 1e-12
-
-        minn, maxx = self._colorbar.getClim()
-        minn = (minn - ominn) / delta
-        maxx = (maxx - ominn) / delta
-        scaler = MinMaxScaler(feature_range=(minn, maxx))
-        return scaler.fit_transform(vec.reshape(-1, 1))
-
-    @property
-    def viewer(self) -> napari.Viewer:
-        """:mod:`napari` viewer."""
-        return self._viewer
-
-    @property
-    def model(self) -> DataModel:
-        """:mod:`napari` viewer."""
-        return self._model
 
 
 class SaveDialog(QtWidgets.QDialog):

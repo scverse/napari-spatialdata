@@ -1,3 +1,11 @@
+"""Widgets for displaying and interacting with SpatialData objects in napari.
+
+This module provides a set of Qt widgets for visualizing and interacting with
+SpatialData objects within the napari viewer. It includes a ListWidget for selecting
+coordinate systems, browsing elements within SpatialData objects, and handling
+channel selection for multidimensional image data.
+"""
+
 from __future__ import annotations
 
 import platform
@@ -5,7 +13,7 @@ from collections.abc import Iterable
 from importlib.metadata import version
 from operator import itemgetter
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import shapely
@@ -30,7 +38,11 @@ from spatialdata.models._utils import DEFAULT_COORDINATE_SYSTEM
 from napari_spatialdata._viewer import SpatialDataViewer
 from napari_spatialdata.constants import config
 from napari_spatialdata.constants.config import N_CIRCLES_WARNING_THRESHOLD, N_SHAPES_WARNING_THRESHOLD
-from napari_spatialdata.utils._utils import _get_sdata_key, get_duplicate_element_names, get_elements_meta_mapping
+from napari_spatialdata.utils._utils import (
+    _get_sdata_key,
+    get_duplicate_element_names,
+    get_elements_meta_mapping,
+)
 
 if TYPE_CHECKING:
     from napari import Viewer
@@ -55,21 +67,76 @@ else:
     PROBLEMATIC_NUMPY_MACOS = False
 
 
-class ElementWidget(QListWidget):
-    def __init__(self, sdata: EventedList):
+class ListWidget(QListWidget):
+    """Widget for displaying and selecting coordinate systems or elements from SpatialData objects.
+
+    This widget can show a list of coordinate systems or available elements (images, labels, points, shapes)
+    from the SpatialData objects, with warnings for elements that might be slow to render.
+
+    Attributes
+    ----------
+    _icon : QIcon
+        Icon used for warning indicators for elements that might be slow to render.
+    _sdata : EventedList
+        List of SpatialData objects.
+    _duplicate_element_names : dict
+        Dictionary of duplicate element names across SpatialData objects.
+    _elements : dict or None
+        Dictionary with metadata of the currently visible elements.
+    _system : str or None
+        Currently selected coordinate system.
+    """
+
+    def __init__(self, sdata: EventedList, coordinate_system: bool = False):
+        """Initialize the Widget.
+
+        Parameters
+        ----------
+        sdata : EventedList
+            List of SpatialData objects to display elements from.
+        coordinate_system : bool
+            If True, populate the widget with coordinate systems instead of elements.
+        """
         super().__init__()
         self._icon = QIcon(str(icon_path))
         self._sdata = sdata
         self._duplicate_element_names, _ = get_duplicate_element_names(self._sdata)
-        self._elements: None | dict[str, dict[str, str | int]] = None
+        self._elements: dict[str, dict[str, str | int]] | None = None
+        self._system: None | str = None
 
-    def _onItemChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
+        if coordinate_system:
+            # Sort alphabetically, but keep default "global" at the top.
+            coordinate_systems = sorted({cs for sdata in self._sdata for cs in sdata.coordinate_systems})
+            if DEFAULT_COORDINATE_SYSTEM in coordinate_systems:
+                coordinate_systems.remove(DEFAULT_COORDINATE_SYSTEM)
+                coordinate_systems.insert(0, DEFAULT_COORDINATE_SYSTEM)
+            self.addItems(coordinate_systems)
+
+    def _onCsItemChange(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
+        """Update the element list of an element widget when the coordinate system selection changes.
+
+        Parameters
+        ----------
+        selected_coordinate_system : QListWidgetItem or int or Iterable[str]
+            The newly selected coordinate system.
+            Can be a QListWidgetItem, an index, or an iterable of strings.
+        """
         self.clear()
         elements, _ = get_elements_meta_mapping(self._sdata, selected_coordinate_system, self._duplicate_element_names)
         self._set_element_widget_items(elements)
         self._elements = elements
 
     def _set_element_widget_items(self, elements: dict[str, dict[str, str | int]]) -> None:
+        """Populate an element widget with element items.
+
+        Adds each element as an item in the list widget, with warning icons for elements
+        that might be slow to render (e.g., many circles or shapes).
+
+        Parameters
+        ----------
+        elements : dict[str, dict[str, str | int]]
+            Dictionary mapping element names to their metadata.
+        """
         for key, dict_val in sorted(elements.items(), key=itemgetter(0)):
             sdata = self._sdata[dict_val["sdata_index"]]
             element_type = dict_val["element_type"]
@@ -98,29 +165,59 @@ class ElementWidget(QListWidget):
                     )
             self.addItem(item)
 
-
-class CoordinateSystemWidget(QListWidget):
-    def __init__(self, sdata: EventedList):
-        super().__init__()
-
-        self._sdata = sdata
-        self._system: None | str = None
-
-        # Sort alphabetically, but keep default "global" at the top.
-        coordinate_systems = sorted(cs for sdata in self._sdata for cs in sdata.coordinate_systems)
-        if DEFAULT_COORDINATE_SYSTEM in coordinate_systems:
-            coordinate_systems.remove(DEFAULT_COORDINATE_SYSTEM)
-            coordinate_systems.insert(0, DEFAULT_COORDINATE_SYSTEM)
-        self.addItems(coordinate_systems)
-
     def _select_coord_sys(self, selected_coordinate_system: QListWidgetItem | int | Iterable[str]) -> None:
+        """Store the currently selected coordinate system.
+
+        Parameters
+        ----------
+        selected_coordinate_system : QListWidgetItem or int or Iterable[str]
+            The selected coordinate system.
+            Can be a QListWidgetItem, an index, or an iterable of strings.
+        """
         self._system = str(selected_coordinate_system)
 
 
 class DataLoadThread(QThread):
+    """Thread for asynchronously loading SpatialData elements.
+
+    This thread handles loading different types of data (images, labels, points, shapes)
+    from SpatialData objects without blocking the UI.
+
+    Parameters
+    ----------
+    parent : SdataWidget
+        Parent SdataWidget that owns this thread.
+
+    Attributes
+    ----------
+    returned : Signal
+        Signal emitted when data loading is complete, carrying the created layer.
+    sdata_widget : SdataWidget
+        Parent SdataWidget that owns this thread.
+    _data_type : str
+        Type of data to load (images, labels, points, shapes).
+    _text : str
+        Name of the element to load.
+    _sdata : SpatialData
+        SpatialData object containing the element.
+    _selected_cs : str
+        Selected coordinate system.
+    _multi : bool
+        Boolean indicating if multiple SpatialData objects are present.
+    _channel_name : str, optional
+        Optional channel name for image data.
+    """
+
     returned = Signal(object)
 
     def __init__(self, parent: SdataWidget):
+        """Initialize the DataLoadThread.
+
+        Parameters
+        ----------
+        parent : SdataWidget
+            Parent SdataWidget that owns this thread.
+        """
         super().__init__(parent=parent)
         self.sdata_widget = parent
         self._data_type = ""
@@ -129,21 +226,58 @@ class DataLoadThread(QThread):
         self._selected_cs: str = ""
         self._multi: bool = False
 
-    def load_data(self, data_type: str, text: str, sdata: SpatialData, selected_cs: str, multi: bool) -> None:
+    def load_data(
+        self,
+        data_type: str,
+        text: str,
+        sdata: SpatialData,
+        selected_cs: str,
+        multi: bool,
+        channel_name: str | None = None,
+    ) -> None:
+        """Set up data loading parameters and start the thread.
+
+        Parameters
+        ----------
+        data_type : str
+            Type of data to load (images, labels, points, shapes).
+        text : str
+            Name of the element to load.
+        sdata : SpatialData
+            SpatialData object containing the element.
+        selected_cs : str
+            Selected coordinate system.
+        multi : bool
+            Boolean indicating if multiple SpatialData objects are present.
+        channel_name : str, optional
+            Optional channel name for image data.
+
+        Raises
+        ------
+        RuntimeError
+            If the thread is already running.
+        """
         if self.isRunning():
             raise RuntimeError("Thread is already running.")
         self._data_type = data_type
         self._text = text
+        self._channel_name = channel_name
         self._sdata = sdata
         self._selected_cs = selected_cs
         self._multi = multi
 
         if PROBLEMATIC_NUMPY_MACOS:
             self.run()
+            self.finished.emit()
         else:
             self.start()
 
     def run(self) -> None:
+        """Execute the data loading operation.
+
+        Loads the specified data element based on its type and emits the
+        returned layer through the 'returned' signal.
+        """
         if not self._data_type:
             return
         if self._data_type == "labels":
@@ -152,7 +286,7 @@ class DataLoadThread(QThread):
             )
         elif self._data_type == "images":
             layer = self.sdata_widget.viewer_model.get_sdata_image(
-                self._sdata, self._text, self._selected_cs, self._multi
+                self._sdata, self._text, self._selected_cs, self._multi, self._channel_name
             )
         elif self._data_type == "points":
             layer = self.sdata_widget.viewer_model.get_sdata_points(
@@ -167,18 +301,51 @@ class DataLoadThread(QThread):
 
 
 class SdataWidget(QWidget):
+    """Main widget for interacting with SpatialData objects in napari.
+
+    This widget combines coordinate system selection and element browsing into a
+    unified interface for visualizing SpatialData objects in napari.
+    It manages the loading and display of different data types and handles coordinate
+    system transformations.
+
+    Attributes
+    ----------
+    _sdata
+        List of SpatialData objects.
+    viewer_model
+        SpatialDataViewer instance for interacting with napari.
+    worker_thread
+        Thread for asynchronous data loading.
+    coordinate_system_widget
+        Widget for selecting coordinate systems.
+    elements_widget
+        Widget for browsing and selecting elements.
+    slider
+        Progress bar shown during data loading.
+    """
+
     def __init__(self, viewer: Viewer, sdata: EventedList):
+        """Initialize the SdataWidget.
+
+        Parameters
+        ----------
+        viewer : Viewer
+            napari Viewer instance.
+        sdata : EventedList
+            List of SpatialData objects to visualize.
+        """
         super().__init__()
         self._sdata = sdata
         self.viewer_model = SpatialDataViewer(viewer, self._sdata)
+        self._load_queue: list[tuple[Any, ...]] = []
         self.worker_thread = DataLoadThread(parent=self)
         self.worker_thread.returned.connect(self.viewer_model.viewer.add_layer)
-        self.worker_thread.finished.connect(self._hide_slider)
+        self.worker_thread.finished.connect(self._on_load_finished)
 
         self.setLayout(QVBoxLayout())
 
-        self.coordinate_system_widget = CoordinateSystemWidget(self._sdata)
-        self.elements_widget = ElementWidget(self._sdata)
+        self.coordinate_system_widget = ListWidget(self._sdata, coordinate_system=True)
+        self.elements_widget = ListWidget(self._sdata)
         self.slider = QProgressBar(self)
         self.slider.setRange(0, 0)
         self.slider.setVisible(False)
@@ -216,14 +383,14 @@ class SdataWidget(QWidget):
         self.layout().addWidget(self._three_d_settings_label)
         self.layout().addWidget(self.discard_z_points)
         self.layout().addWidget(self.discard_z_shapes)
-        self.elements_widget.itemDoubleClicked.connect(self._on_click_item)
+        self.elements_widget.itemDoubleClicked.connect(self._on_doubleclick_element_item)
         self.coordinate_system_widget.currentItemChanged.connect(
-            lambda item: self.elements_widget._onItemChange(item.text())
+            lambda item: self.elements_widget._onCsItemChange(item.text())
         )
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.coordinate_system_widget._select_coord_sys(item.text())
         )
-        self.viewer_model.layer_saved.connect(self.elements_widget._onItemChange)
+        self.viewer_model.layer_saved.connect(self.elements_widget._onCsItemChange)
         self.coordinate_system_widget.currentItemChanged.connect(self._update_layers_visibility)
         self.coordinate_system_widget.currentItemChanged.connect(
             lambda item: self.viewer_model._affine_transform_layers(item.text())
@@ -231,24 +398,59 @@ class SdataWidget(QWidget):
         self.viewer_model.viewer.layers.events.inserted.connect(self._on_insert_layer)
 
     def _on_insert_layer(self, event: Event) -> None:
+        """Connect visibility events for newly inserted layers.
+
+        Parameters
+        ----------
+        event : Event
+            Event containing the newly inserted layer.
+        """
         layer = event.value
         layer.events.visible.connect(self._update_visible_in_coordinate_system)
 
-    def _on_click_item(self, item: QListWidgetItem) -> None:
+    def _on_doubleclick_element_item(self, item: QListWidgetItem) -> None:
+        """Handle double-click events on element items in the element widget.
+
+        Loads and displays the selected element.
+
+        Parameters
+        ----------
+        item : QListWidgetItem
+            The double-clicked element item.
+        """
         self._onClick(item.text())
 
     def _hide_slider(self) -> None:
+        """Hide the progress slider when data loading is complete."""
         self.slider.setVisible(False)
 
-    def _onClick(self, text: str) -> None:
+    def _on_load_finished(self) -> None:
+        self._hide_slider()
+        self._process_queue()
+
+    def _process_queue(self) -> None:
+        if self._load_queue:
+            task = self._load_queue.pop(0)
+            self._start_load(*task)
+
+    def _onClick(self, element_name: str, channel_name: str | None = None) -> None:
+        """Handle click events to load and display data elements.
+
+        Parameters
+        ----------
+        element_name : str
+            Name of the element to load.
+        channel_name : str, optional
+            Name of the channel to load for image elements.
+        """
         selected_cs = self.coordinate_system_widget._system
         if self.worker_thread.isRunning():
             show_info("Please wait for the current operation to finish.")
             return
 
         if selected_cs and self.elements_widget._elements:
-            sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, text)
-            if (type_ := self.elements_widget._elements[text]["element_type"]) not in {
+            sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, element_name)
+            if (type_ := self.elements_widget._elements[element_name]["element_type"]) not in {
                 "labels",
                 "images",
                 "shapes",
@@ -256,12 +458,40 @@ class SdataWidget(QWidget):
             }:
                 return
 
-            self.worker_thread.load_data(type_, text, sdata, selected_cs, multi)
-            if not PROBLEMATIC_NUMPY_MACOS:
-                self.slider.setVisible(True)
+            self._start_load(type_, element_name, sdata, selected_cs, multi, channel_name)
+
+    def _enqueue_channel(self, element_name: str, channel_name: str) -> None:
+        """Queue a channel load, starting immediately if the thread is idle."""
+        selected_cs = self.coordinate_system_widget._system
+        if not selected_cs or not self.elements_widget._elements:
+            return
+        if element_name not in self.elements_widget._elements:
+            return
+        sdata, multi = _get_sdata_key(self._sdata, self.elements_widget._elements, element_name)
+        type_ = self.elements_widget._elements[element_name]["element_type"]
+        if type_ != "images":
+            return
+        task = (type_, element_name, sdata, selected_cs, multi, channel_name)
+        if self.worker_thread.isRunning() or self._load_queue:
+            self._load_queue.append(task)
+        else:
+            self._start_load(*task)
+
+    def _start_load(
+        self, type_: str, element_name: str, sdata: SpatialData, selected_cs: str, multi: bool, channel_name: str | None
+    ) -> None:
+        if not PROBLEMATIC_NUMPY_MACOS:
+            self.slider.setVisible(True)
+        self.worker_thread.load_data(type_, element_name, sdata, selected_cs, multi, channel_name)
 
     def _update_visible_in_coordinate_system(self, event: Event) -> None:
-        """Toggle active in the coordinate system metadata when changing visibility of layer."""
+        """Toggle active status in the coordinate system metadata when changing layer visibility.
+
+        Parameters
+        ----------
+        event : Event
+            Event triggered by changing layer visibility.
+        """
         metadata = event.source.metadata
         layer_active = metadata.get("_active_in_cs")
         selected_coordinate_system = self.coordinate_system_widget._system
@@ -275,7 +505,12 @@ class SdataWidget(QWidget):
                 layer_active.remove(selected_coordinate_system)
 
     def _update_layers_visibility(self) -> None:
-        """Toggle layer visibility dependent on presence in currently selected coordinate system."""
+        """Toggle layer visibility based on presence in the currently selected coordinate system.
+
+        Updates the visibility of all layers based on whether they are active in the
+        currently selected coordinate system. Also updates layer metadata to track
+        coordinate system information.
+        """
         elements = self.elements_widget._elements
         coordinate_system = self.coordinate_system_widget._system
         # No layer selected on first time coordinate system selection
@@ -312,6 +547,33 @@ class SdataWidget(QWidget):
         return False
 
     def _get_shapes(self, sdata: SpatialData, key: str, selected_cs: str, multi: bool) -> Shapes | Points:
+        """Load and create appropriate layer for shape data.
+
+        Determines the geometry type of the shapes element and calls the appropriate
+        method to create either a Points layer (for Point geometries) or a Shapes
+        layer (for Polygon or MultiPolygon geometries).
+
+        Parameters
+        ----------
+        sdata : SpatialData
+            SpatialData object containing the shapes element.
+        key : str
+            Name of the shapes element to load.
+        selected_cs : str
+            Selected coordinate system.
+        multi : bool
+            Whether multiple SpatialData objects are present.
+
+        Returns
+        -------
+        Shapes or Points
+            The created napari layer.
+
+        Raises
+        ------
+        TypeError
+            If the geometry type is not Point, Polygon, or MultiPolygon.
+        """
         original_name = key[: key.rfind("_")] if multi else key
 
         if type(sdata.shapes[original_name].iloc[0].geometry) is shapely.geometry.point.Point:
