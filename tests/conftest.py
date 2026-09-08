@@ -219,7 +219,6 @@ def adata_shapes() -> AnnData:
     obsm_shapes = {"spatial": rng.integers(0, blobs.shape[0], size=(n_obs_shapes, 2))}
     return AnnData(
         rng.normal(size=(n_obs_shapes, n_var)),
-        dtype=np.float64,
         obs=obs_shapes,
         obsm=obsm_shapes,
         uns=uns_shapes,
@@ -295,7 +294,6 @@ def generate_adata(n_var: int, obs: pd.DataFrame, obsm: dict[Any, Any], uns: dic
         obs=obs,
         obsm=obsm,
         uns=uns,
-        dtype=np.float64,
     )
 
 
