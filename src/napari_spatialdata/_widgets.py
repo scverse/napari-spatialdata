@@ -226,7 +226,21 @@ class AListWidget(ListWidget):
                 color_dict.update({np.nan: "#808080ff"})
             else:
                 colors = self.model.adata.uns[vec_color_name]
-                color_dict = dict(zip(vec.cat.categories, colors.tolist(), strict=True))
+                # One color per category: pair them in order.
+                if len(colors) == len(vec.cat.categories):
+                    color_dict = dict(zip(vec.cat.categories, colors.tolist(), strict=True))
+                else:
+                    observed = vec.cat.remove_unused_categories().cat.categories
+                    # The table rows annotating this element do not use every category, so the colors
+                    # of the unused categories were already dropped.
+                    if len(colors) == len(observed):
+                        color_dict = dict(zip(observed, colors.tolist(), strict=True))
+                    else:
+                        raise ValueError(
+                            f"The palette in uns[{vec_color_name!r}] has {len(colors)} colors, but "
+                            f"{vec.name!r} has {len(vec.cat.categories)} categories, so colors "
+                            f"cannot be matched to categories."
+                        )
         else:
             df = layer.metadata["_columns_df"]
             if vec_color_name not in df.columns:
