@@ -15,7 +15,6 @@ from pandas.api.types import CategoricalDtype
 from pyqtgraph import GraphicsLayoutWidget, GraphicsWidget
 from pyqtgraph.graphicsItems import ROI
 from pyqtgraph.Qt import QtCore, QtGui, QtWidgets
-from pyqtgraph.Qt.QtCore import pyqtSignal
 from pyqtgraph.widgets.ColorButton import ColorButton
 from qtpy.QtCore import QSize, Qt, Signal
 from qtpy.QtGui import QColor, QIcon
@@ -208,7 +207,7 @@ class AxisWidgets(QtWidgets.QWidget):
 class DiscreteColorWidget(GraphicsWidget):
 
     # Define the custom signal
-    paletteChanged = pyqtSignal()
+    paletteChanged = Signal()
 
     def __init__(self, model: DataModel, color_data: dict[str, Any]):
         super().__init__()
