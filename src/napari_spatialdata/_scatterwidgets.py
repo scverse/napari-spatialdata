@@ -923,11 +923,11 @@ class PlotWidget(GraphicsLayoutWidget):
             logger.debug("Left press detected")
 
             # Get the position of the click in the scene
-            scene_pos = event.pos()
+            scene_pos = self.mapToScene(event.pos())
 
             # Check if the click is within the scatter plot view box
             if not self.scatter_plot.vb.sceneBoundingRect().contains(scene_pos):
-                logger.debug("Click outside scatter plot view box, scene position: {scene_pos}")
+                logger.debug(f"Click outside scatter plot view box, scene position: {scene_pos}")
                 return
 
             pen = pg.mkPen(color="gray", width=2)
@@ -938,7 +938,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
             if self.drawing:
 
-                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                plot_pos = self.scatter_plot.vb.mapSceneToView(scene_pos)
 
                 self.current_roi = pg.PolyLineROI(
                     [], closed=True, removable=True, pen=pen, handlePen=handlePen, hoverPen=hoverPen
@@ -946,7 +946,7 @@ class PlotWidget(GraphicsLayoutWidget):
                 self.scatter_plot.addItem(self.current_roi)
 
                 self.current_points = [(plot_pos.x(), plot_pos.y())]
-                self.last_pos = (event.pos().x(), event.pos().y())
+                self.last_pos = (scene_pos.x(), scene_pos.y())
 
                 event.accept()
 
@@ -954,7 +954,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
                 logger.info("Rectangle")
 
-                plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                plot_pos = self.scatter_plot.vb.mapSceneToView(scene_pos)
                 self.current_roi = pg.RectROI(
                     pos=(plot_pos.x(), plot_pos.y()),
                     size=(0, 0),
@@ -979,16 +979,17 @@ class PlotWidget(GraphicsLayoutWidget):
         if self.drawing and self.current_roi is not None:
 
             if self.last_pos is not None:
-                dist = np.sqrt((event.pos().x() - self.last_pos[0]) ** 2 + (event.pos().y() - self.last_pos[1]) ** 2)
+                scene_pos = self.mapToScene(event.pos())
+                dist = np.sqrt((scene_pos.x() - self.last_pos[0]) ** 2 + (scene_pos.y() - self.last_pos[1]) ** 2)
 
                 if dist > self.vertex_add_threshold:
 
-                    plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+                    plot_pos = self.scatter_plot.vb.mapSceneToView(scene_pos)
                     self.current_points.append((plot_pos.x(), plot_pos.y()))
 
                     self.current_roi.setPoints(self.current_points)
 
-                    self.last_pos = (event.pos().x(), event.pos().y())
+                    self.last_pos = (scene_pos.x(), scene_pos.y())
 
                     logger.debug(f"Updated points for PolyLineROI: {self.current_points}")
 
@@ -996,7 +997,7 @@ class PlotWidget(GraphicsLayoutWidget):
 
         elif self.rectangle and self.current_roi is not None and self.initial_pos is not None:
 
-            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+            plot_pos = self.scatter_plot.vb.mapSceneToView(self.mapToScene(event.pos()))
             width = plot_pos.x() - self.initial_pos.x()  # type: ignore[attr-defined]
             height = plot_pos.y() - self.initial_pos.y()  # type: ignore[attr-defined]
             self.current_roi.setSize([width, height])
@@ -1010,7 +1011,7 @@ class PlotWidget(GraphicsLayoutWidget):
             super().mouseMoveEvent(event)
 
         # Get cursor position
-        scene_pos = event.pos()
+        scene_pos = self.mapToScene(event.pos())
         plot_pos = self.scatter_plot.vb.mapSceneToView(scene_pos)
 
         # Update the cursor position label
@@ -1021,7 +1022,8 @@ class PlotWidget(GraphicsLayoutWidget):
 
     def mouseReleaseEvent(self, event: Any) -> None:
 
-        logger.debug(f"Mouse release event detected at {self.scatter_plot.vb.mapSceneToView(event.pos())}")
+        scene_pos = self.mapToScene(event.pos())
+        logger.debug(f"Mouse release event detected at {self.scatter_plot.vb.mapSceneToView(scene_pos)}")
 
         if self.drawing and event.button() == Qt.LeftButton:
 
@@ -1049,7 +1051,7 @@ class PlotWidget(GraphicsLayoutWidget):
     def mouseDoubleClickEvent(self, event: Any) -> None:
         if event.button() == Qt.LeftButton:
 
-            plot_pos = self.scatter_plot.vb.mapSceneToView(event.pos())
+            plot_pos = self.scatter_plot.vb.mapSceneToView(self.mapToScene(event.pos()))
             point = Point(plot_pos.x(), plot_pos.y())
 
             self.remove_roi(point=point)

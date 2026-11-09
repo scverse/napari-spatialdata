@@ -182,8 +182,8 @@ def plot_coords_to_viewport(plot_widget, x, y):
 
 def send_mouse_event(event_type, widget, pos, button=QtCore.Qt.LeftButton):
     """Send a mouse event to a widget."""
-    # necessary because of https://bugreports.qt.io/browse/QTBUG-5232
-    event = QtGui.QMouseEvent(event_type, pos, button, button, QtCore.Qt.NoModifier)
+    # necessary because of https://bugreports.qt.io/browse/QTBUG-5232; Qt6 bindings need a QPointF position
+    event = QtGui.QMouseEvent(event_type, QtCore.QPointF(pos), button, button, QtCore.Qt.NoModifier)
     QtWidgets.QApplication.sendEvent(widget, event)
 
 

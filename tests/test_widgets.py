@@ -316,7 +316,7 @@ def test_old_annotation(adata_labels, annotation_values, mocker):
     col_name = scatter_widget.model.adata.obs.columns[0]
     mocker.patch.object(scatter_widget, "open_annotation_dialog", return_value=col_name)
     mocker.patch.object(scatter_widget.plot_widget, "get_selection", return_value=annotation_values)
-    mocker.patch("PyQt5.QtWidgets.QMessageBox.question", return_value=QtWidgets.QMessageBox.Yes)
+    mocker.patch.object(QtWidgets.QMessageBox, "question", return_value=QtWidgets.QMessageBox.Yes)
 
     scatter_widget.export()
 
