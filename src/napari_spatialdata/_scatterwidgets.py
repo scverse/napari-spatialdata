@@ -1022,8 +1022,10 @@ class PlotWidget(GraphicsLayoutWidget):
 
     def mouseReleaseEvent(self, event: Any) -> None:
 
-        scene_pos = self.mapToScene(event.pos())
-        logger.debug(f"Mouse release event detected at {self.scatter_plot.vb.mapSceneToView(scene_pos)}")
+        # also called by scene().sigMouseClicked with a pyqtgraph MouseClickEvent, whose pos() mapToScene can't take
+        if isinstance(event, QtGui.QMouseEvent):
+            scene_pos = self.mapToScene(event.pos())
+            logger.debug(f"Mouse release event detected at {self.scatter_plot.vb.mapSceneToView(scene_pos)}")
 
         if self.drawing and event.button() == Qt.LeftButton:
 
