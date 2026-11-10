@@ -1,4 +1,4 @@
-![SpatialData banner](https://github.com/scverse/spatialdata/blob/main/docs/_static/img/spatialdata_horizontal.png?raw=true)
+![SpatialData banner](https://github.com/scverse/spatialdata/blob/main/docs/_static/img/spatialdata_horizontal.svg?raw=true)
 
 # napari-spatialdata: interactive exploration and annotation of spatial omics data
 
