@@ -6,6 +6,7 @@ import pandas as pd
 import pytest
 from anndata import AnnData
 from anndata.tests.helpers import assert_equal
+from matplotlib.colors import to_rgba
 from napari.layers import Image, Labels
 from napari.utils.events import EventedList
 from qtpy import QtWidgets
@@ -15,6 +16,7 @@ from spatialdata._types import ArrayLike
 from napari_spatialdata._model import DataModel
 from napari_spatialdata._sdata_widgets import SdataWidget
 from napari_spatialdata._view import QtAdataScatterWidget, QtAdataViewWidget
+from napari_spatialdata._widgets import AListWidget
 
 
 # make_napari_viewer is a pytest fixture that returns a napari viewer object
@@ -322,3 +324,26 @@ def test_old_annotation(adata_labels, annotation_values, mocker):
 
     assert np.array_equal(scatter_widget._model.adata.obs[col_name], annotation_values)
     assert scatter_widget.status_label.text() == "Status: Annotation updated."
+
+
+def test_palette_length_mismatch(
+    make_napari_viewer: Any,
+    adata_labels: AnnData,
+    labels: ArrayLike,
+) -> None:
+    """A palette holding colors only for the used categories is matched to those categories."""
+    color_by_category = {"beta": "#222222", "delta": "#444444"}
+    values = np.resize(list(color_by_category), adata_labels.n_obs)
+    adata_labels.obs["annotation"] = pd.Categorical(values, categories=["alpha", "beta", "gamma", "delta"])
+    adata_labels.uns["annotation_colors"] = np.array(list(color_by_category.values()))
+
+    viewer = make_napari_viewer()
+    layer = viewer.add_labels(labels, metadata={"adata": adata_labels, "indices": np.unique(labels)[1:]})
+
+    model = DataModel()
+    model.adata = adata_labels
+    model.layer = layer
+    AListWidget(viewer, model, attr="obs")._onAction(items=["annotation"])
+
+    for cell_id, category in zip(adata_labels.obs["cell_id"], values, strict=True):
+        assert np.allclose(layer.colormap.color_dict[cell_id], to_rgba(color_by_category[category]))
