@@ -8,8 +8,7 @@ import pandas as pd
 from anndata import AnnData
 from cycler import Cycler, cycler
 from loguru import logger
-from matplotlib import cm, colors, rcParams
-from matplotlib import pyplot as pl
+from matplotlib import cm, colormaps, colors, rcParams
 from matplotlib.axes import Axes
 from matplotlib.colors import is_color_like, to_hex
 from pandas.api.types import CategoricalDtype
@@ -281,9 +280,9 @@ def _set_colors_for_categorical_obs(
     """
     # categories = adata.obs[value_to_plot].cat.categories
     # check is palette is a valid matplotlib colormap
-    if isinstance(palette, str) and palette in pl.colormaps():
+    if isinstance(palette, str) and palette in colormaps():
         # this creates a palette from a colormap. E.g. 'Accent, Dark2, tab20'
-        cmap = pl.get_cmap(palette)
+        cmap = colormaps[palette]
         colors_list = [to_hex(x) for x in cmap(np.linspace(0, 1, len(categories)))]
     elif isinstance(palette, Mapping):
         colors_list = [to_hex(palette[k], keep_alpha=True) for k in categories]
