@@ -36,7 +36,8 @@ def test_creating_widget_with_data(
     )
     model = DataModel()
     # create our widget, passing in the viewer
-    _ = widget(viewer, model)
+    w = widget(viewer, model)
+    viewer.window.add_dock_widget(w)
     viewer.layers.selection.events.changed.disconnect()
 
 
