@@ -8,39 +8,12 @@ from spatialdata.datasets import blobs
 
 from napari_spatialdata.utils._utils import (
     _adjust_channels_order,
-    _get_categorical,
     _get_transform,
     _min_max_norm,
     _points_inside_triangles,
     _position_cluster_labels,
-    _set_palette,
 )
 from tests.conftest import OFFSCREEN
-
-
-def test_get_categorical(adata_labels: AnnData):
-    assert _get_categorical(adata_labels, key="categorical").shape == (adata_labels.n_obs, 3)
-
-
-def test_set_palette(adata_labels: AnnData):
-    assert np.array_equal(
-        _get_categorical(adata_labels, key="categorical"),
-        _get_categorical(adata_labels, key="categorical", colordict=_set_palette(adata_labels, key="categorical")),
-    )
-
-
-def test_value_error(adata_labels: AnnData):
-    col_dict = _set_palette(adata_labels, key="categorical")
-    col_dict[1] = "non_existing_color"
-    with pytest.raises(ValueError) as err:
-        _get_categorical(adata_labels, key="categorical", colordict=col_dict)
-    assert "`non_existing_color` is not an acceptable color." in str(err.value)
-    col_dict[27] = col_dict.pop(1)
-    with pytest.raises(ValueError) as err:
-        _get_categorical(adata_labels, key="categorical", colordict=col_dict)
-    assert "The key `27` in the given dictionary is not an existing category in anndata[`categorical`]." in str(
-        err.value
-    )
 
 
 def test_position_cluster_labels(adata_labels: AnnData):
