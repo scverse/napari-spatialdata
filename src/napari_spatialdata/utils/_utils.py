@@ -13,12 +13,10 @@ import pandas as pd
 from anndata import AnnData
 from dask.dataframe import DataFrame as DaskDataFrame
 from geopandas import GeoDataFrame
-from loguru import logger
-from matplotlib.colors import is_color_like, to_rgb
 from napari import __version__
 from napari.layers import Layer
 from numba import njit, prange
-from pandas.api.types import CategoricalDtype, infer_dtype
+from pandas.api.types import infer_dtype
 from pandas.core.dtypes.common import (
     is_bool_dtype,
     is_integer_dtype,
@@ -33,11 +31,6 @@ from spatialdata import SpatialData, get_extent, join_spatialelement_table
 from spatialdata.models import SpatialElement, get_axes_names
 from spatialdata.transformations import get_transformation
 from xarray import DataArray, DataTree
-
-from napari_spatialdata.constants._pkg_constants import Key
-from napari_spatialdata.utils._categoricals_utils import (
-    add_colors_for_categorical_sample_annotation,
-)
 
 if TYPE_CHECKING:
     from napari import Viewer
@@ -88,63 +81,6 @@ def _ensure_dense_vector(fn: Callable[..., Vector_name_index_t]) -> Callable[...
         return (_min_max_norm(res) if normalize else res), name, index
 
     return decorator
-
-
-def _get_palette(
-    adata: AnnData,
-    key: str,
-    palette: str | None = None,
-    vec: pd.Series | None = None,
-) -> dict[Any, Any]:
-    if key not in adata.obs:
-        raise KeyError("Missing key!")  # TODO: Improve error message
-
-    return dict(zip(adata.obs[key].cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]], strict=True))
-
-
-def _set_palette(
-    adata: AnnData,
-    key: str,
-    palette: str | None = None,
-    vec: pd.Series | None = None,
-) -> dict[Any, Any]:
-    if vec is not None and not isinstance(vec.dtype, CategoricalDtype):
-        raise TypeError(f"Expected a `categorical` type, found `{infer_dtype(vec)}`.")
-
-    add_colors_for_categorical_sample_annotation(
-        adata,
-        key=key,
-        vec=vec,
-        force_update_colors=palette is not None,
-        palette=palette,  # type: ignore[arg-type]
-    )
-    vec = vec if vec is not None else adata.obs[key]
-    #
-    return dict(zip(vec.cat.categories, [to_rgb(i) for i in adata.uns[Key.uns.colors(key)]], strict=True))
-
-
-def _get_categorical(
-    adata: AnnData,
-    key: str,
-    vec: pd.Series | None = None,
-    palette: str | None = None,
-    colordict: pd.Series | dict[Any, Any] | None = None,
-) -> ArrayLike:
-    categorical = vec if vec is not None else adata.obs[key]
-    if not isinstance(colordict, dict):
-        col_dict = _set_palette(adata, key, palette, colordict)
-    else:
-        col_dict = colordict
-        for cat in colordict:
-            if cat not in categorical.cat.categories:
-                raise ValueError(
-                    f"The key `{cat}` in the given dictionary is not an existing category in anndata[`{key}`]."
-                )
-            elif not is_color_like(colordict[cat]):  # noqa: RET506
-                raise ValueError(f"`{colordict[cat]}` is not an acceptable color.")
-
-    logger.debug(f"KEY: {key}")
-    return np.array([col_dict[v] for v in categorical])
 
 
 def _position_cluster_labels(coords: ArrayLike, clusters: pd.Series) -> dict[str, ArrayLike]:
