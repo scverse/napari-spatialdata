@@ -25,13 +25,20 @@ from vispy import scene
 from vispy.color.colormap import Colormap, MatplotlibColormap
 from vispy.scene.widgets import ColorBarWidget
 
-# See https://github.com/scverse/squidpy/issues/1061 for more details.
-# Scanpy 0.11.x-0.12.x renamed set_default_colors_for_categorical_obs to _set_default_colors_for_categorical_obs
-# and then changed it back. Try underscore version first, fall back to non-underscore.
+# scanpy keeps this helper in a private module, and it has moved in every minor release:
+#   >=1.13: scanpy.plotting.legacy._utils.set_colors_for_categorical_obs
+#   1.12.x: scanpy.plotting._utils.set_colors_for_categorical_obs
+#   1.11.x: scanpy.plotting._utils._set_colors_for_categorical_obs
+# It's expected to move again after anndata 0.14, see https://github.com/scverse/scanpy/issues/4525
 try:
-    from scanpy.plotting._utils import _set_colors_for_categorical_obs as set_colors_for_categorical_obs
+    from scanpy.plotting.legacy._utils import set_colors_for_categorical_obs
 except ImportError:
-    from scanpy.plotting._utils import set_colors_for_categorical_obs
+    try:
+        from scanpy.plotting._utils import set_colors_for_categorical_obs
+    except ImportError:
+        from scanpy.plotting._utils import (
+            _set_colors_for_categorical_obs as set_colors_for_categorical_obs,
+        )
 
 from napari_spatialdata._model import DataModel
 from napari_spatialdata.utils._utils import _min_max_norm, get_napari_version
